@@ -41,10 +41,11 @@ const AppState = {
     // Configuración de botones
     buttons: [],
     
-    // OP (Orden de Producción) activa
+    // OP (Orden de Producción) activa - contenedor del cambio de formato
     opActiva: {
-        numero: '',
-        colores: 1
+        numero: '',      // Número de OP (ej: "OP-2024-001")
+        colores: 1,      // Cantidad de colores del pedido
+        turno: 'T1'      // Turno: T1, T2, T3
     },
     
     // Configuración general
@@ -320,6 +321,7 @@ const Timer = {
             // OP (Orden de Producción) activa
             op: AppState.opActiva.numero || '',
             colores: AppState.opActiva.colores || 1,
+            turno: AppState.opActiva.turno || 'T1',
             // Tiempos
             fechaExcel: Utils.dateToExcel(now), // Fecha en formato Excel (con decimales para hora)
             inicioSeg: startSeconds < 0 ? startSeconds + 86400 : startSeconds, // Segundos del día inicio
@@ -443,15 +445,15 @@ const ButtonManager = {
  */
 
 const CSV = {
-    // Exportar con formato numérico simple
+    // Exportar con formato completo (incluye OP, Colores, Turno)
     export: () => {
         if (AppState.registros.length === 0) {
             alert('No hay datos para exportar');
             return;
         }
         
-        // Headers simples y numéricos
-        const headers = ['FechaExcel', 'Actividad', 'Categoria', 'Tipo', 'InicioSeg', 'FinSeg', 'DuracionSeg'];
+        // Headers con OP, Colores, Turno
+        const headers = ['FechaExcel', 'OP', 'Colores', 'Turno', 'Actividad', 'Categoria', 'Tipo', 'InicioSeg', 'FinSeg', 'DuracionSeg'];
         
         const rows = AppState.registros.map(r => {
             // Calcular fechaExcel si no existe
@@ -476,11 +478,14 @@ const CSV = {
             let inicioSeg = r.inicioSeg;
             if (inicioSeg === undefined) {
                 inicioSeg = Utils.round2(finSeg - (r.duracion || r.duration || 0));
-                if (inicioSeg < 0) inicioSeg += 86400; // Ajuste si cruzó medianoche
+                if (inicioSeg < 0) inicioSeg += 86400;
             }
             
             return [
                 Utils.round2(fechaExcel),
+                r.op || '',
+                r.colores || 1,
+                r.turno || 'T1',
                 r.name,
                 r.cat,
                 r.tipo || 'INT',
@@ -490,13 +495,13 @@ const CSV = {
             ];
         });
         
-        // CSV sin comillas para números, solo comillas en texto
-        let csvContent = '\ufeff'; // BOM para Excel
+        // CSV con comillas en texto
+        let csvContent = '\ufeff';
         csvContent += headers.join(',') + '\n';
         csvContent += rows.map(row => 
             row.map((cell, i) => {
-                // Actividad y Categoría entre comillas, el resto sin comillas
-                if (i === 1 || i === 2 || i === 3) {
+                // OP, Turno, Actividad, Categoria, Tipo entre comillas
+                if (i === 1 || i === 3 || i === 4 || i === 5 || i === 6) {
                     return `"${String(cell).replace(/"/g, '""')}"`;
                 }
                 return cell;
@@ -655,10 +660,14 @@ const UI = {
         }).join('');
     },
     
-    // Grid de botones SMED
+    // Grid de botones SMED - muestra OP activa en cada botón
     renderButtons: () => {
         const container = document.getElementById('buttonsGrid');
         if (!container) return;
+        
+        // Mostrar OP activa en cada botón
+        const opActiva = AppState.opActiva.numero ? AppState.opActiva.numero.padStart(8, '0') : '';
+        const turnoActivo = AppState.opActiva.turno || 'T1';
         
         container.innerHTML = AppState.buttons.map(btn => {
             const isActive = AppState.activeTimers[btn.cat] && 
@@ -671,10 +680,25 @@ const UI = {
                         onclick="Timer.handleButtonClick('${btn.id}')">
                     <span class="btn-name">${isActive ? '▶ ' : ''}${btn.name}</span>
                     <span class="btn-cat">${btn.cat}</span>
+                    ${opActiva ? `<span style="font-size:0.6rem; color:#00ff9d; opacity:0.8;">OP: ${opActiva}</span>` : '<span style="font-size:0.6rem; color:#ff4444;">Sin OP</span>'}
                     ${isActive ? `<span class="btn-timer" data-btn-timer="${btn.id}">${elapsed.toFixed(1)}s</span>` : ''}
                 </button>
             `;
         }).join('');
+        
+        // Actualizar indicador de estado OP
+        const opStatus = document.getElementById('opStatus');
+        if (opStatus) {
+            if (opActiva) {
+                opStatus.innerHTML = `<span style="color:#00ff9d;">✓ ${opActiva}</span><br><span style="font-size:10px;">${turnoActivo}</span>`;
+                opStatus.style.background = 'rgba(0,255,157,0.1)';
+                opStatus.style.border = '1px solid #00ff9d';
+            } else {
+                opStatus.innerHTML = 'Sin OP activa';
+                opStatus.style.background = '#333';
+                opStatus.style.border = 'none';
+            }
+        }
     },
     
     // Actualizar opciones del filtro de historial (categorías dinámicas)
@@ -724,8 +748,8 @@ const UI = {
             <div class="history-item">
                 <div class="item-info">
                     <span class="item-name">${record.name}</span>
-                    <span class="item-cat">${record.cat}</span>
-                    <span class="item-time">Fin: ${record.endTime}</span>
+                    <span class="item-cat">${record.cat}${record.op ? ` • <span style="color:#00ff9d;">${record.op}</span>` : ''}${record.turno ? ` [${record.turno}]` : ''}</span>
+                    <span class="item-time">Fin: ${record.endTime}${record.colores > 1 ? ` • ${record.colores} colores` : ''}</span>
                 </div>
                 <div class="item-actions">
                     <span class="item-duration">${record.duration}s</span>
