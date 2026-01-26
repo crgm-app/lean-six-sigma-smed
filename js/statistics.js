@@ -15,50 +15,88 @@ const Statistics = {
         sixSigma: {}
     },
     
-    // Actualizar opciones del filtro
+    // Actualizar opciones del filtro (incluye OP dinámica)
     updateFilterOptions: () => {
-        const select = document.getElementById('statsFilter');
-        if (!select) return;
-        
-        const currentValue = select.value;
-        
-        // Recopilar categorías y actividades únicas
-        const cats = [...new Set(AppState.registros.map(r => r.cat))];
-        const names = [...new Set(AppState.registros.map(r => r.name))];
-        
-        let html = '<option value="ALL">Todo el Historial</option>';
-        
-        if (cats.length > 0) {
-            html += '<optgroup label="Por Categoría">';
-            cats.forEach(c => html += `<option value="CAT:${c}">${c}</option>`);
-            html += '</optgroup>';
+        // Filtro de Categoría
+        const selectCat = document.getElementById('statsFilter');
+        if (selectCat) {
+            const currentValue = selectCat.value;
+            const cats = [...new Set(AppState.registros.map(r => r.cat))];
+            const names = [...new Set(AppState.registros.map(r => r.name))];
+            
+            let html = '<option value="ALL">Todas</option>';
+            if (cats.length > 0) {
+                html += '<optgroup label="Por Categoría">';
+                cats.forEach(c => html += `<option value="CAT:${c}">${c}</option>`);
+                html += '</optgroup>';
+            }
+            if (names.length > 0) {
+                html += '<optgroup label="Por Actividad">';
+                names.forEach(n => html += `<option value="NAME:${n}">${n}</option>`);
+                html += '</optgroup>';
+            }
+            selectCat.innerHTML = html;
+            selectCat.value = currentValue || 'ALL';
         }
         
-        if (names.length > 0) {
-            html += '<optgroup label="Por Actividad">';
-            names.forEach(n => html += `<option value="NAME:${n}">${n}</option>`);
-            html += '</optgroup>';
+        // Filtro de OP (dinámico)
+        const selectOP = document.getElementById('statsFilterOP');
+        if (selectOP) {
+            const currentOP = selectOP.value;
+            const ops = [...new Set(AppState.registros.filter(r => r.op).map(r => r.op))].sort();
+            
+            let html = '<option value="ALL">Todas las OP</option>';
+            ops.forEach(op => {
+                const count = AppState.registros.filter(r => r.op === op).length;
+                html += `<option value="${op}">${op.padStart(8, '0')} (${count})</option>`;
+            });
+            selectOP.innerHTML = html;
+            selectOP.value = currentOP || 'ALL';
         }
-        
-        select.innerHTML = html;
-        select.value = currentValue || 'ALL';
     },
     
-    // Calcular estadísticas
+    // Calcular estadísticas con filtros de OP, Turno, Colores, Categoría
     calculate: () => {
-        const filter = document.getElementById('statsFilter')?.value || 'ALL';
-        let values = [];
+        const filterCat = document.getElementById('statsFilter')?.value || 'ALL';
+        const filterOP = document.getElementById('statsFilterOP')?.value || 'ALL';
+        const filterTurno = document.getElementById('statsFilterTurno')?.value || 'ALL';
+        const filterColores = document.getElementById('statsFilterColores')?.value || 'ALL';
         
-        // Filtrar datos
-        if (filter === 'ALL') {
-            values = AppState.registros.map(r => r.duration);
-        } else if (filter.startsWith('CAT:')) {
-            const cat = filter.split(':')[1];
-            values = AppState.registros.filter(r => r.cat === cat).map(r => r.duration);
-        } else if (filter.startsWith('NAME:')) {
-            const name = filter.split(':')[1];
-            values = AppState.registros.filter(r => r.name === name).map(r => r.duration);
+        // Aplicar todos los filtros
+        let filtered = [...AppState.registros];
+        
+        // Filtro por OP
+        if (filterOP !== 'ALL') {
+            filtered = filtered.filter(r => r.op === filterOP);
         }
+        
+        // Filtro por Turno
+        if (filterTurno !== 'ALL') {
+            filtered = filtered.filter(r => r.turno === filterTurno);
+        }
+        
+        // Filtro por Colores
+        if (filterColores !== 'ALL') {
+            const numColores = parseInt(filterColores);
+            if (numColores === 5) {
+                filtered = filtered.filter(r => (r.colores || 1) >= 5);
+            } else {
+                filtered = filtered.filter(r => (r.colores || 1) === numColores);
+            }
+        }
+        
+        // Filtro por Categoría/Actividad
+        if (filterCat !== 'ALL') {
+            if (filterCat.startsWith('CAT:')) {
+                const cat = filterCat.split(':')[1];
+                filtered = filtered.filter(r => r.cat === cat);
+            } else if (filterCat.startsWith('NAME:')) {
+                const name = filterCat.split(':')[1];
+                filtered = filtered.filter(r => r.name === name);
+            }
+        }
+        
+        let values = filtered.map(r => r.duration || r.duracion || 0);
         
         // Ordenar valores
         values = values.sort((a, b) => a - b);
