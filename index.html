@@ -137,14 +137,17 @@
                 </div>
 
                 <!-- Historial -->
-                <h2>Historial de Actividades</h2>
+                <h2>Historial de Actividades <span id="historyCount" style="font-size: 0.6em; color: #888;"></span></h2>
                 <!-- Filtros de Período -->
-                <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px;">
-                    <button class="action-btn" onclick="UI.filterHistoryByPeriod('today')" style="padding: 6px 12px; font-size: 0.85em;">📅 Hoy</button>
-                    <button class="action-btn" onclick="UI.filterHistoryByPeriod('week')" style="padding: 6px 12px; font-size: 0.85em;">📆 Semana</button>
-                    <button class="action-btn" onclick="UI.filterHistoryByPeriod('month')" style="padding: 6px 12px; font-size: 0.85em;">🗓️ Mes</button>
-                    <button class="action-btn" onclick="UI.filterHistoryByPeriod('year')" style="padding: 6px 12px; font-size: 0.85em;">📊 Año</button>
-                    <button class="action-btn" onclick="UI.filterHistoryByPeriod('all')" style="padding: 6px 12px; font-size: 0.85em;">🔄 Todo</button>
+                <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; align-items: center;">
+                    <button class="action-btn" onclick="Filtros.setPeriodo('today')" style="padding: 6px 12px; font-size: 0.85em;">📅 Hoy</button>
+                    <button class="action-btn" onclick="Filtros.setPeriodo('week')" style="padding: 6px 12px; font-size: 0.85em;">📆 Semana</button>
+                    <button class="action-btn" onclick="Filtros.setPeriodo('month')" style="padding: 6px 12px; font-size: 0.85em;">🗓️ Mes</button>
+                    <button class="action-btn" onclick="Filtros.setPeriodo('year')" style="padding: 6px 12px; font-size: 0.85em;">📊 Año</button>
+                    <button class="action-btn" onclick="Filtros.setPeriodo('all')" style="padding: 6px 12px; font-size: 0.85em;">🔄 Todo</button>
+                    <input type="date" id="historyDateFrom" style="padding: 5px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #00d4ff; font-size: 0.85em;" onchange="Filtros.setCustomRange(this.value, document.getElementById('historyDateTo').value)">
+                    <span style="color: #888;">→</span>
+                    <input type="date" id="historyDateTo" style="padding: 5px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #00d4ff; font-size: 0.85em;" onchange="Filtros.setCustomRange(document.getElementById('historyDateFrom').value, this.value)">
                 </div>
                 <!-- Filtros Adicionales -->
                 <div class="form-row mb-10" style="flex-wrap: wrap; gap: 8px;">
@@ -173,6 +176,14 @@
                             <option value="2">2</option>
                             <option value="3">3</option>
                             <option value="4">4+</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1; min-width: 80px;">
+                        <select id="historyFilterTipo" class="form-select" onchange="UI.renderHistory()">
+                            <option value="ALL">🏷️ Tipo</option>
+                            <option value="INT">🟠 INT</option>
+                            <option value="EXT">🟢 EXT</option>
+                            <option value="NVA">🔴 NVA</option>
                         </select>
                     </div>
                     <div class="form-group" style="flex:1; min-width: 90px;">
@@ -1023,11 +1034,14 @@
                     
                     <!-- Botones de Sincronización (visibles cuando está conectado) -->
                     <div id="googleSyncBtns" style="display: none; gap: 10px; flex-wrap: wrap; margin-top: 15px;">
+                        <button class="action-btn" onclick="GoogleDrive.forceSync()" style="background: #6366f1;">
+                            🔄 Sincronizar Ahora
+                        </button>
                         <button class="action-btn success" onclick="GoogleDrive.saveBackup()">
                             ☁️ Subir a Drive
                         </button>
                         <button class="action-btn primary" onclick="GoogleDrive.loadBackup()">
-                            📥 Descargar de Drive
+                            📥 Descargar/Fusionar
                         </button>
                     </div>
                     
