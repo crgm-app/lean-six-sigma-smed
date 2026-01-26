@@ -61,16 +61,7 @@
                     <div class="form-group">
                         <select id="historyFilter" class="form-select">
                             <option value="ALL">Todas las categorías</option>
-                            <option value="Preparación">Preparación</option>
-                            <option value="Ajuste Interno">Ajuste Interno</option>
-                            <option value="Ajuste Externo">Ajuste Externo</option>
-                            <option value="Verificación">Verificación</option>
-                            <option value="Limpieza">Limpieza</option>
-                            <option value="Muda">Muda</option>
-                            <option value="Espera">Espera</option>
-                            <option value="Transporte">Transporte</option>
-                            <option value="Movimiento">Movimiento</option>
-                            <option value="Defectos">Defectos</option>
+                            <!-- Las opciones se generan dinámicamente desde app.js -->
                         </select>
                     </div>
                 </div>
@@ -389,32 +380,23 @@
             <div class="card">
                 <h2>Gestión de Botones</h2>
                 
-                <!-- Formulario nuevo botón -->
+                <!-- Formulario nuevo botón (categoría automática de primera palabra) -->
                 <form id="addButtonForm" class="form-row mb-15">
-                    <div class="form-group" style="flex:2">
-                        <label class="form-label">Nombre de Actividad</label>
-                        <input type="text" id="newBtnName" class="form-input" placeholder="Ej: Cambio de Molde" required>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Categoría</label>
-                        <select id="newBtnCat" class="form-select" required>
-                            <option value="Preparación">Preparación</option>
-                            <option value="Ajuste Interno">Ajuste Interno</option>
-                            <option value="Ajuste Externo">Ajuste Externo</option>
-                            <option value="Verificación">Verificación</option>
-                            <option value="Limpieza">Limpieza</option>
-                            <option value="Muda">Muda (Desperdicio)</option>
-                            <option value="Espera">Espera</option>
-                            <option value="Transporte">Transporte</option>
-                            <option value="Movimiento">Movimiento</option>
-                            <option value="Defectos">Defectos</option>
-                        </select>
+                    <div class="form-group" style="flex:3">
+                        <label class="form-label">Nombre de Actividad (la primera palabra será la categoría)</label>
+                        <input type="text" id="newBtnName" class="form-input" placeholder="Ej: Troquel Limpiar, Sello Ajustar, Tinta Cargar" required>
                     </div>
                     <div class="form-group" style="flex:0">
                         <label class="form-label">&nbsp;</label>
                         <button type="submit" class="action-btn primary">+ Crear</button>
                     </div>
                 </form>
+                <div class="recommendation" style="margin-top:-10px; margin-bottom:15px;">
+                    <div class="recommendation-text">
+                        💡 <strong>Tip:</strong> La primera palabra del nombre se usa como categoría. 
+                        Ejemplo: "Troquel Montar" → Categoría: <strong>Troquel</strong>
+                    </div>
+                </div>
 
                 <!-- Lista de botones configurados -->
                 <h2>Botones Configurados</h2>
