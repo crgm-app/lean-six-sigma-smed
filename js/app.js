@@ -31,6 +31,90 @@ const COSTO_HORA_DEFAULT = 500; // GTQ por hora
 const MAQUINAS_DEFAULT = ['i4', 'i5', 'i6', 'i8', 'i10', 'i11', 'i12', 'i13', 'i14', 'i15', 'i16', 'i17'];
 
 // =====================================================
+// SISTEMA DE ROTACIÓN DE TURNOS (Ciclo de 3 semanas)
+// =====================================================
+
+// Fecha base: Domingo 26 enero 2026 (semana 1 del ciclo)
+const SEMANA_BASE = new Date(2026, 0, 26);
+
+const TurnoManager = {
+    // Horarios de cada jornada
+    HORARIOS: {
+        M: { nombre: 'Mañana', inicio: 6, fin: 14 },
+        T: { nombre: 'Tarde', inicio: 14, fin: 21 },
+        N: { nombre: 'Noche', inicio: 21, fin: 6 }
+    },
+    
+    // Rotación: cada fila es una semana del ciclo
+    // Columnas: M=Mañana, T=Tarde, N=Noche -> qué turno trabaja
+    ROTACION: [
+        { M: 'T1', T: 'T2', N: 'T3' }, // Semana 1 (actual)
+        { M: 'T2', T: 'T3', N: 'T1' }, // Semana 2
+        { M: 'T3', T: 'T1', N: 'T2' }  // Semana 3
+    ],
+    
+    // Obtener semana del ciclo (0, 1, o 2)
+    getSemanaDelCiclo: (fecha = new Date()) => {
+        const ms = fecha.getTime() - SEMANA_BASE.getTime();
+        const dias = Math.floor(ms / (24 * 60 * 60 * 1000));
+        const semanas = Math.floor(dias / 7);
+        return ((semanas % 3) + 3) % 3; // Manejo de valores negativos
+    },
+    
+    // Obtener horario actual (M, T, N)
+    getHorarioActual: (fecha = new Date()) => {
+        const hora = fecha.getHours();
+        if (hora >= 6 && hora < 14) return 'M';
+        if (hora >= 14 && hora < 21) return 'T';
+        return 'N'; // 21:00 - 06:00
+    },
+    
+    // Obtener turno que trabaja actualmente (T1, T2, T3)
+    getTurnoActual: (fecha = new Date()) => {
+        const semanaCiclo = TurnoManager.getSemanaDelCiclo(fecha);
+        const horario = TurnoManager.getHorarioActual(fecha);
+        return TurnoManager.ROTACION[semanaCiclo][horario];
+    },
+    
+    // Obtener info completa del turno actual
+    getInfoTurno: (fecha = new Date()) => {
+        const turno = TurnoManager.getTurnoActual(fecha);
+        const horario = TurnoManager.getHorarioActual(fecha);
+        const semana = TurnoManager.getSemanaDelCiclo(fecha) + 1;
+        const horarioInfo = TurnoManager.HORARIOS[horario];
+        
+        return {
+            turno: turno,
+            horario: horario,
+            nombreHorario: horarioInfo.nombre,
+            semanaCiclo: semana,
+            horaInicio: horarioInfo.inicio,
+            horaFin: horarioInfo.fin
+        };
+    },
+    
+    // Auto-seleccionar turno en el UI
+    autoSelectTurno: () => {
+        const turnoActual = TurnoManager.getTurnoActual();
+        const select = document.getElementById('opTurno');
+        if (select) {
+            select.value = turnoActual;
+            AppState.opActiva.turno = turnoActual;
+        }
+        
+        // Actualizar indicador de turno
+        const infoEl = document.getElementById('turnoInfo');
+        if (infoEl) {
+            const info = TurnoManager.getInfoTurno();
+            infoEl.innerHTML = `<small style="color:#00ff9d;">Sem.${info.semanaCiclo} | ${info.nombreHorario}</small>`;
+        }
+    }
+};
+
+// Exponer globalmente
+window.TurnoManager = TurnoManager;
+
+// =====================================================
 // ESTADO DE LA APLICACIÓN
 // =====================================================
 
@@ -685,8 +769,8 @@ const CSV = {
         // Limpiar nombre para usarlo en el archivo (quitar caracteres especiales)
         const nombreLimpio = nombreUsuario.trim().replace(/[^a-zA-Z0-9]/g, '_') || 'Usuario';
         
-        // Headers con OP, Colores, Turno
-        const headers = ['FechaExcel', 'OP', 'Colores', 'Turno', 'Actividad', 'Categoria', 'Tipo', 'InicioSeg', 'FinSeg', 'DuracionSeg'];
+        // Headers con OP, Colores, Turno, Maquina
+        const headers = ['FechaExcel', 'Maquina', 'OP', 'Colores', 'Turno', 'Actividad', 'Categoria', 'Tipo', 'InicioSeg', 'FinSeg', 'DuracionSeg'];
         
         const rows = AppState.registros.map(r => {
             // Calcular fechaExcel si no existe
@@ -716,6 +800,7 @@ const CSV = {
             
             return [
                 Utils.round2(fechaExcel),
+                r.maquina || '',
                 r.op || '',
                 r.colores || 1,
                 r.turno || 'T1',
@@ -783,20 +868,31 @@ const CSV = {
                     values.push(current.trim());
                     
                     if (isNewFormat) {
-                        // Nuevo formato: FechaExcel, Actividad, Categoria, Tipo, InicioSeg, FinSeg, DuracionSeg
+                        // Nuevo formato: FechaExcel, Maquina, OP, Colores, Turno, Actividad, Categoria, Tipo, InicioSeg, FinSeg, DuracionSeg
                         const fechaExcel = parseFloat(values[0]) || Utils.dateToExcel(new Date());
-                        const duracion = parseFloat(values[6]) || 0;
-                        const finSeg = parseFloat(values[5]) || 0;
-                        const inicioSeg = parseFloat(values[4]) || (finSeg - duracion);
+                        const maquina = values[1] || '';
+                        const op = values[2] || '';
+                        const colores = parseInt(values[3]) || 1;
+                        const turno = values[4] || 'T1';
+                        const name = values[5] || 'Actividad';
+                        const cat = values[6] || 'General';
+                        const tipo = values[7] || 'INT';
+                        const inicioSeg = parseFloat(values[8]) || 0;
+                        const finSeg = parseFloat(values[9]) || 0;
+                        const duracion = parseFloat(values[10]) || 0;
                         
                         // Convertir fechaExcel a fecha legible para campos legacy
                         const dateObj = Utils.excelToDate(fechaExcel);
                         
                         return {
                             id: Utils.generateId(),
-                            name: values[1] || 'Actividad',
-                            cat: values[2] || 'General',
-                            tipo: values[3] || 'INT',
+                            name: name,
+                            cat: cat,
+                            tipo: tipo,
+                            maquina: maquina,
+                            op: op,
+                            colores: colores,
+                            turno: turno,
                             fechaExcel: fechaExcel,
                             inicioSeg: Utils.round2(inicioSeg),
                             finSeg: Utils.round2(finSeg),
@@ -1132,6 +1228,11 @@ function init() {
     // Cargar datos guardados
     Storage.load();
     
+    // Auto-seleccionar turno basado en fecha/hora actual
+    setTimeout(() => {
+        TurnoManager.autoSelectTurno();
+    }, 100);
+    
     // Renderizar UI inicial
     UI.renderAll();
     
@@ -1141,7 +1242,9 @@ function init() {
     // Event listeners
     setupEventListeners();
     
-    console.log('SMED Analyzer Pro inicializado');
+    // Info del turno en consola
+    const info = TurnoManager.getInfoTurno();
+    console.log(`🏭 SMED Analyzer Pro inicializado | Turno: ${info.turno} (${info.nombreHorario}) | Semana ${info.semanaCiclo}/3`);
 }
 
 function setupEventListeners() {
@@ -1226,27 +1329,33 @@ const FreeTimers = {
         
         FreeTimers.active.push(timer);
         
-        // Iniciar interval para este timer
+        // Renderizar HTML una sola vez
+        FreeTimers.render();
+        
+        // Iniciar interval para este timer - solo actualizar texto, no reconstruir HTML
         timer.interval = setInterval(() => {
             if (!timer.stopped) {
                 timer.elapsed = (Date.now() - timer.start) / 1000;
-                FreeTimers.render();
+                // Solo actualizar el texto del contador, NO reconstruir todo el HTML
+                const displayEl = document.getElementById(`freeTimerDisplay_${id}`);
+                if (displayEl) {
+                    displayEl.textContent = timer.elapsed.toFixed(1) + 's';
+                }
             }
         }, 100);
-        
-        FreeTimers.render();
     },
     
     // Detener un cronómetro (mostrar panel de datos)
     stop: (id) => {
         const timer = FreeTimers.active.find(t => t.id === id);
-        if (timer) {
+        if (timer && !timer.stopped) {
             timer.stopped = true;
             timer.elapsed = (Date.now() - timer.start) / 1000;
             if (timer.interval) {
                 clearInterval(timer.interval);
                 timer.interval = null;
             }
+            // Reconstruir HTML para mostrar panel de datos
             FreeTimers.render();
         }
     },
@@ -1346,13 +1455,13 @@ const FreeTimers = {
                     </div>
                 `;
             } else {
-                // Mostrar timer corriendo
+                // Mostrar timer corriendo - con ID único para actualizar solo el texto
                 return `
                     <div style="display: flex; align-items: center; gap: 10px; background: #1a1a2e; padding: 10px; border-radius: 8px; margin-bottom: 8px;">
                         <span style="color: #888;">⏱️ Timer ${index + 1}:</span>
-                        <span style="font-size: 1.3em; color: #8b5cf6; font-weight: bold; font-family: monospace;">${elapsed}s</span>
-                        <button class="action-btn" onclick="FreeTimers.stop('${timer.id}')" style="background: #ef4444; padding: 6px 12px;">⏹️ Detener</button>
-                        <button class="action-btn danger" onclick="FreeTimers.remove('${timer.id}')" style="padding: 6px 10px;">✕</button>
+                        <span id="freeTimerDisplay_${timer.id}" style="font-size: 1.3em; color: #8b5cf6; font-weight: bold; font-family: monospace; min-width: 80px;">${elapsed}s</span>
+                        <button class="action-btn" onclick="FreeTimers.stop('${timer.id}')" style="background: #ef4444; padding: 8px 15px; font-size: 1em;">⏹️ Detener</button>
+                        <button class="action-btn danger" onclick="FreeTimers.remove('${timer.id}')" style="padding: 8px 12px;">✕</button>
                     </div>
                 `;
             }
