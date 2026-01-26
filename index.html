@@ -34,6 +34,7 @@
             <button class="tab-btn" data-tab="analysis">📊 Análisis</button>
             <button class="tab-btn" data-tab="gantt">📈 Gantt</button>
             <button class="tab-btn" data-tab="stats">📉 Estadística</button>
+            <button class="tab-btn" data-tab="reports">📄 Informes</button>
             <button class="tab-btn" data-tab="theory">📚 Teoría</button>
             <button class="tab-btn" data-tab="config">⚙️ Config</button>
         </nav>
@@ -566,6 +567,102 @@
         </section>
 
         <!-- ============================================== -->
+        <!-- TAB: INFORMES -->
+        <!-- ============================================== -->
+        <section id="tab-reports" class="view-section">
+            <div class="card">
+                <h2>📄 Generador de Informes</h2>
+                <p style="color: #888; margin-bottom: 15px;">Configura qué secciones incluir en el informe. La configuración se guarda para futuras exportaciones.</p>
+                
+                <!-- Configuración del Informe -->
+                <div style="background: #1a1a2e; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h3 style="margin-top:0; color: #00d4ff;">📋 Configuración del Informe</h3>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="incluirEncabezado" checked> 📝 Encabezado y título
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="incluirResumen" checked> 📊 Resumen ejecutivo (KPIs)
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="incluirGraficoBarras" checked> 📈 Gráfico por categoría
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="incluirGraficoPastel" checked> 🥧 Gráfico por tipo (INT/EXT/NVA)
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="incluirGantt"> 📉 Referencia a Gantt
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="incluirBoxPlot" checked> 📦 Box Plot (estadísticos)
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="incluirTablaDetalle" checked> 📋 Tabla detalle de actividades
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="incluirSixSigma" checked> 📐 Métricas Six Sigma
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="incluirRecomendaciones" checked> 💡 Recomendaciones automáticas
+                        </label>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+                        <div style="flex: 1; min-width: 200px;">
+                            <label style="font-size: 10px; color: #888;">Título del Informe:</label>
+                            <input type="text" id="reportTitulo" value="Informe de Análisis SMED" 
+                                   style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #fff;">
+                        </div>
+                        <div style="flex: 1; min-width: 200px;">
+                            <label style="font-size: 10px; color: #888;">Empresa / Planta:</label>
+                            <input type="text" id="reportEmpresa" value="Planta Corrugadora" 
+                                   style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #fff;">
+                        </div>
+                    </div>
+                    
+                    <button class="action-btn" onclick="Reports.saveConfig()" style="background: #8b5cf6;">
+                        💾 Guardar Configuración
+                    </button>
+                </div>
+                
+                <!-- Filtros Aplicados -->
+                <div style="background: #0f0f1a; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #333;">
+                    <h3 style="margin-top:0; color: #f59e0b;">📋 Filtros Activos</h3>
+                    <p style="color: #888; font-size: 0.9em; margin: 0;">
+                        El informe usará los filtros actualmente aplicados en la app:<br>
+                        <span style="color: #00ff9d;">Máquina, OP, Turno, Categoría, Período</span>
+                    </p>
+                    <p style="color: #00d4ff; font-size: 0.85em; margin-top: 10px;">
+                        💡 Configura los filtros en las pestañas Reloj, Gantt o Stats antes de exportar.
+                    </p>
+                </div>
+                
+                <!-- Botones de Exportación -->
+                <div class="action-bar" style="flex-wrap: wrap; gap: 10px;">
+                    <button class="action-btn" onclick="Reports.preview()" style="background: #6366f1; font-size: 1.1em; padding: 12px 20px;">
+                        👁️ Vista Previa
+                    </button>
+                    <button class="action-btn success" onclick="Reports.exportPDF()" style="font-size: 1.1em; padding: 12px 20px;">
+                        📥 Exportar PDF
+                    </button>
+                    <button class="action-btn primary" onclick="Reports.exportHTML()" style="font-size: 1.1em; padding: 12px 20px;">
+                        🌐 Exportar HTML
+                    </button>
+                </div>
+                
+                <div class="recommendation" style="margin-top: 15px;">
+                    <div class="recommendation-title">💡 Consejos de Exportación:</div>
+                    <div class="recommendation-text">
+                        <strong>📥 PDF:</strong> Se abre vista previa. En el diálogo de impresión, selecciona "Guardar como PDF"<br>
+                        <strong>🌐 HTML:</strong> Archivo editable. Puedes abrirlo en Word, Google Docs o cualquier navegador<br>
+                        <strong>📋 Google Docs:</strong> Exporta HTML y súbelo a Google Drive, luego "Abrir con Google Docs"
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
         <!-- TAB: TEORÍA -->
         <!-- ============================================== -->
         <section id="tab-theory" class="view-section">
@@ -1056,6 +1153,18 @@
     <script src="js/statistics.js"></script>
     <script src="js/charts.js"></script>
     <script src="js/gantt.js"></script>
+    <script src="js/reports.js"></script>
+    
+    <!-- Cargar configuración de informes -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                if (typeof Reports !== 'undefined') {
+                    Reports.loadConfig();
+                }
+            }, 300);
+        });
+    </script>
     
     <!-- Registro del Service Worker para PWA -->
     <script>
