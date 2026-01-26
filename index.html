@@ -326,13 +326,19 @@
                 
                 <!-- Filtros del Gantt -->
                 <div class="form-row mb-15" style="flex-wrap: wrap; gap: 10px;">
+                    <div class="form-group" style="flex:1; min-width: 100px;">
+                        <label class="form-label">🏭 Máquina:</label>
+                        <select id="ganttFilterMaquina" class="form-select" onchange="Gantt.render()">
+                            <option value="ALL">Todas</option>
+                        </select>
+                    </div>
                     <div class="form-group" style="flex:1; min-width: 120px;">
                         <label class="form-label">📋 OP:</label>
                         <select id="ganttFilterOP" class="form-select" onchange="Gantt.render()">
                             <option value="ALL">Todas las OP</option>
                         </select>
                     </div>
-                    <div class="form-group" style="flex:1; min-width: 100px;">
+                    <div class="form-group" style="flex:1; min-width: 80px;">
                         <label class="form-label">⏰ Turno:</label>
                         <select id="ganttFilterTurno" class="form-select" onchange="Gantt.render()">
                             <option value="ALL">Todos</option>
@@ -341,7 +347,7 @@
                             <option value="T3">T3</option>
                         </select>
                     </div>
-                    <div class="form-group" style="flex:1; min-width: 100px;">
+                    <div class="form-group" style="flex:1; min-width: 80px;">
                         <label class="form-label">🎨 Colores:</label>
                         <select id="ganttFilterColores" class="form-select" onchange="Gantt.render()">
                             <option value="ALL">Todos</option>
@@ -352,7 +358,7 @@
                             <option value="5">5+</option>
                         </select>
                     </div>
-                    <div class="form-group" style="flex:1; min-width: 120px;">
+                    <div class="form-group" style="flex:1; min-width: 100px;">
                         <label class="form-label">📁 Categoría:</label>
                         <select id="ganttFilter" class="form-select" onchange="Gantt.render()">
                             <option value="ALL">Todas</option>
@@ -422,35 +428,41 @@
             <div class="card">
                 <h2 style="color: var(--accent-primary);">Análisis Estadístico Avanzado</h2>
                 
-                <!-- Filtros por OP, Turno, Colores -->
+                <!-- Filtros por Máquina, OP, Turno, Colores -->
                 <div class="form-row mb-15" style="flex-wrap: wrap; gap: 10px;">
-                    <div class="form-group" style="flex:1; min-width: 120px;">
-                        <label class="form-label">📋 Filtrar por OP:</label>
+                    <div class="form-group" style="flex:1; min-width: 100px;">
+                        <label class="form-label">🏭 Máquina:</label>
+                        <select id="statsFilterMaquina" class="form-select" onchange="Statistics.calculate()">
+                            <option value="ALL">Todas</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1; min-width: 110px;">
+                        <label class="form-label">📋 OP:</label>
                         <select id="statsFilterOP" class="form-select" onchange="Statistics.calculate()">
                             <option value="ALL">Todas las OP</option>
                         </select>
                     </div>
-                    <div class="form-group" style="flex:1; min-width: 100px;">
+                    <div class="form-group" style="flex:1; min-width: 80px;">
                         <label class="form-label">⏰ Turno:</label>
                         <select id="statsFilterTurno" class="form-select" onchange="Statistics.calculate()">
                             <option value="ALL">Todos</option>
-                            <option value="T1">T1 (6-14h)</option>
-                            <option value="T2">T2 (14-22h)</option>
-                            <option value="T3">T3 (22-6h)</option>
+                            <option value="T1">T1</option>
+                            <option value="T2">T2</option>
+                            <option value="T3">T3</option>
                         </select>
                     </div>
-                    <div class="form-group" style="flex:1; min-width: 100px;">
+                    <div class="form-group" style="flex:1; min-width: 80px;">
                         <label class="form-label">🎨 Colores:</label>
                         <select id="statsFilterColores" class="form-select" onchange="Statistics.calculate()">
                             <option value="ALL">Todos</option>
-                            <option value="1">1 color</option>
-                            <option value="2">2 colores</option>
-                            <option value="3">3 colores</option>
-                            <option value="4">4 colores</option>
-                            <option value="5">5+ colores</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5+</option>
                         </select>
                     </div>
-                    <div class="form-group" style="flex:1; min-width: 120px;">
+                    <div class="form-group" style="flex:1; min-width: 100px;">
                         <label class="form-label">📁 Categoría:</label>
                         <select id="statsFilter" class="form-select" onchange="Statistics.calculate()">
                             <option value="ALL">Todas</option>
