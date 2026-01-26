@@ -27,6 +27,9 @@ const categoryColors = {};
 
 const COSTO_HORA_DEFAULT = 500; // GTQ por hora
 
+// Lista de máquinas por defecto
+const MAQUINAS_DEFAULT = ['i4', 'i5', 'i6', 'i8', 'i10', 'i11', 'i12', 'i13', 'i14', 'i15', 'i16', 'i17'];
+
 // =====================================================
 // ESTADO DE LA APLICACIÓN
 // =====================================================
@@ -41,24 +44,33 @@ const AppState = {
     // Configuración de botones
     buttons: [],
     
+    // Botones libres (hasta 5+)
+    freeButtons: [],
+    
     // OP (Orden de Producción) activa - contenedor del cambio de formato
     opActiva: {
-        numero: '',      // Número de OP (ej: "OP-2024-001")
+        numero: '',      // Número de OP (ej: "40005000")
         colores: 1,      // Cantidad de colores del pedido
-        turno: 'T1'      // Turno: T1, T2, T3
+        turno: 'T1',     // Turno: T1, T2, T3
+        maquina: ''      // Máquina: i4, i5, i6, etc.
     },
     
     // Configuración general
     config: {
         costoHora: COSTO_HORA_DEFAULT,
-        metaEficiencia: 95
+        metaEficiencia: 95,
+        maquinas: [...MAQUINAS_DEFAULT]  // Lista de máquinas configurables
     },
     
     // Filtros actuales
     filtros: {
         categoria: 'ALL',
         vista: 'general',
-        op: 'ALL'
+        op: 'ALL',
+        periodo: 'today',
+        maquina: 'ALL',
+        turno: 'ALL',
+        colores: 'ALL'
     }
 };
 
@@ -169,7 +181,9 @@ const Storage = {
         REGISTROS: 'smed_registros',
         BUTTONS: 'smed_buttons',
         ACTIVE_TIMERS: 'smed_active_timers',
-        CONFIG: 'smed_config'
+        CONFIG: 'smed_config',
+        BACKUP: 'smed_backup',
+        BACKUP_DATE: 'smed_backup_date'
     },
     
     save: () => {
@@ -178,8 +192,80 @@ const Storage = {
             localStorage.setItem(Storage.KEYS.BUTTONS, JSON.stringify(AppState.buttons));
             localStorage.setItem(Storage.KEYS.ACTIVE_TIMERS, JSON.stringify(AppState.activeTimers));
             localStorage.setItem(Storage.KEYS.CONFIG, JSON.stringify(AppState.config));
+            
+            // Crear backup automático diario
+            Storage.autoBackup();
         } catch (e) {
             console.error('Error guardando datos:', e);
+        }
+    },
+    
+    // Crear backup automático una vez al día
+    autoBackup: () => {
+        const today = new Date().toISOString().split('T')[0];
+        const lastBackup = localStorage.getItem(Storage.KEYS.BACKUP_DATE);
+        
+        if (lastBackup !== today && AppState.registros.length > 0) {
+            Storage.createBackup();
+            localStorage.setItem(Storage.KEYS.BACKUP_DATE, today);
+            console.log('📦 Backup automático creado:', today);
+        }
+    },
+    
+    // Crear backup manual
+    createBackup: () => {
+        const backup = {
+            fecha: new Date().toISOString(),
+            registros: AppState.registros,
+            buttons: AppState.buttons,
+            config: AppState.config
+        };
+        localStorage.setItem(Storage.KEYS.BACKUP, JSON.stringify(backup));
+    },
+    
+    // Recuperar backup
+    restoreBackup: () => {
+        const backupStr = localStorage.getItem(Storage.KEYS.BACKUP);
+        if (!backupStr) {
+            alert('No hay backup disponible para restaurar');
+            return false;
+        }
+        
+        try {
+            const backup = JSON.parse(backupStr);
+            const fecha = new Date(backup.fecha).toLocaleString();
+            
+            if (confirm(`¿Restaurar backup del ${fecha}?\n\nEsto reemplazará los datos actuales con:\n- ${backup.registros.length} registros\n- ${backup.buttons.length} botones`)) {
+                AppState.registros = backup.registros || [];
+                AppState.buttons = backup.buttons || [];
+                if (backup.config) AppState.config = { ...AppState.config, ...backup.config };
+                
+                Storage.save();
+                UI.renderAll();
+                alert('✅ Backup restaurado correctamente');
+                return true;
+            }
+        } catch (e) {
+            console.error('Error restaurando backup:', e);
+            alert('Error al restaurar backup');
+        }
+        return false;
+    },
+    
+    // Ver info del backup
+    getBackupInfo: () => {
+        const backupStr = localStorage.getItem(Storage.KEYS.BACKUP);
+        if (!backupStr) return null;
+        
+        try {
+            const backup = JSON.parse(backupStr);
+            return {
+                fecha: backup.fecha,
+                registros: backup.registros?.length || 0,
+                buttons: backup.buttons?.length || 0
+            };
+        } catch (e) {
+            return null;
         }
     },
     
@@ -226,16 +312,47 @@ const Storage = {
         Storage.save();
     },
     
+    // Borrar SOLO registros (NO borra botones personalizados)
     clear: () => {
-        if (confirm('¿Está seguro de eliminar TODOS los datos? Esta acción no se puede deshacer.')) {
+        if (AppState.registros.length === 0) {
+            alert('No hay registros que borrar');
+            return;
+        }
+        
+        // Crear backup antes de borrar
+        Storage.createBackup();
+        console.log('📦 Backup creado antes de borrar');
+        
+        if (confirm(`¿Está seguro de eliminar ${AppState.registros.length} registros?\n\n⚠️ Los botones personalizados NO se borrarán.\n✅ Se ha creado un backup que puede restaurar.`)) {
             AppState.registros = [];
             AppState.activeTimers = {};
             Storage.save();
             UI.renderAll();
-            alert('Datos eliminados correctamente');
+            alert('✅ Registros eliminados.\n\n💡 Puedes recuperarlos con el botón "🔄 Restaurar Backup" en Configuración.');
+        }
+    },
+    
+    // Borrar TODO (incluye botones) - solo para casos extremos
+    clearAll: () => {
+        Storage.createBackup();
+        if (confirm('⚠️ ADVERTENCIA: Esto borrará TODOS los datos incluyendo botones personalizados.\n\nSe ha creado un backup.')) {
+            AppState.registros = [];
+            AppState.activeTimers = {};
+            AppState.buttons = [];
+            Storage.loadDefaultButtons();
+            Storage.save();
+            UI.renderAll();
+            alert('Todo eliminado. Botones restaurados a valores por defecto.');
         }
     }
 };
+
+// Backup automático al cerrar/salir de la app
+window.addEventListener('beforeunload', () => {
+    if (AppState.registros.length > 0) {
+        Storage.createBackup();
+    }
+});
 
 // =====================================================
 // LÓGICA DEL CRONÓMETRO
@@ -322,6 +439,7 @@ const Timer = {
             op: AppState.opActiva.numero || '',
             colores: AppState.opActiva.colores || 1,
             turno: AppState.opActiva.turno || 'T1',
+            maquina: AppState.opActiva.maquina || '',
             // Tiempos
             fechaExcel: Utils.dateToExcel(now), // Fecha en formato Excel (con decimales para hora)
             inicioSeg: startSeconds < 0 ? startSeconds + 86400 : startSeconds, // Segundos del día inicio
@@ -423,6 +541,7 @@ const Timer = {
             op: AppState.opActiva.numero || '',
             colores: AppState.opActiva.colores || 1,
             turno: AppState.opActiva.turno || 'T1',
+            maquina: AppState.opActiva.maquina || '',
             fechaExcel: Utils.dateToExcel(now),
             inicioSeg: startSeconds < 0 ? startSeconds + 86400 : startSeconds,
             finSeg: Utils.round2(endSeconds),
@@ -913,6 +1032,12 @@ const UI = {
                 </button>
             </div>
         `}).join('');
+    },
+    
+    // Filtrar historial por período
+    filterHistoryByPeriod: (periodo) => {
+        AppState.filtros.periodo = periodo;
+        UI.renderHistory();
     },
     
     // Actualizar análisis
