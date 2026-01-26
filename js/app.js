@@ -1205,6 +1205,253 @@ function setupEventListeners() {
 // Iniciar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', init);
 
+// =====================================================
+// MÚLTIPLES CRONÓMETROS LIBRES
+// =====================================================
+
+const FreeTimers = {
+    // Lista de timers activos { id, start, interval }
+    active: [],
+    
+    // Agregar nuevo cronómetro libre
+    add: () => {
+        const id = Utils.generateId();
+        const timer = {
+            id: id,
+            start: Date.now(),
+            interval: null,
+            stopped: false,
+            elapsed: 0
+        };
+        
+        FreeTimers.active.push(timer);
+        
+        // Iniciar interval para este timer
+        timer.interval = setInterval(() => {
+            if (!timer.stopped) {
+                timer.elapsed = (Date.now() - timer.start) / 1000;
+                FreeTimers.render();
+            }
+        }, 100);
+        
+        FreeTimers.render();
+    },
+    
+    // Detener un cronómetro (mostrar panel de datos)
+    stop: (id) => {
+        const timer = FreeTimers.active.find(t => t.id === id);
+        if (timer) {
+            timer.stopped = true;
+            timer.elapsed = (Date.now() - timer.start) / 1000;
+            if (timer.interval) {
+                clearInterval(timer.interval);
+                timer.interval = null;
+            }
+            FreeTimers.render();
+        }
+    },
+    
+    // Guardar un cronómetro como registro
+    save: (id) => {
+        const timer = FreeTimers.active.find(t => t.id === id);
+        if (!timer) return;
+        
+        const nameInput = document.getElementById(`freeTimerName_${id}`);
+        const tipoSelect = document.getElementById(`freeTimerTipo_${id}`);
+        
+        const name = nameInput?.value.trim() || 'Actividad Libre';
+        const tipo = tipoSelect?.value || 'NVA';
+        
+        const duration = timer.elapsed;
+        const now = new Date();
+        const endSeconds = Utils.getDaySeconds(now);
+        const startSeconds = Utils.round2(endSeconds - duration);
+        
+        const record = {
+            id: Utils.generateId(),
+            name: name,
+            cat: Utils.extractCategory(name),
+            tipo: tipo,
+            op: AppState.opActiva.numero || '',
+            colores: AppState.opActiva.colores || 1,
+            turno: AppState.opActiva.turno || 'T1',
+            maquina: AppState.opActiva.maquina || '',
+            fechaExcel: Utils.dateToExcel(now),
+            inicioSeg: startSeconds < 0 ? startSeconds + 86400 : startSeconds,
+            finSeg: Utils.round2(endSeconds),
+            duracion: Utils.round2(duration),
+            duration: Utils.round2(duration),
+            endTime: Utils.formatHMS(now),
+            timestamp: Date.now(),
+            fecha: now.toISOString().split('T')[0]
+        };
+        
+        AppState.registros.unshift(record);
+        Storage.save();
+        
+        // Eliminar este timer de la lista
+        FreeTimers.remove(id);
+        UI.renderAll();
+        
+        alert(`✅ "${name}" guardado: ${duration.toFixed(1)}s`);
+    },
+    
+    // Cancelar un cronómetro
+    remove: (id) => {
+        const timer = FreeTimers.active.find(t => t.id === id);
+        if (timer && timer.interval) {
+            clearInterval(timer.interval);
+        }
+        FreeTimers.active = FreeTimers.active.filter(t => t.id !== id);
+        FreeTimers.render();
+    },
+    
+    // Renderizar la lista de cronómetros libres
+    render: () => {
+        const container = document.getElementById('freeTimersList');
+        if (!container) return;
+        
+        if (FreeTimers.active.length === 0) {
+            container.innerHTML = '<p style="color:#666; font-size:0.85em; margin:0;">No hay cronómetros activos</p>';
+            return;
+        }
+        
+        container.innerHTML = FreeTimers.active.map((timer, index) => {
+            const elapsed = timer.elapsed.toFixed(1);
+            
+            if (timer.stopped) {
+                // Mostrar panel de datos
+                return `
+                    <div style="background: #1a1a2e; padding: 12px; border-radius: 8px; margin-bottom: 8px; border: 1px solid #8b5cf6;">
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
+                            <div style="flex: 0; min-width: 80px;">
+                                <span style="font-size: 1.3em; color: #8b5cf6; font-weight: bold; font-family: monospace;">${elapsed}s</span>
+                            </div>
+                            <div style="flex: 2; min-width: 120px;">
+                                <label style="font-size: 10px; color: #888;">Nombre:</label>
+                                <input type="text" id="freeTimerName_${timer.id}" placeholder="Ej: Espera supervisor" 
+                                       style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #fff;">
+                            </div>
+                            <div style="flex: 1; min-width: 90px;">
+                                <label style="font-size: 10px; color: #888;">Tipo:</label>
+                                <select id="freeTimerTipo_${timer.id}" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #f59e0b;">
+                                    <option value="NVA">🔴 Muda</option>
+                                    <option value="INT">🟠 Interna</option>
+                                    <option value="EXT">🟢 Externa</option>
+                                </select>
+                            </div>
+                            <button class="action-btn success" onclick="FreeTimers.save('${timer.id}')" style="padding: 6px 12px;">✓</button>
+                            <button class="action-btn danger" onclick="FreeTimers.remove('${timer.id}')" style="padding: 6px 12px;">✕</button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // Mostrar timer corriendo
+                return `
+                    <div style="display: flex; align-items: center; gap: 10px; background: #1a1a2e; padding: 10px; border-radius: 8px; margin-bottom: 8px;">
+                        <span style="color: #888;">⏱️ Timer ${index + 1}:</span>
+                        <span style="font-size: 1.3em; color: #8b5cf6; font-weight: bold; font-family: monospace;">${elapsed}s</span>
+                        <button class="action-btn" onclick="FreeTimers.stop('${timer.id}')" style="background: #ef4444; padding: 6px 12px;">⏹️ Detener</button>
+                        <button class="action-btn danger" onclick="FreeTimers.remove('${timer.id}')" style="padding: 6px 10px;">✕</button>
+                    </div>
+                `;
+            }
+        }).join('');
+    }
+};
+
+// =====================================================
+// GESTIÓN DE MÁQUINAS
+// =====================================================
+
+const MaquinaManager = {
+    // Agregar nueva máquina
+    add: (nombre) => {
+        if (!nombre || !nombre.trim()) {
+            alert('Ingrese el nombre de la máquina');
+            return false;
+        }
+        
+        const trimmed = nombre.trim();
+        if (AppState.config.maquinas.includes(trimmed)) {
+            alert('Esta máquina ya existe');
+            return false;
+        }
+        
+        AppState.config.maquinas.push(trimmed);
+        AppState.config.maquinas.sort((a, b) => {
+            // Ordenar numéricamente si son del tipo iXX
+            const numA = parseInt(a.replace(/\D/g, '')) || 0;
+            const numB = parseInt(b.replace(/\D/g, '')) || 0;
+            return numA - numB;
+        });
+        
+        Storage.save();
+        MaquinaManager.updateSelectors();
+        MaquinaManager.renderList();
+        return true;
+    },
+    
+    // Eliminar máquina
+    remove: (nombre) => {
+        if (confirm(`¿Eliminar la máquina "${nombre}"?`)) {
+            AppState.config.maquinas = AppState.config.maquinas.filter(m => m !== nombre);
+            Storage.save();
+            MaquinaManager.updateSelectors();
+            MaquinaManager.renderList();
+        }
+    },
+    
+    // Restaurar lista original
+    restore: () => {
+        if (confirm('¿Restaurar lista de máquinas a valores originales?')) {
+            AppState.config.maquinas = [...MAQUINAS_DEFAULT];
+            Storage.save();
+            MaquinaManager.updateSelectors();
+            MaquinaManager.renderList();
+        }
+    },
+    
+    // Actualizar todos los selectores de máquina
+    updateSelectors: () => {
+        const selectors = ['opMaquina', 'historyFilterMaquina', 'ganttFilterMaquina', 'statsFilterMaquina', 'analysisFilterMaquina'];
+        
+        selectors.forEach(selectorId => {
+            const select = document.getElementById(selectorId);
+            if (!select) return;
+            
+            const currentValue = select.value;
+            const isFilter = selectorId.includes('Filter');
+            
+            let html = isFilter ? '<option value="ALL">🏭 Todas</option>' : '<option value="">--</option>';
+            
+            AppState.config.maquinas.forEach(m => {
+                html += `<option value="${m}">${m}</option>`;
+            });
+            
+            select.innerHTML = html;
+            
+            // Restaurar valor si existe
+            if (currentValue && (AppState.config.maquinas.includes(currentValue) || currentValue === 'ALL')) {
+                select.value = currentValue;
+            }
+        });
+    },
+    
+    // Renderizar lista de máquinas en Config
+    renderList: () => {
+        const container = document.getElementById('maquinasList');
+        if (!container) return;
+        
+        container.innerHTML = AppState.config.maquinas.map(m => `
+            <span style="display: inline-flex; align-items: center; gap: 4px; background: #1a1a2e; padding: 4px 10px; border-radius: 15px; margin: 3px; border: 1px solid #333;">
+                <span style="color: #00d4ff;">${m}</span>
+                <button onclick="MaquinaManager.remove('${m}')" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1em; padding: 0 2px;">×</button>
+            </span>
+        `).join('');
+    }
+};
+
 // Exponer funciones globales necesarias
 window.Timer = Timer;
 window.ButtonManager = ButtonManager;
@@ -1212,3 +1459,5 @@ window.CSV = CSV;
 window.Storage = Storage;
 window.Tabs = Tabs;
 window.Theory = Theory;
+window.FreeTimers = FreeTimers;
+window.MaquinaManager = MaquinaManager;
