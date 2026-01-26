@@ -2,8 +2,22 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SMED Analyzer Pro - Lean Manufacturing</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Cronómetro Industrial + Análisis Lean Manufacturing + Six Sigma">
+    <meta name="theme-color" content="#00ff9d">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SMED Pro">
+    <meta name="mobile-web-app-capable" content="yes">
+    
+    <!-- Manifest y Iconos -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -41,24 +55,34 @@
                 </div>
 
                 <!-- Panel de OP (Orden de Producción) Activa -->
-                <div class="op-panel" style="background: #1a1a2e; border: 1px solid #333; border-radius: 8px; padding: 12px; margin-bottom: 15px;">
-                    <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-                        <div style="flex: 2; min-width: 150px;">
-                            <label style="font-size: 11px; color: #888;">OP (Orden de Producción)</label>
-                            <input type="text" id="opNumero" placeholder="Ej: OP-2024-001" 
-                                   style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #00ff9d; font-size: 14px;"
-                                   oninput="AppState.opActiva.numero = this.value">
+                <div class="op-panel" style="background: linear-gradient(135deg, #1a1a2e, #0f0f1a); border: 1px solid #333; border-radius: 8px; padding: 12px; margin-bottom: 15px;">
+                    <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
+                        <div style="flex: 2; min-width: 140px;">
+                            <label style="font-size: 10px; color: #888; text-transform: uppercase;">📋 Orden de Producción</label>
+                            <input type="text" id="opNumero" placeholder="Ej: 40005000" maxlength="8"
+                                   style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #00ff9d; font-size: 14px; font-weight: bold;"
+                                   oninput="AppState.opActiva.numero = this.value; UI.renderButtons();">
                         </div>
-                        <div style="flex: 1; min-width: 80px;">
-                            <label style="font-size: 11px; color: #888;">Colores</label>
+                        <div style="flex: 1; min-width: 70px;">
+                            <label style="font-size: 10px; color: #888; text-transform: uppercase;">🎨 Colores</label>
                             <input type="number" id="opColores" min="1" max="10" value="1"
-                                   style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #00d4ff; font-size: 14px;"
+                                   style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #00d4ff; font-size: 14px; text-align: center;"
                                    oninput="AppState.opActiva.colores = parseInt(this.value) || 1">
                         </div>
-                        <div style="flex: 0; padding-top: 16px;">
-                            <span id="opStatus" style="padding: 6px 12px; border-radius: 4px; font-size: 12px; background: #333;">
-                                Sin OP
-                            </span>
+                        <div style="flex: 1; min-width: 90px;">
+                            <label style="font-size: 10px; color: #888; text-transform: uppercase;">⏰ Turno</label>
+                            <select id="opTurno" 
+                                    style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #f59e0b; font-size: 14px; font-weight: bold;"
+                                    onchange="AppState.opActiva.turno = this.value">
+                                <option value="T1" style="color: #3b82f6;">T1 (6-14h)</option>
+                                <option value="T2" style="color: #10b981;">T2 (14-22h)</option>
+                                <option value="T3" style="color: #8b5cf6;">T3 (22-6h)</option>
+                            </select>
+                        </div>
+                        <div style="flex: 0; min-width: 100px;">
+                            <div id="opStatus" style="padding: 8px 12px; border-radius: 4px; font-size: 11px; background: #333; text-align: center; color: #888;">
+                                Sin OP activa
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -572,5 +596,25 @@
     <script src="js/statistics.js"></script>
     <script src="js/charts.js"></script>
     <script src="js/gantt.js"></script>
+    
+    <!-- Registro del Service Worker para PWA -->
+    <script>
+        // Registrar Service Worker para funcionalidad offline e instalación
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('✅ Service Worker registrado:', reg.scope))
+                    .catch(err => console.log('❌ Service Worker error:', err));
+            });
+        }
+        
+        // Detectar evento de instalación PWA
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            console.log('📱 App lista para instalar');
+        });
+    </script>
 </body>
 </html>
