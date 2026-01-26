@@ -93,21 +93,14 @@ const Gantt = {
         return data;
     },
     
-    // Obtener clase CSS para categoría
+    // Obtener clase CSS para categoría (dinámico)
     getCategoryClass: (cat) => {
-        const mapping = {
-            'Preparación': 'cat-preparacion',
-            'Ajuste Interno': 'cat-ajuste-int',
-            'Ajuste Externo': 'cat-ajuste-ext',
-            'Verificación': 'cat-verificacion',
-            'Limpieza': 'cat-limpieza',
-            'Muda': 'cat-muda',
-            'Espera': 'cat-espera',
-            'Transporte': 'cat-transporte',
-            'Movimiento': 'cat-movimiento',
-            'Defectos': 'cat-defectos'
-        };
-        return mapping[cat] || 'cat-preparacion';
+        // Usar la función de Utils si existe
+        if (typeof Utils !== 'undefined' && Utils.getCategoryClass) {
+            return Utils.getCategoryClass(cat);
+        }
+        // Fallback: normalizar nombre para clase CSS
+        return `cat-${cat.toLowerCase().replace(/\s+/g, '-')}`;
     },
     
     // Renderizar escala de tiempo
@@ -199,12 +192,13 @@ const Gantt = {
             return;
         }
         
-        // Agrupar por categoría
+        // Agrupar por categoría (dinámico)
         const byCategory = {};
-        CATEGORIAS_SMED.forEach(cat => {
-            byCategory[cat.nombre] = registros
-                .filter(r => r.cat === cat.nombre)
-                .reduce((sum, r) => sum + r.duration, 0);
+        registros.forEach(r => {
+            if (!byCategory[r.cat]) {
+                byCategory[r.cat] = 0;
+            }
+            byCategory[r.cat] += r.duration;
         });
         
         const total = Object.values(byCategory).reduce((a, b) => a + b, 0);
