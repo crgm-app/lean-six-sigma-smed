@@ -107,18 +107,27 @@ Desarrollar una aplicación web HTML5 autónoma que combine las mejores caracter
 
 ```
 SMED_Analyzer_Pro/
-├── index.html              # Página principal
+├── index.html                      # Página principal (5 tabs)
 ├── css/
-│   └── styles.css          # Estilos CSS
+│   └── styles.css                  # Estilos CSS (tema oscuro industrial)
 ├── js/
-│   ├── app.js              # Lógica principal
-│   ├── charts.js           # Funciones de gráficos
-│   ├── statistics.js       # Cálculos estadísticos
-│   └── gantt.js            # Diagrama de Gantt
+│   ├── app.js                      # Lógica principal, cronómetro, persistencia
+│   ├── charts.js                   # Análisis multi-perspectiva y gráficos SVG
+│   ├── statistics.js               # Estadísticas avanzadas y Six Sigma
+│   └── gantt.js                    # Diagrama de Gantt interactivo
 └── docs/
-    ├── GUIA_COMPLETA.md    # Este documento
-    └── BUSINESS_MODEL_CANVAS.md
+    ├── GUIA_COMPLETA.md            # Este documento
+    └── BUSINESS_MODEL_CANVAS.md    # Plan de negocio
 ```
+
+### 📝 Nota Importante
+Este proyecto es una **aplicación web frontend pura** (HTML/CSS/JavaScript) que funciona 100% en el navegador sin necesidad de:
+- ❌ Backend (Python, Node.js, etc.)
+- ❌ Base de datos (PostgreSQL, MongoDB, etc.)
+- ❌ Docker / Contenedores
+- ❌ requirements.txt / Dockerfile
+
+La persistencia de datos se maneja con **LocalStorage** del navegador.
 
 ### 3.2 Diagrama de Componentes
 
@@ -587,32 +596,55 @@ ROI = (Ahorros - Inversión) / Inversión × 100%
 ## Anexo A: Checklist de Desarrollo
 
 ```
-[ ] index.html creado
-[ ] styles.css creado
-[ ] app.js creado
-[ ] charts.js creado
-[ ] statistics.js creado
-[ ] gantt.js creado
-[ ] Cronómetro funcional
-[ ] Botones SMED implementados
-[ ] Timers múltiples funcionando
-[ ] LocalStorage operativo
-[ ] Export CSV funcional
-[ ] Import CSV funcional
-[ ] Box Plot renderizado
-[ ] Curva Gauss renderizada
-[ ] Gráfico Barras renderizado
-[ ] Gráfico Pie renderizado
-[ ] Diagrama Gantt renderizado
-[ ] Vista General completa
-[ ] Vista Financiera completa
-[ ] Vista Gerencial completa
-[ ] Vista Operacional completa
-[ ] Vista Estadística completa
-[ ] Sección Teoría incluida
-[ ] Responsive design verificado
-[ ] Cross-browser testing
+[x] index.html creado
+[x] styles.css creado
+[x] app.js creado
+[x] charts.js creado
+[x] statistics.js creado
+[x] gantt.js creado
+[x] Cronómetro funcional
+[x] Botones SMED implementados
+[x] Timers múltiples funcionando
+[x] LocalStorage operativo
+[x] Export CSV funcional
+[x] Import CSV funcional
+[x] Box Plot renderizado
+[x] Curva Gauss renderizada
+[x] Gráfico Barras renderizado
+[x] Gráfico Pie renderizado
+[x] Diagrama Gantt renderizado
+[x] Vista General completa
+[x] Vista Financiera completa
+[x] Vista Gerencial completa
+[x] Vista Operacional completa
+[x] Vista Estadística completa
+[x] Sección Teoría incluida
+[x] Responsive design verificado
+[ ] Cross-browser testing (pendiente usuario)
 ```
+
+## Anexo B: Cómo Abrir la Aplicación
+
+### Opción 1: Doble clic
+Simplemente haz doble clic en `index.html` desde el explorador de archivos.
+
+### Opción 2: Desde terminal
+```bash
+# Si tienes Firefox instalado
+firefox /home/crgm-unix/Desktop/SMED_Analyzer_Pro/index.html
+
+# Si tienes Chrome/Chromium instalado
+google-chrome /home/crgm-unix/Desktop/SMED_Analyzer_Pro/index.html
+chromium /home/crgm-unix/Desktop/SMED_Analyzer_Pro/index.html
+
+# Si tienes xdg-utils instalado
+xdg-open /home/crgm-unix/Desktop/SMED_Analyzer_Pro/index.html
+```
+
+### Opción 3: Desde VS Code
+1. Abre el archivo `index.html` en VS Code
+2. Haz clic derecho → "Open with Live Server" (si tienes la extensión)
+3. O usa la extensión "Open in Browser"
 
 ---
 
