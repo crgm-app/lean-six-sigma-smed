@@ -34,6 +34,7 @@
             <button class="tab-btn" data-tab="analysis">📊 Análisis</button>
             <button class="tab-btn" data-tab="gantt">📈 Gantt</button>
             <button class="tab-btn" data-tab="stats">📉 Estadística</button>
+            <button class="tab-btn" data-tab="theory">📚 Teoría</button>
             <button class="tab-btn" data-tab="config">⚙️ Config</button>
         </nav>
 
@@ -256,22 +257,59 @@
             <div class="card">
                 <h2>Diagrama de Gantt - Timeline de Actividades</h2>
                 
-                <div class="gantt-header">
-                    <div class="gantt-controls">
-                        <select id="ganttFilter" class="form-select" onchange="Gantt.setFilter(this.value)">
-                            <option value="ALL">Todas las categorías</option>
-                            <option value="Preparación">Preparación</option>
-                            <option value="Ajuste Interno">Ajuste Interno</option>
-                            <option value="Ajuste Externo">Ajuste Externo</option>
-                            <option value="Verificación">Verificación</option>
-                            <option value="Limpieza">Limpieza</option>
-                            <option value="Muda">Muda</option>
-                            <option value="Espera">Espera</option>
-                            <option value="Transporte">Transporte</option>
-                            <option value="Movimiento">Movimiento</option>
-                            <option value="Defectos">Defectos</option>
+                <!-- Filtros del Gantt -->
+                <div class="form-row mb-15" style="flex-wrap: wrap; gap: 10px;">
+                    <div class="form-group" style="flex:1; min-width: 120px;">
+                        <label class="form-label">📋 OP:</label>
+                        <select id="ganttFilterOP" class="form-select" onchange="Gantt.render()">
+                            <option value="ALL">Todas las OP</option>
                         </select>
                     </div>
+                    <div class="form-group" style="flex:1; min-width: 100px;">
+                        <label class="form-label">⏰ Turno:</label>
+                        <select id="ganttFilterTurno" class="form-select" onchange="Gantt.render()">
+                            <option value="ALL">Todos</option>
+                            <option value="T1">T1</option>
+                            <option value="T2">T2</option>
+                            <option value="T3">T3</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1; min-width: 100px;">
+                        <label class="form-label">🎨 Colores:</label>
+                        <select id="ganttFilterColores" class="form-select" onchange="Gantt.render()">
+                            <option value="ALL">Todos</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5+</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1; min-width: 120px;">
+                        <label class="form-label">📁 Categoría:</label>
+                        <select id="ganttFilter" class="form-select" onchange="Gantt.render()">
+                            <option value="ALL">Todas</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Leyenda de colores -->
+                <div style="display: flex; gap: 15px; margin-bottom: 10px; font-size: 0.75rem; flex-wrap: wrap;">
+                    <span style="display: flex; align-items: center; gap: 5px;">
+                        <span style="width: 16px; height: 10px; background: #f97316; border-radius: 2px;"></span> INT (Interna)
+                    </span>
+                    <span style="display: flex; align-items: center; gap: 5px;">
+                        <span style="width: 16px; height: 10px; background: #10b981; border-radius: 2px;"></span> EXT (Externa)
+                    </span>
+                    <span style="display: flex; align-items: center; gap: 5px;">
+                        <span style="width: 16px; height: 10px; background: #ef4444; border-radius: 2px;"></span> NVA (Muda)
+                    </span>
+                    <span style="display: flex; align-items: center; gap: 5px;">
+                        <span style="width: 16px; height: 10px; background: #8b5cf6; border: 2px solid #fff; border-radius: 2px;"></span> Traslape
+                    </span>
+                </div>
+
+                <div class="gantt-header">
                     <div class="gantt-controls">
                         <button class="action-btn" onclick="Gantt.zoomOut()">−</button>
                         <button class="action-btn" onclick="Gantt.resetZoom()">100%</button>
@@ -442,6 +480,262 @@
                         <strong>Cp/Cpk:</strong> &gt;1.33 = Bueno, &gt;1.67 = Excelente, &gt;2.0 = Clase Mundial<br>
                         <strong>CV:</strong> &lt;15% = Estable, 15-30% = Moderado, &gt;30% = Inestable
                     </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB: TEORÍA -->
+        <!-- ============================================== -->
+        <section id="tab-theory" class="view-section">
+            <div class="card" style="line-height: 1.6;">
+                <h1 style="color: var(--accent-primary); border-bottom: 2px solid var(--accent-primary); padding-bottom: 10px;">
+                    📚 Manual Completo: SMED, Lean Manufacturing y Six Sigma
+                </h1>
+                
+                <!-- Índice -->
+                <div style="background: #1a1a2e; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h3 style="margin-top:0;">📑 Índice de Contenidos</h3>
+                    <ol style="color: var(--text-secondary); column-count: 2; column-gap: 30px;">
+                        <li>Introducción a SMED</li>
+                        <li>Historia y Origen</li>
+                        <li>Las 4 Etapas SMED</li>
+                        <li>Lean Manufacturing</li>
+                        <li>Los 8 Desperdicios (MUDA)</li>
+                        <li>Six Sigma</li>
+                        <li>DMAIC</li>
+                        <li>Niveles de Certificación</li>
+                        <li>Herramientas Lean</li>
+                        <li>Métricas y KPIs</li>
+                        <li>Casos de Éxito</li>
+                        <li>Referencias</li>
+                    </ol>
+                </div>
+
+                <!-- 1. SMED -->
+                <h2>1. SMED (Single-Minute Exchange of Die)</h2>
+                <p><strong>SMED</strong> es una metodología desarrollada para reducir drásticamente los tiempos de cambio de formato (setup) en máquinas industriales. El objetivo es lograr tiempos de cambio de menos de 10 minutos ("single-minute" = un solo dígito de minutos).</p>
+                
+                <div style="background: #0f0f1a; padding: 15px; border-left: 4px solid #00ff9d; margin: 15px 0;">
+                    <strong>Definición técnica:</strong> El tiempo de cambio de formato (setup time) se define como el intervalo entre la última pieza buena del lote anterior y la primera pieza buena del lote siguiente.
+                </div>
+
+                <!-- 2. Historia -->
+                <h2>2. Historia y Origen</h2>
+                <p>La metodología SMED fue desarrollada por <strong>Shigeo Shingo</strong> (1909-1990), ingeniero industrial japonés, durante su trabajo con Toyota Motor Corporation entre 1950 y 1969.</p>
+                
+                <h3>Cronología del desarrollo:</h3>
+                <table class="theory-table">
+                    <tr><th>Año</th><th>Evento</th><th>Resultado</th></tr>
+                    <tr><td>1950</td><td>Shingo analiza cambios de dado en Toyo Kogyo</td><td>Identifica actividades internas/externas</td></tr>
+                    <tr><td>1957</td><td>Mejoras en astillero de Mitsubishi Heavy Industries</td><td>Reducción del 50% en tiempo de setup</td></tr>
+                    <tr><td>1969</td><td>Toyota - Prensa de 1000 toneladas</td><td>De 4 horas a 3 minutos</td></tr>
+                    <tr><td>1985</td><td>Publicación del libro "A Revolution in Manufacturing"</td><td>SMED se difunde mundialmente</td></tr>
+                </table>
+
+                <div style="background: #1a1a2e; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                    <strong>📖 Cita de Shigeo Shingo:</strong><br>
+                    <em>"El SMED nació de la necesidad de lograr la producción Just-in-Time, una de las piedras angulares del sistema de producción de Toyota."</em>
+                </div>
+
+                <!-- 3. Las 4 Etapas SMED -->
+                <h2>3. Las 4 Etapas de la Metodología SMED</h2>
+                
+                <h3>Etapa 0: Fase Preliminar - Documentar el Estado Actual</h3>
+                <p>En esta fase inicial, no existe distinción entre actividades internas y externas. El objetivo es observar y registrar todas las operaciones actuales del cambio de formato.</p>
+                <ul>
+                    <li>Grabar en video todo el proceso de cambio</li>
+                    <li>Registrar tiempos con cronómetro</li>
+                    <li>Documentar secuencia de actividades</li>
+                    <li>Identificar todos los participantes y sus roles</li>
+                </ul>
+
+                <h3>Etapa 1: Separar Actividades Internas de Externas</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0;">
+                    <div style="background: #f97316; color: #000; padding: 15px; border-radius: 8px;">
+                        <h4 style="margin-top:0;">🟠 Actividades INTERNAS</h4>
+                        <p>Solo pueden realizarse con la máquina <strong>DETENIDA</strong></p>
+                        <ul style="margin:0;">
+                            <li>Montar/desmontar herramentales</li>
+                            <li>Ajustar topes y guías</li>
+                            <li>Calibrar instrumentos</li>
+                        </ul>
+                    </div>
+                    <div style="background: #10b981; color: #000; padding: 15px; border-radius: 8px;">
+                        <h4 style="margin-top:0;">🟢 Actividades EXTERNAS</h4>
+                        <p>Pueden realizarse con la máquina <strong>EN MARCHA</strong></p>
+                        <ul style="margin:0;">
+                            <li>Buscar herramientas</li>
+                            <li>Pre-calentar moldes</li>
+                            <li>Preparar materiales</li>
+                        </ul>
+                    </div>
+                </div>
+                <p><strong>Reducción típica:</strong> 30-50% del tiempo original</p>
+
+                <h3>Etapa 2: Convertir Actividades Internas en Externas</h3>
+                <p>Esta es la fase más creativa y crítica. Se buscan formas de realizar actividades antes consideradas internas mientras la máquina aún está produciendo.</p>
+                <table class="theory-table">
+                    <tr><th>Antes (Interna)</th><th>Después (Externa)</th><th>Técnica</th></tr>
+                    <tr><td>Calentar molde en máquina</td><td>Pre-calentar fuera de línea</td><td>Pre-calentamiento</td></tr>
+                    <tr><td>Ajustar altura del dado</td><td>Usar plantillas de altura fija</td><td>Estandarización</td></tr>
+                    <tr><td>Buscar herramientas</td><td>Kit de herramientas preparado</td><td>Preparación anticipada</td></tr>
+                </table>
+                <p><strong>Reducción adicional:</strong> 25-50% del tiempo restante</p>
+
+                <h3>Etapa 3: Optimizar Todas las Operaciones</h3>
+                <p>Se busca reducir aún más el tiempo de cada actividad individual mediante:</p>
+                <ul>
+                    <li><strong>Operaciones paralelas:</strong> Dos o más personas trabajando simultáneamente</li>
+                    <li><strong>Fijaciones funcionales:</strong> Eliminar tornillos, usar cierres rápidos</li>
+                    <li><strong>Eliminación de ajustes:</strong> Uso de topes fijos, escalas graduadas</li>
+                    <li><strong>Mecanización:</strong> Sistemas hidráulicos, neumáticos o eléctricos</li>
+                </ul>
+
+                <!-- 4. Lean Manufacturing -->
+                <h2>4. Lean Manufacturing</h2>
+                <p><strong>Lean Manufacturing</strong> (Manufactura Esbelta) es un sistema de producción que busca eliminar todo tipo de desperdicio (muda) para crear valor máximo con recursos mínimos.</p>
+                
+                <h3>Los 5 Principios Lean</h3>
+                <ol>
+                    <li><strong>Definir Valor:</strong> Desde la perspectiva del cliente</li>
+                    <li><strong>Mapear la Cadena de Valor:</strong> Identificar todos los pasos del proceso</li>
+                    <li><strong>Crear Flujo:</strong> Eliminar interrupciones y cuellos de botella</li>
+                    <li><strong>Establecer Pull:</strong> Producir solo lo que el cliente demanda</li>
+                    <li><strong>Buscar la Perfección:</strong> Mejora continua (Kaizen)</li>
+                </ol>
+
+                <!-- 5. Los 8 Desperdicios -->
+                <h2>5. Los 8 Desperdicios (MUDA) - TIMWOODS</h2>
+                <p>El acrónimo <strong>TIMWOODS</strong> (o DOWNTIME) representa los 8 tipos de desperdicio identificados en Lean:</p>
+                
+                <table class="theory-table">
+                    <tr><th>Letra</th><th>Desperdicio</th><th>Descripción</th><th>Ejemplos</th></tr>
+                    <tr><td>T</td><td>Transporte</td><td>Movimiento innecesario de materiales</td><td>Layouts mal diseñados, almacenes lejanos</td></tr>
+                    <tr><td>I</td><td>Inventario</td><td>Exceso de materiales/WIP/producto terminado</td><td>Stock de seguridad excesivo, lotes grandes</td></tr>
+                    <tr><td>M</td><td>Movimiento</td><td>Movimientos innecesarios de personas</td><td>Buscar herramientas, caminar largas distancias</td></tr>
+                    <tr><td>W</td><td>Espera (Waiting)</td><td>Tiempo ocioso esperando</td><td>Falta de material, cuellos de botella</td></tr>
+                    <tr><td>O</td><td>Sobreproducción</td><td>Producir más de lo necesario</td><td>Producir "por si acaso", lotes grandes</td></tr>
+                    <tr><td>O</td><td>Sobreprocesamiento</td><td>Más procesamiento del necesario</td><td>Inspecciones redundantes, tolerancias innecesarias</td></tr>
+                    <tr><td>D</td><td>Defectos</td><td>Productos que no cumplen especificaciones</td><td>Retrabajos, scrap, devoluciones</td></tr>
+                    <tr><td>S</td><td>Skills (Talento)</td><td>No utilizar el conocimiento del personal</td><td>Ideas ignoradas, falta de capacitación</td></tr>
+                </table>
+
+                <!-- 6. Six Sigma -->
+                <h2>6. Six Sigma</h2>
+                <p><strong>Six Sigma</strong> es una metodología de mejora de procesos basada en datos estadísticos, desarrollada por <strong>Bill Smith</strong> en Motorola (1986) y popularizada por <strong>Jack Welch</strong> en General Electric (1995).</p>
+                
+                <h3>Niveles Sigma y DPMO</h3>
+                <table class="theory-table">
+                    <tr><th>Nivel σ</th><th>DPMO</th><th>Rendimiento</th><th>Clasificación</th></tr>
+                    <tr><td>1σ</td><td>691,462</td><td>30.85%</td><td>No competitivo</td></tr>
+                    <tr><td>2σ</td><td>308,538</td><td>69.15%</td><td>Promedio industria</td></tr>
+                    <tr><td>3σ</td><td>66,807</td><td>93.32%</td><td>Aceptable</td></tr>
+                    <tr><td>4σ</td><td>6,210</td><td>99.38%</td><td>Bueno</td></tr>
+                    <tr><td>5σ</td><td>233</td><td>99.977%</td><td>Excelente</td></tr>
+                    <tr><td>6σ</td><td>3.4</td><td>99.99966%</td><td>Clase Mundial</td></tr>
+                </table>
+                <p><em>DPMO = Defectos Por Millón de Oportunidades</em></p>
+
+                <!-- 7. DMAIC -->
+                <h2>7. DMAIC - El Ciclo de Mejora Six Sigma</h2>
+                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 20px 0;">
+                    <div style="background: #3b82f6; padding: 15px; border-radius: 8px; text-align: center;">
+                        <strong style="font-size: 1.5em;">D</strong><br>Define<br><small>Definir</small>
+                    </div>
+                    <div style="background: #10b981; padding: 15px; border-radius: 8px; text-align: center;">
+                        <strong style="font-size: 1.5em;">M</strong><br>Measure<br><small>Medir</small>
+                    </div>
+                    <div style="background: #f59e0b; padding: 15px; border-radius: 8px; text-align: center;">
+                        <strong style="font-size: 1.5em;">A</strong><br>Analyze<br><small>Analizar</small>
+                    </div>
+                    <div style="background: #ef4444; padding: 15px; border-radius: 8px; text-align: center;">
+                        <strong style="font-size: 1.5em;">I</strong><br>Improve<br><small>Mejorar</small>
+                    </div>
+                    <div style="background: #8b5cf6; padding: 15px; border-radius: 8px; text-align: center;">
+                        <strong style="font-size: 1.5em;">C</strong><br>Control<br><small>Controlar</small>
+                    </div>
+                </div>
+
+                <!-- 8. Certificaciones -->
+                <h2>8. Niveles de Certificación Six Sigma</h2>
+                <table class="theory-table">
+                    <tr><th>Belt</th><th>Rol</th><th>Horas Formación</th><th>Proyectos</th></tr>
+                    <tr><td>⚪ White Belt</td><td>Participante de equipo</td><td>4-8 horas</td><td>Apoyo básico</td></tr>
+                    <tr><td>🟡 Yellow Belt</td><td>Miembro activo de proyecto</td><td>16-24 horas</td><td>Participa en proyectos</td></tr>
+                    <tr><td>🟢 Green Belt</td><td>Líder de proyecto</td><td>80-120 horas</td><td>1-2 proyectos/año</td></tr>
+                    <tr><td>⚫ Black Belt</td><td>Experto y mentor</td><td>160-240 horas</td><td>4-6 proyectos/año</td></tr>
+                    <tr><td>⚫⚫ Master BB</td><td>Estratega organizacional</td><td>+300 horas</td><td>Coaching y estrategia</td></tr>
+                </table>
+
+                <!-- 9. Herramientas -->
+                <h2>9. Herramientas Lean Six Sigma</h2>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div>
+                        <h4>Herramientas de Análisis:</h4>
+                        <ul>
+                            <li>Diagrama de Ishikawa (Causa-Efecto)</li>
+                            <li>5 Porqués</li>
+                            <li>Diagrama de Pareto</li>
+                            <li>FMEA (Análisis de Modos de Falla)</li>
+                            <li>Análisis de Regresión</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4>Herramientas de Control:</h4>
+                        <ul>
+                            <li>Gráficos de Control (SPC)</li>
+                            <li>Cp, Cpk, Pp, Ppk</li>
+                            <li>Poka-Yoke (A prueba de errores)</li>
+                            <li>Estandarización de trabajo</li>
+                            <li>Visual Management</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 10. Métricas -->
+                <h2>10. Métricas y KPIs</h2>
+                <table class="theory-table">
+                    <tr><th>Métrica</th><th>Fórmula</th><th>Meta típica</th></tr>
+                    <tr><td>OEE (Eficiencia Global)</td><td>Disponibilidad × Rendimiento × Calidad</td><td>≥85%</td></tr>
+                    <tr><td>Tiempo de Ciclo</td><td>Tiempo total / Unidades producidas</td><td>Reducir</td></tr>
+                    <tr><td>Lead Time</td><td>Desde pedido hasta entrega</td><td>Reducir</td></tr>
+                    <tr><td>Takt Time</td><td>Tiempo disponible / Demanda cliente</td><td>Ritmo objetivo</td></tr>
+                    <tr><td>First Pass Yield</td><td>Unidades buenas / Total producido</td><td>≥99%</td></tr>
+                </table>
+
+                <!-- 11. Casos de éxito -->
+                <h2>11. Casos de Éxito Documentados</h2>
+                <ul>
+                    <li><strong>Toyota:</strong> Reducción de setup de prensa de 4 horas a 3 minutos</li>
+                    <li><strong>Motorola:</strong> Ahorros de $17 mil millones con Six Sigma</li>
+                    <li><strong>GE:</strong> $12 mil millones en beneficios en 5 años</li>
+                    <li><strong>3M:</strong> 50% de reducción en tiempo de desarrollo de productos</li>
+                </ul>
+
+                <!-- 12. Referencias -->
+                <h2>12. Referencias Bibliográficas</h2>
+                <div style="background: #1a1a2e; padding: 15px; border-radius: 8px; font-size: 0.9em;">
+                    <p><strong>Libros fundamentales:</strong></p>
+                    <ul>
+                        <li>Shingo, S. (1985). <em>A Revolution in Manufacturing: The SMED System</em>. Productivity Press.</li>
+                        <li>Womack, J. & Jones, D. (1996). <em>Lean Thinking</em>. Simon & Schuster.</li>
+                        <li>Ohno, T. (1988). <em>Toyota Production System</em>. Productivity Press.</li>
+                        <li>George, M. (2002). <em>Lean Six Sigma</em>. McGraw-Hill.</li>
+                        <li>Liker, J. (2004). <em>The Toyota Way</em>. McGraw-Hill.</li>
+                    </ul>
+                    <p><strong>Normas y estándares:</strong></p>
+                    <ul>
+                        <li>ISO 13053:2011 - Métodos cuantitativos en mejora de procesos - Six Sigma</li>
+                        <li>ASQ (American Society for Quality) - Certificaciones Six Sigma</li>
+                        <li>IASSC (International Association for Six Sigma Certification)</li>
+                    </ul>
+                </div>
+
+                <div style="margin-top: 30px; padding: 20px; background: linear-gradient(135deg, #1a1a2e, #0f0f1a); border-radius: 8px; text-align: center;">
+                    <p style="color: var(--accent-primary); font-size: 1.1em; margin: 0;">
+                        📊 Esta aplicación implementa los principios de SMED y Six Sigma para medir, analizar y mejorar los tiempos de cambio de formato en procesos industriales.
+                    </p>
                 </div>
             </div>
         </section>
