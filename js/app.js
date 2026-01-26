@@ -556,6 +556,16 @@ const CSV = {
             return;
         }
         
+        // Pedir nombre de quien guarda el archivo
+        const nombreUsuario = prompt('¿Quién guarda este archivo? (Tu nombre):', '');
+        if (nombreUsuario === null) {
+            // Usuario canceló
+            return;
+        }
+        
+        // Limpiar nombre para usarlo en el archivo (quitar caracteres especiales)
+        const nombreLimpio = nombreUsuario.trim().replace(/[^a-zA-Z0-9]/g, '_') || 'Usuario';
+        
         // Headers con OP, Colores, Turno
         const headers = ['FechaExcel', 'OP', 'Colores', 'Turno', 'Actividad', 'Categoria', 'Tipo', 'InicioSeg', 'FinSeg', 'DuracionSeg'];
         
@@ -615,7 +625,8 @@ const CSV = {
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = `SMED_${new Date().toISOString().split('T')[0]}.csv`;
+        // Nombre del archivo incluye fecha y nombre de usuario
+        link.download = `SMED_${new Date().toISOString().split('T')[0]}_${nombreLimpio}.csv`;
         link.click();
         URL.revokeObjectURL(link.href);
     },

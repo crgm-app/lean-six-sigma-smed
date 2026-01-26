@@ -222,28 +222,20 @@ const Gantt = {
         const pctVA = total > 0 ? (va / total) * 100 : 0;
         const pctNVA = total > 0 ? (nva / total) * 100 : 0;
         
-        // Calcular tiempo neto: desde inicio de primera actividad hasta fin de última
+        // Calcular tiempo neto: SOLO actividades INTERNAS (tipo INT)
+        // NO incluye mudas (NVA) ni externas (EXT)
         let tiempoNeto = 0;
-        let rangoText = 'Sin datos';
+        let rangoText = 'Solo actividades INT';
         
         if (registros && registros.length > 0) {
-            // Ordenar por timestamp
-            const sorted = [...registros].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-            const primero = sorted[0];
-            const ultimo = sorted[sorted.length - 1];
+            // Filtrar SOLO actividades internas (INT)
+            const soloInternas = registros.filter(r => r.tipo === 'INT');
             
-            // Calcular tiempos
-            const inicioSeg = primero.inicioSeg || 0;
-            const finSeg = ultimo.finSeg || (ultimo.inicioSeg || 0) + (ultimo.duration || 0);
-            
-            // Tiempo neto = fin del último - inicio del primero
-            tiempoNeto = finSeg - inicioSeg;
-            if (tiempoNeto < 0) tiempoNeto += 86400; // Cruzó medianoche
-            
-            // Mostrar rango de horas
-            const horaInicio = Utils.secondsToHMS(inicioSeg);
-            const horaFin = Utils.secondsToHMS(finSeg);
-            rangoText = `${horaInicio} → ${horaFin}`;
+            if (soloInternas.length > 0) {
+                // Sumar todas las duraciones de actividades internas
+                tiempoNeto = soloInternas.reduce((sum, r) => sum + (r.duration || r.duracion || 0), 0);
+                rangoText = `${soloInternas.length} actividades INT`;
+            }
         }
         
         const mappings = {
