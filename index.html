@@ -112,35 +112,16 @@
                 <h2>Actividades SMED</h2>
                 <div id="buttonsGrid" class="btn-grid"></div>
 
-                <!-- Botón Libre de Cronómetro -->
+                <!-- MÚLTIPLES Cronómetros Libres -->
                 <div style="margin: 15px 0; padding: 15px; background: linear-gradient(135deg, #2d1f5c, #1a1a2e); border: 2px dashed #8b5cf6; border-radius: 8px;">
-                    <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
-                        <button id="freeTimerBtn" class="action-btn" style="background: #8b5cf6; font-size: 1.1em; padding: 12px 20px;" onclick="Timer.startFreeTimer()">
-                            ⏱️ Cronómetro Libre
+                    <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; margin-bottom: 10px;">
+                        <button class="action-btn" style="background: #8b5cf6; font-size: 1em; padding: 10px 16px;" onclick="FreeTimers.add()">
+                            ➕ Nuevo Cronómetro Libre
                         </button>
-                        <span id="freeTimerDisplay" style="font-size: 1.5em; color: #8b5cf6; font-weight: bold; font-family: monospace;">--</span>
-                        <span style="color: #888; font-size: 0.85em;">Inicia sin definir actividad. Luego asigna nombre y tipo.</span>
+                        <span style="color: #888; font-size: 0.85em;">Múltiples timers simultáneos. Detén y asigna nombre/tipo después.</span>
                     </div>
-                    <!-- Panel para asignar datos al timer libre -->
-                    <div id="freeTimerPanel" style="display: none; margin-top: 15px; padding: 15px; background: #1a1a2e; border-radius: 8px;">
-                        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
-                            <div style="flex: 2; min-width: 150px;">
-                                <label style="font-size: 10px; color: #888;">Nombre de la actividad:</label>
-                                <input type="text" id="freeTimerName" placeholder="Ej: Espera supervisor" 
-                                       style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #fff;">
-                            </div>
-                            <div style="flex: 1; min-width: 100px;">
-                                <label style="font-size: 10px; color: #888;">Tipo:</label>
-                                <select id="freeTimerTipo" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #f59e0b;">
-                                    <option value="NVA">🔴 Muda/NVA</option>
-                                    <option value="INT">🟠 Interna</option>
-                                    <option value="EXT">🟢 Externa</option>
-                                </select>
-                            </div>
-                            <button class="action-btn success" onclick="Timer.saveFreeTimer()">✓ Guardar</button>
-                            <button class="action-btn danger" onclick="Timer.cancelFreeTimer()">✕ Cancelar</button>
-                        </div>
-                    </div>
+                    <!-- Lista de cronómetros libres activos -->
+                    <div id="freeTimersList"></div>
                 </div>
 
                 <!-- Barra de Acciones -->
@@ -869,7 +850,35 @@
 
                 <!-- Lista de botones configurados -->
                 <h2>Botones Configurados</h2>
-                <div id="configButtonsList" style="max-height: 300px; overflow-y: auto;"></div>
+                <div id="configButtonsList" style="max-height: 250px; overflow-y: auto;"></div>
+
+                <!-- Gestión de Máquinas -->
+                <h2 style="margin-top: 20px;">🏭 Gestión de Máquinas</h2>
+                <div style="background: #1a1a2e; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <div id="maquinasList" style="display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 15px;"></div>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
+                        <div style="flex: 2; min-width: 150px;">
+                            <label style="font-size: 10px; color: #888;">Agregar nueva máquina:</label>
+                            <input type="text" id="newMaquinaName" placeholder="Ej: C1 (Corrugadora)" 
+                                   style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #00d4ff;">
+                        </div>
+                        <button class="action-btn primary" onclick="MaquinaManager.add(document.getElementById('newMaquinaName').value); document.getElementById('newMaquinaName').value='';" style="padding: 8px 16px;">
+                            + Agregar
+                        </button>
+                        <button class="action-btn" onclick="MaquinaManager.restore()" style="padding: 8px 12px;">
+                            🔄 Restaurar
+                        </button>
+                    </div>
+                </div>
+                <script>
+                    // Inicializar lista de máquinas y selectores
+                    setTimeout(() => {
+                        if (typeof MaquinaManager !== 'undefined') {
+                            MaquinaManager.renderList();
+                            MaquinaManager.updateSelectors();
+                        }
+                    }, 600);
+                </script>
 
                 <div class="action-bar" style="flex-wrap: wrap; gap: 10px;">
                     <button class="action-btn" onclick="ButtonManager.restore()">🔄 Restaurar Botones</button>
