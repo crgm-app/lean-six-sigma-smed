@@ -2,7 +2,9 @@
 
 **Herramienta de Análisis de Tiempos de Cambio de Formato**  
 **Metodología: Lean Manufacturing + Six Sigma**  
-**Fecha:** 22 de Enero de 2026
+**Versión:** 2.0  
+**Fecha:** 26 de Enero de 2026  
+**Dominio:** https://smed.crgm.app  
 
 ---
 
@@ -158,6 +160,16 @@
 │  ✅ CSV IMPORT/EXPORT - Compatibilidad universal           │
 │  ✅ TEORÍA INCLUIDA - Capacitación integrada               │
 │  ✅ SIN LICENCIA - Código abierto / Freemium               │
+│                                                             │
+│  === VERSIÓN 2.0 (Enero 2026) ===                          │
+│  ☁️ GOOGLE DRIVE SYNC - Multi-dispositivo y equipo         │
+│  📄 INFORMES PDF/HTML - Exportación profesional            │
+│  ⏰ SISTEMA DE TURNOS - Rotación T1/T2/T3 automática       │
+│  🏭 GESTIÓN MÁQUINAS - Lista configurable (i4-i17)         │
+│  📋 OP ACTIVA - Orden de Producción vinculada              │
+│  📱 PWA - Instalable como app nativa                       │
+│  👥 TRABAJO EN EQUIPO - Compartir datos con colegas        │
+│  🔄 BACKUP AUTOMÁTICO - Cada 5 min a Google Drive          │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```

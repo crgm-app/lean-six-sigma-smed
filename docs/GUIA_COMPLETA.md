@@ -1,8 +1,9 @@
 # 📘 SMED Analyzer Pro - Guía Completa de Desarrollo
 
-**Versión:** 1.0  
-**Fecha:** 22 de Enero de 2026  
+**Versión:** 2.0  
+**Fecha:** 26 de Enero de 2026  
 **Autor:** Desarrollo Lean Manufacturing  
+**Dominio:** https://smed.crgm.app  
 
 ---
 
@@ -39,6 +40,23 @@ Desarrollar una aplicación web HTML5 autónoma que combine las mejores caracter
 - Vistas multi-perspectiva: Financiera, Gerencial, Operacional, Estadística
 - 100% offline, sin dependencias de servidor
 - Exportación/Importación CSV
+- ☁️ **Sincronización Google Drive** - Multi-dispositivo y trabajo en equipo
+- 📄 **Generador de Informes** - Exportar PDF/HTML personalizables
+- ⏰ **Sistema de Turnos** - Rotación T1/T2/T3 en ciclo de 3 semanas
+- 🏭 **Gestión de Máquinas** - Lista configurable (i4-i17)
+- 📱 **PWA** - Instalable como app nativa
+
+### 🆕 Novedades Versión 2.0 (26 Enero 2026)
+
+| Módulo | Descripción |
+|--------|-------------|
+| **📄 Informes** | Generador de informes configurables, exportar PDF/HTML |
+| **☁️ Google Drive Sync** | Sincronización automática cada 5 min, compartir con equipo |
+| **⏰ Sistema de Turnos** | Rotación T1/T2/T3 en ciclo de 3 semanas |
+| **🏭 Gestión de Máquinas** | Lista configurable: i4, i5, i6, i8, i10-i17 |
+| **📋 OP Activa** | Orden de Producción, Colores, Turno, Máquina |
+| **⏱️ Cronómetros Libres** | Múltiples timers simultáneos con asignación posterior |
+| **📥 CSV Mejorado** | Incluye Máquina, OP, Colores, Turno |
 
 ---
 
@@ -107,14 +125,20 @@ Desarrollar una aplicación web HTML5 autónoma que combine las mejores caracter
 
 ```
 SMED_Analyzer_Pro/
-├── index.html                      # Página principal (5 tabs)
+├── index.html                      # Página principal (7 tabs)
+├── manifest.json                   # PWA manifest
+├── sw.js                          # Service Worker para offline
 ├── css/
 │   └── styles.css                  # Estilos CSS (tema oscuro industrial)
 ├── js/
-│   ├── app.js                      # Lógica principal, cronómetro, persistencia
+│   ├── app.js                      # Lógica principal, cronómetro, turnos, máquinas
 │   ├── charts.js                   # Análisis multi-perspectiva y gráficos SVG
 │   ├── statistics.js               # Estadísticas avanzadas y Six Sigma
-│   └── gantt.js                    # Diagrama de Gantt interactivo
+│   ├── gantt.js                    # Diagrama de Gantt interactivo
+│   ├── reports.js                  # 📄 Generador de informes PDF/HTML
+│   └── googleDrive.js              # ☁️ Sincronización con Google Drive
+├── icons/
+│   └── icon.svg                    # Icono de la app
 └── docs/
     ├── GUIA_COMPLETA.md            # Este documento
     └── BUSINESS_MODEL_CANVAS.md    # Plan de negocio
@@ -602,6 +626,8 @@ ROI = (Ahorros - Inversión) / Inversión × 100%
 [x] charts.js creado
 [x] statistics.js creado
 [x] gantt.js creado
+[x] reports.js creado (v2.0)
+[x] googleDrive.js creado (v2.0)
 [x] Cronómetro funcional
 [x] Botones SMED implementados
 [x] Timers múltiples funcionando
@@ -620,6 +646,18 @@ ROI = (Ahorros - Inversión) / Inversión × 100%
 [x] Vista Estadística completa
 [x] Sección Teoría incluida
 [x] Responsive design verificado
+
+=== VERSIÓN 2.0 (26 Enero 2026) ===
+[x] Sistema de Turnos (T1/T2/T3 ciclo 3 semanas)
+[x] Gestión de Máquinas (i4-i17 configurable)
+[x] OP Activa (Número, Colores, Turno, Máquina)
+[x] Cronómetros Libres múltiples
+[x] CSV mejorado con campos nuevos
+[x] Módulo de Informes (PDF/HTML)
+[x] Google Drive Sync
+[x] Trabajo en equipo (compartir datos)
+[x] PWA (manifest.json, sw.js)
+[x] Backup automático en Drive (cada 5 min)
 [ ] Cross-browser testing (pendiente usuario)
 ```
 
