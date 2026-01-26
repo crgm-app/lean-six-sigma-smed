@@ -8,18 +8,15 @@
 // CONFIGURACIÓN Y CONSTANTES
 // =====================================================
 
-const CATEGORIAS_SMED = [
-    { id: 'preparacion', nombre: 'Preparación', tipo: 'VA', color: '#3b82f6' },
-    { id: 'ajuste-int', nombre: 'Ajuste Interno', tipo: 'INT', color: '#f97316' },
-    { id: 'ajuste-ext', nombre: 'Ajuste Externo', tipo: 'EXT', color: '#10b981' },
-    { id: 'verificacion', nombre: 'Verificación', tipo: 'VA', color: '#8b5cf6' },
-    { id: 'limpieza', nombre: 'Limpieza', tipo: 'SOP', color: '#14b8a6' },
-    { id: 'muda', nombre: 'Muda', tipo: 'NVA', color: '#ef4444' },
-    { id: 'espera', nombre: 'Espera', tipo: 'NVA', color: '#f59e0b' },
-    { id: 'transporte', nombre: 'Transporte', tipo: 'NVA', color: '#ec4899' },
-    { id: 'movimiento', nombre: 'Movimiento', tipo: 'NVA', color: '#06b6d4' },
-    { id: 'defectos', nombre: 'Defectos', tipo: 'NVA', color: '#dc2626' }
+// Colores predefinidos para categorías dinámicas
+const COLORES_CATEGORIAS = [
+    '#3b82f6', '#f97316', '#10b981', '#8b5cf6', '#14b8a6', 
+    '#ef4444', '#f59e0b', '#ec4899', '#06b6d4', '#dc2626',
+    '#6366f1', '#84cc16', '#22c55e', '#a855f7', '#0ea5e9'
 ];
+
+// Mapa de colores por categoría (se genera dinámicamente)
+const categoryColors = {};
 
 const COSTO_HORA_DEFAULT = 500; // GTQ por hora
 
@@ -90,16 +87,28 @@ const Utils = {
     // Redondear a 2 decimales
     round2: (num) => Math.round(num * 100) / 100,
     
-    // Obtener color de categoría
+    // Obtener color de categoría (dinámico)
     getCategoryColor: (catName) => {
-        const cat = CATEGORIAS_SMED.find(c => c.nombre === catName);
-        return cat ? cat.color : '#666666';
+        if (!categoryColors[catName]) {
+            // Asignar un color basado en el hash del nombre
+            const existingCount = Object.keys(categoryColors).length;
+            categoryColors[catName] = COLORES_CATEGORIAS[existingCount % COLORES_CATEGORIAS.length];
+        }
+        return categoryColors[catName];
     },
     
     // Obtener clase CSS de categoría
     getCategoryClass: (catName) => {
-        const cat = CATEGORIAS_SMED.find(c => c.nombre === catName);
-        return cat ? `cat-${cat.id}` : '';
+        // Normalizar nombre para clase CSS
+        return `cat-${catName.toLowerCase().replace(/\s+/g, '-')}`;
+    },
+    
+    // Extraer categoría de un nombre (primera palabra)
+    extractCategory: (name) => {
+        if (!name || typeof name !== 'string') return 'General';
+        const firstWord = name.trim().split(/\s+/)[0];
+        // Capitalizar primera letra
+        return firstWord.charAt(0).toUpperCase() + firstWord.slice(1).toLowerCase();
     }
 };
 
@@ -149,18 +158,21 @@ const Storage = {
     },
     
     loadDefaultButtons: () => {
-        AppState.buttons = [
-            { id: Utils.generateId(), name: 'Revisar Planos', cat: 'Preparación' },
-            { id: Utils.generateId(), name: 'Cambio Molde', cat: 'Ajuste Interno' },
-            { id: Utils.generateId(), name: 'Pre-calentar', cat: 'Ajuste Externo' },
-            { id: Utils.generateId(), name: 'Verificar Medidas', cat: 'Verificación' },
-            { id: Utils.generateId(), name: 'Limpiar Máquina', cat: 'Limpieza' },
-            { id: Utils.generateId(), name: 'Buscar Herramienta', cat: 'Muda' },
-            { id: Utils.generateId(), name: 'Esperar Material', cat: 'Espera' },
-            { id: Utils.generateId(), name: 'Traer Pieza', cat: 'Transporte' },
-            { id: Utils.generateId(), name: 'Caminar', cat: 'Movimiento' },
-            { id: Utils.generateId(), name: 'Retrabajo', cat: 'Defectos' }
+        // Botones por defecto - la categoría se extrae de la primera palabra
+        const defaultNames = [
+            'Troquel Desmontar',
+            'Troquel Montar',
+            'Sello Desmontar',
+            'Sello Montar',
+            'Tinta Desmontar',
+            'Tinta Montar'
         ];
+        
+        AppState.buttons = defaultNames.map(name => ({
+            id: Utils.generateId(),
+            name: name,
+            cat: Utils.extractCategory(name)
+        }));
         Storage.save();
     },
     
@@ -280,15 +292,19 @@ const Timer = {
 // =====================================================
 
 const ButtonManager = {
-    add: (name, cat) => {
-        if (!name || !cat) {
-            alert('Complete nombre y categoría');
+    // Agregar botón - la categoría se extrae automáticamente de la primera palabra
+    add: (name) => {
+        if (!name || !name.trim()) {
+            alert('Ingrese el nombre del botón (ej: "Troquel Limpiar")');
             return false;
         }
         
+        const trimmedName = name.trim();
+        const cat = Utils.extractCategory(trimmedName);
+        
         AppState.buttons.push({
             id: Utils.generateId(),
-            name: name.trim(),
+            name: trimmedName,
             cat: cat
         });
         
@@ -486,10 +502,37 @@ const UI = {
         }).join('');
     },
     
+    // Actualizar opciones del filtro de historial (categorías dinámicas)
+    updateHistoryFilterOptions: () => {
+        const select = document.getElementById('historyFilter');
+        if (!select) return;
+        
+        const currentValue = select.value;
+        
+        // Obtener categorías únicas de botones y registros
+        const catFromButtons = AppState.buttons.map(b => b.cat);
+        const catFromRecords = AppState.registros.map(r => r.cat);
+        const allCats = [...new Set([...catFromButtons, ...catFromRecords])].sort();
+        
+        let html = '<option value="ALL">Todas las categorías</option>';
+        allCats.forEach(cat => {
+            html += `<option value="${cat}">${cat}</option>`;
+        });
+        
+        select.innerHTML = html;
+        // Restaurar selección si aún existe
+        if (allCats.includes(currentValue) || currentValue === 'ALL') {
+            select.value = currentValue;
+        }
+    },
+    
     // Historial de actividades
     renderHistory: () => {
         const container = document.getElementById('historyList');
         if (!container) return;
+        
+        // Actualizar opciones del filtro
+        UI.updateHistoryFilterOptions();
         
         if (AppState.registros.length === 0) {
             container.innerHTML = '<div class="no-data-msg">No hay actividades registradas</div>';
@@ -654,15 +697,14 @@ function setupEventListeners() {
         });
     });
     
-    // Formulario de nuevo botón
+    // Formulario de nuevo botón (categoría automática de primera palabra)
     const addBtnForm = document.getElementById('addButtonForm');
     if (addBtnForm) {
         addBtnForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const nameInput = document.getElementById('newBtnName');
-            const catSelect = document.getElementById('newBtnCat');
             
-            if (ButtonManager.add(nameInput.value, catSelect.value)) {
+            if (ButtonManager.add(nameInput.value)) {
                 nameInput.value = '';
             }
         });
