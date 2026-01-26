@@ -381,20 +381,34 @@
                 <h2>Gestión de Botones</h2>
                 
                 <!-- Formulario nuevo botón (categoría automática de primera palabra) -->
-                <form id="addButtonForm" class="form-row mb-15">
-                    <div class="form-group" style="flex:3">
-                        <label class="form-label">Nombre de Actividad (la primera palabra será la categoría)</label>
-                        <input type="text" id="newBtnName" class="form-input" placeholder="Ej: Troquel Limpiar, Sello Ajustar, Tinta Cargar" required>
+                <form id="addButtonForm" class="form-row mb-15" style="flex-wrap: wrap; gap: 10px;">
+                    <div class="form-group" style="flex:2; min-width: 200px;">
+                        <label class="form-label">Nombre (primera palabra = categoría)</label>
+                        <input type="text" id="newBtnName" class="form-input" placeholder="Ej: Troquel Limpiar" required>
+                    </div>
+                    <div class="form-group" style="flex:1; min-width: 120px;">
+                        <label class="form-label">Tipo SMED</label>
+                        <select id="newBtnTipo" class="form-select">
+                            <option value="INT" style="color: #f97316;">🟠 Interna (máq. parada)</option>
+                            <option value="EXT" style="color: #10b981;">🟢 Externa (máq. andando)</option>
+                            <option value="NVA" style="color: #ef4444;">🔴 Muda / Desperdicio</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:0; min-width: 60px;">
+                        <label class="form-label">Color</label>
+                        <input type="color" id="newBtnColor" value="#3b82f6" style="width: 100%; height: 38px; border: none; cursor: pointer; border-radius: 6px;">
                     </div>
                     <div class="form-group" style="flex:0">
                         <label class="form-label">&nbsp;</label>
                         <button type="submit" class="action-btn primary">+ Crear</button>
                     </div>
                 </form>
-                <div class="recommendation" style="margin-top:-10px; margin-bottom:15px;">
+                <div class="recommendation" style="margin-bottom:15px;">
                     <div class="recommendation-text">
-                        💡 <strong>Tip:</strong> La primera palabra del nombre se usa como categoría. 
-                        Ejemplo: "Troquel Montar" → Categoría: <strong>Troquel</strong>
+                        💡 <strong>Tipos SMED:</strong> 
+                        <span style="color:#f97316;">Interna</span> = con máquina parada | 
+                        <span style="color:#10b981;">Externa</span> = con máquina andando | 
+                        <span style="color:#ef4444;">Muda</span> = desperdicio
                     </div>
                 </div>
 
