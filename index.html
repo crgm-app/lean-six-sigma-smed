@@ -996,9 +996,70 @@
                     <button class="action-btn danger" onclick="Storage.clearAll()">⚠️ Borrar TODO</button>
                 </div>
                 
-                <!-- Info del Backup -->
+                <!-- Google Drive Sync -->
+                <div style="margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #1a237e, #1a1a2e); border-radius: 8px; border: 1px solid #3b82f6;">
+                    <h3 style="margin-top:0; color: #4285f4;">☁️ Google Drive Sync</h3>
+                    
+                    <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; margin-bottom: 15px;">
+                        <div>
+                            <span style="color: #888;">Estado:</span>
+                            <span id="googleDriveStatus" style="margin-left: 5px; color: #888;">❌ No conectado</span>
+                        </div>
+                        <div>
+                            <span style="color: #00ff9d;" id="googleEmail"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Botones Login/Logout -->
+                    <button id="googleLoginBtn" class="action-btn primary" onclick="GoogleDrive.signIn()" style="background: #4285f4; font-size: 1em; padding: 10px 20px;">
+                        <svg style="width:18px;height:18px;vertical-align:middle;margin-right:8px;" viewBox="0 0 24 24">
+                            <path fill="#fff" d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"/>
+                        </svg>
+                        Conectar con Google
+                    </button>
+                    <button id="googleLogoutBtn" class="action-btn" onclick="GoogleDrive.signOut()" style="display: none; background: #666;">
+                        🚪 Cerrar Sesión
+                    </button>
+                    
+                    <!-- Botones de Sincronización (visibles cuando está conectado) -->
+                    <div id="googleSyncBtns" style="display: none; gap: 10px; flex-wrap: wrap; margin-top: 15px;">
+                        <button class="action-btn success" onclick="GoogleDrive.saveBackup()">
+                            ☁️ Subir a Drive
+                        </button>
+                        <button class="action-btn primary" onclick="GoogleDrive.loadBackup()">
+                            📥 Descargar de Drive
+                        </button>
+                    </div>
+                    
+                    <!-- Info de última sincronización -->
+                    <div style="margin-top: 15px; font-size: 0.85em; color: #888;">
+                        <span>Última sincronización:</span>
+                        <span id="lastSyncTime" style="color: #00ff9d;">--</span>
+                    </div>
+                    
+                    <!-- Compartir con otros usuarios -->
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #333;">
+                        <h4 style="margin: 0 0 10px; color: #f59e0b;">👥 Compartir con el Equipo</h4>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <input type="email" id="shareEmailInput" placeholder="correo@ejemplo.com" 
+                                   style="flex: 2; min-width: 200px; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #fff;">
+                            <button class="action-btn" onclick="GoogleDrive.shareWith(document.getElementById('shareEmailInput').value); document.getElementById('shareEmailInput').value='';">
+                                📤 Compartir
+                            </button>
+                        </div>
+                        <p style="margin: 10px 0 0; font-size: 0.8em; color: #666;">
+                            La persona recibirá acceso a la carpeta SMED_Analyzer_Pro en tu Drive.
+                        </p>
+                    </div>
+                    
+                    <div style="margin-top: 15px; padding: 10px; background: #0a0a0a; border-radius: 4px; font-size: 0.85em; color: #888;">
+                        <strong>🔄 Sincronización automática:</strong> Cada 5 minutos (cuando estás conectado)
+                    </div>
+                </div>
+
+                <!-- Info del Backup Local -->
                 <div id="backupInfo" style="margin-top: 15px; padding: 15px; background: #1a1a2e; border-radius: 8px; border: 1px solid #333;">
-                    <h3 style="margin-top:0; color: #00d4ff;">📦 Sistema de Backup</h3>
+                    <h3 style="margin-top:0; color: #00d4ff;">📦 Backup Local</h3>
                     <p style="color: #888; font-size: 0.9em;">
                         ✓ Backup automático diario<br>
                         ✓ Backup al cerrar la app<br>
@@ -1154,6 +1215,7 @@
     <script src="js/charts.js"></script>
     <script src="js/gantt.js"></script>
     <script src="js/reports.js"></script>
+    <script src="js/googleDrive.js"></script>
     
     <!-- Cargar configuración de informes -->
     <script>
