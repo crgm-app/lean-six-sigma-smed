@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMED Analyzer Pro - Lean Manufacturing</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- HEADER -->
+        <header class="app-header">
+            <h1>🏭 SMED Analyzer Pro</h1>
+            <p>Cronómetro Industrial + Análisis Lean Manufacturing + Six Sigma</p>
+        </header>
+
+        <!-- NAVEGACIÓN TABS -->
+        <nav class="tab-nav">
+            <button class="tab-btn active" data-tab="clock">⏱️ Reloj</button>
+            <button class="tab-btn" data-tab="analysis">📊 Análisis</button>
+            <button class="tab-btn" data-tab="gantt">📈 Gantt</button>
+            <button class="tab-btn" data-tab="stats">📉 Estadística</button>
+            <button class="tab-btn" data-tab="config">⚙️ Config</button>
+        </nav>
+
+        <!-- ============================================== -->
+        <!-- TAB: RELOJ / CRONÓMETRO -->
+        <!-- ============================================== -->
+        <section id="tab-clock" class="view-section active">
+            <div class="card">
+                <!-- Reloj Maestro -->
+                <div class="master-clock">
+                    <div class="seconds-display" id="masterSeconds">00000.0</div>
+                    <div class="time-display" id="masterTime">00:00:00</div>
+                </div>
+
+                <!-- Panel de Timers Activos -->
+                <div id="activeTimersPanel" class="active-timers-panel hidden">
+                    <h3>⏱️ ACTIVIDAD EN CURSO:</h3>
+                    <div id="activeTimersList"></div>
+                </div>
+
+                <!-- Grid de Botones SMED -->
+                <h2>Actividades SMED</h2>
+                <div id="buttonsGrid" class="btn-grid"></div>
+
+                <!-- Barra de Acciones -->
+                <div class="action-bar">
+                    <button class="action-btn primary" onclick="Timer.stopAllTimers()">⏹️ Detener Todo</button>
+                    <button class="action-btn success" onclick="CSV.export()">📥 Exportar CSV</button>
+                    <label class="action-btn">
+                        📤 Importar CSV
+                        <input type="file" id="csvFileInput" accept=".csv" style="display:none">
+                    </label>
+                    <button class="action-btn danger" onclick="Storage.clear()">🗑️ Reset</button>
+                </div>
+
+                <!-- Historial -->
+                <h2>Historial de Actividades</h2>
+                <div class="form-row mb-10">
+                    <div class="form-group">
+                        <select id="historyFilter" class="form-select">
+                            <option value="ALL">Todas las categorías</option>
+                            <option value="Preparación">Preparación</option>
+                            <option value="Ajuste Interno">Ajuste Interno</option>
+                            <option value="Ajuste Externo">Ajuste Externo</option>
+                            <option value="Verificación">Verificación</option>
+                            <option value="Limpieza">Limpieza</option>
+                            <option value="Muda">Muda</option>
+                            <option value="Espera">Espera</option>
+                            <option value="Transporte">Transporte</option>
+                            <option value="Movimiento">Movimiento</option>
+                            <option value="Defectos">Defectos</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="historyList" class="history-container"></div>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB: ANÁLISIS -->
+        <!-- ============================================== -->
+        <section id="tab-analysis" class="view-section">
+            <div class="card">
+                <h2>Análisis Multi-Perspectiva</h2>
+                
+                <!-- Selector de Vista -->
+                <div class="analysis-selector">
+                    <select id="analysisView" class="form-select">
+                        <option value="general">Vista General</option>
+                        <option value="financiero">Vista Financiera</option>
+                        <option value="gerencial">Vista Gerencial</option>
+                        <option value="operacional">Vista Operacional</option>
+                    </select>
+                </div>
+
+                <!-- Panel: General -->
+                <div id="panel-general" class="view-panel active">
+                    <div class="kpi-grid">
+                        <div class="kpi-card blue">
+                            <div class="kpi-icon">⏱️</div>
+                            <div class="kpi-label">Tiempo Total</div>
+                            <div class="kpi-value" id="kpi-total">0s</div>
+                        </div>
+                        <div class="kpi-card red">
+                            <div class="kpi-icon">⚠️</div>
+                            <div class="kpi-label">Mudas (Desperdicio)</div>
+                            <div class="kpi-value" id="kpi-muda">0s</div>
+                        </div>
+                        <div class="kpi-card green">
+                            <div class="kpi-icon">📈</div>
+                            <div class="kpi-label">Eficiencia</div>
+                            <div class="kpi-value" id="kpi-eficiencia">0%</div>
+                        </div>
+                        <div class="kpi-card yellow">
+                            <div class="kpi-icon">📋</div>
+                            <div class="kpi-label">Registros</div>
+                            <div class="kpi-value" id="kpi-registros">0</div>
+                        </div>
+                        <div class="kpi-card purple">
+                            <div class="kpi-icon">⏳</div>
+                            <div class="kpi-label">Promedio</div>
+                            <div class="kpi-value" id="kpi-promedio">0s</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Panel: Financiero -->
+                <div id="panel-financiero" class="view-panel">
+                    <div class="financial-grid">
+                        <div class="financial-card cost">
+                            <div class="financial-label">💸 Costo de Mudas</div>
+                            <div class="financial-value" id="fin-costo-muda">Q0.00</div>
+                        </div>
+                        <div class="financial-card savings">
+                            <div class="financial-label">💰 Ahorros Potenciales</div>
+                            <div class="financial-value" id="fin-ahorros">Q0.00</div>
+                        </div>
+                        <div class="financial-card roi">
+                            <div class="financial-label">📊 ROI Estimado</div>
+                            <div class="financial-value" id="fin-roi">0%</div>
+                        </div>
+                    </div>
+                    <div class="recommendation">
+                        <div class="recommendation-title">💡 Recomendación Financiera:</div>
+                        <div class="recommendation-text" id="fin-recomendacion">Sin datos suficientes</div>
+                    </div>
+                </div>
+
+                <!-- Panel: Gerencial -->
+                <div id="panel-gerencial" class="view-panel">
+                    <div class="kpi-grid">
+                        <div class="kpi-card purple">
+                            <div class="kpi-label">Eficiencia Actual</div>
+                            <div class="kpi-value" id="ger-eficiencia-actual">0%</div>
+                        </div>
+                        <div class="kpi-card green">
+                            <div class="kpi-label">Meta</div>
+                            <div class="kpi-value" id="ger-meta">95%</div>
+                        </div>
+                        <div class="kpi-card red">
+                            <div class="kpi-label">Brecha</div>
+                            <div class="kpi-value" id="ger-brecha">0%</div>
+                        </div>
+                    </div>
+                    <div class="recommendation">
+                        <div class="recommendation-title">📊 KPIs Gerenciales:</div>
+                        <ul style="color: var(--text-secondary); font-size: 0.85rem; padding-left: 20px;">
+                            <li>Tiempo promedio de cambio: <strong id="ger-promedio">0s</strong></li>
+                            <li>Total de cambios analizados: <strong id="ger-total-cambios">0</strong></li>
+                            <li>Tiempo de valor agregado: <strong id="ger-tiempo-va">0s</strong></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Panel: Operacional -->
+                <div id="panel-operacional" class="view-panel">
+                    <div class="kpi-grid">
+                        <div class="kpi-card yellow">
+                            <div class="kpi-label">Ajuste Interno</div>
+                            <div class="kpi-value" id="op-ajuste-int">0s</div>
+                        </div>
+                        <div class="kpi-card green">
+                            <div class="kpi-label">Ajuste Externo</div>
+                            <div class="kpi-value" id="op-ajuste-ext">0s</div>
+                        </div>
+                        <div class="kpi-card blue">
+                            <div class="kpi-label">Ratio Int/Ext</div>
+                            <div class="kpi-value" id="op-ratio">0</div>
+                        </div>
+                    </div>
+                    <div class="recommendation">
+                        <div class="recommendation-title">🎯 Estrategia SMED:</div>
+                        <div class="recommendation-text" id="op-recomendacion">Convertir actividades internas a externas. Objetivo: reducir ratio a 0.5 o menos.</div>
+                    </div>
+                </div>
+
+                <!-- Gráficos -->
+                <h2 class="mt-10">Gráficos</h2>
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <div class="chart-title">Distribución por Categoría</div>
+                        <svg id="barChartSvg" viewBox="0 0 300 180" preserveAspectRatio="xMidYMid meet" style="width:100%; height:180px;"></svg>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-title">Proporción de Tiempos</div>
+                        <svg id="pieChartSvg" viewBox="0 0 280 180" preserveAspectRatio="xMidYMid meet" style="width:100%; height:180px;"></svg>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB: GANTT -->
+        <!-- ============================================== -->
+        <section id="tab-gantt" class="view-section">
+            <div class="card">
+                <h2>Diagrama de Gantt - Timeline de Actividades</h2>
+                
+                <div class="gantt-header">
+                    <div class="gantt-controls">
+                        <select id="ganttFilter" class="form-select" onchange="Gantt.setFilter(this.value)">
+                            <option value="ALL">Todas las categorías</option>
+                            <option value="Preparación">Preparación</option>
+                            <option value="Ajuste Interno">Ajuste Interno</option>
+                            <option value="Ajuste Externo">Ajuste Externo</option>
+                            <option value="Verificación">Verificación</option>
+                            <option value="Limpieza">Limpieza</option>
+                            <option value="Muda">Muda</option>
+                            <option value="Espera">Espera</option>
+                            <option value="Transporte">Transporte</option>
+                            <option value="Movimiento">Movimiento</option>
+                            <option value="Defectos">Defectos</option>
+                        </select>
+                    </div>
+                    <div class="gantt-controls">
+                        <button class="action-btn" onclick="Gantt.zoomOut()">−</button>
+                        <button class="action-btn" onclick="Gantt.resetZoom()">100%</button>
+                        <button class="action-btn" onclick="Gantt.zoomIn()">+</button>
+                    </div>
+                </div>
+
+                <div class="gantt-container">
+                    <div id="ganttTimeline" class="gantt-timeline">
+                        <div class="no-data-msg">No hay actividades registradas</div>
+                    </div>
+                    <div id="ganttScale" class="gantt-scale"></div>
+                </div>
+
+                <div class="kpi-grid mt-10">
+                    <div class="kpi-card blue">
+                        <div class="kpi-label">Total</div>
+                        <div class="kpi-value" id="gantt-total">0s</div>
+                    </div>
+                    <div class="kpi-card green">
+                        <div class="kpi-label">Valor Agregado</div>
+                        <div class="kpi-value" id="gantt-va">0s</div>
+                    </div>
+                    <div class="kpi-card red">
+                        <div class="kpi-label">No Valor Agregado</div>
+                        <div class="kpi-value" id="gantt-nva">0s</div>
+                    </div>
+                </div>
+
+                <div class="action-bar">
+                    <button class="action-btn" onclick="Gantt.render()">📊 Vista Secuencial</button>
+                    <button class="action-btn" onclick="Gantt.renderByCategory()">📈 Vista por Categoría</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB: ESTADÍSTICA -->
+        <!-- ============================================== -->
+        <section id="tab-stats" class="view-section">
+            <div class="card">
+                <h2 style="color: var(--accent-primary);">Análisis Estadístico Avanzado</h2>
+                
+                <!-- Filtro -->
+                <div class="form-row mb-15">
+                    <div class="form-group">
+                        <label class="form-label">Filtrar por:</label>
+                        <select id="statsFilter" class="form-select" onchange="Statistics.calculate()">
+                            <option value="ALL">Todo el Historial</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Estadísticas Básicas -->
+                <h2>Estadísticas Descriptivas</h2>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="stat-label">Min</span>
+                        <span class="stat-value" id="st-min">--</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Q1 (25%)</span>
+                        <span class="stat-value" id="st-q1">--</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Mediana</span>
+                        <span class="stat-value" id="st-med">--</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Q3 (75%)</span>
+                        <span class="stat-value" id="st-q3">--</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Max</span>
+                        <span class="stat-value" id="st-max">--</span>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="stat-label">Media (μ)</span>
+                        <span class="stat-value" id="st-mean">--</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Desv. Est. (σ)</span>
+                        <span class="stat-value" id="st-stddev">--</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">CV (%)</span>
+                        <span class="stat-value" id="st-cv">--</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">N</span>
+                        <span class="stat-value" id="st-n">--</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Rango</span>
+                        <span class="stat-value" id="st-range">--</span>
+                    </div>
+                </div>
+
+                <!-- Box Plot -->
+                <h2>Diagrama de Vela (Box Plot)</h2>
+                <div id="boxPlotContainer" class="boxplot-container">
+                    <div class="no-data-msg">Se necesitan al menos 2 registros</div>
+                </div>
+
+                <!-- Curva de Gauss -->
+                <h2>Distribución Normal (Curva de Gauss)</h2>
+                <div class="gauss-container">
+                    <svg id="bellCurve" viewBox="0 0 300 150" preserveAspectRatio="xMidYMid meet"></svg>
+                </div>
+
+                <!-- Six Sigma -->
+                <h2>Métricas Six Sigma</h2>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="stat-label">Cp</span>
+                        <span class="stat-value" id="ss-cp">--</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Cpk</span>
+                        <span class="stat-value" id="ss-cpk">--</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Nivel σ</span>
+                        <span class="stat-value" id="ss-sigma">--</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">DPMO</span>
+                        <span class="stat-value" id="ss-dpmo">--</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Clasificación</span>
+                        <span class="stat-value" id="ss-class">--</span>
+                    </div>
+                </div>
+
+                <div class="recommendation">
+                    <div class="recommendation-title">📈 Interpretación Six Sigma:</div>
+                    <div class="recommendation-text">
+                        <strong>Cp/Cpk:</strong> &gt;1.33 = Bueno, &gt;1.67 = Excelente, &gt;2.0 = Clase Mundial<br>
+                        <strong>CV:</strong> &lt;15% = Estable, 15-30% = Moderado, &gt;30% = Inestable
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB: CONFIGURACIÓN -->
+        <!-- ============================================== -->
+        <section id="tab-config" class="view-section">
+            <div class="card">
+                <h2>Gestión de Botones</h2>
+                
+                <!-- Formulario nuevo botón -->
+                <form id="addButtonForm" class="form-row mb-15">
+                    <div class="form-group" style="flex:2">
+                        <label class="form-label">Nombre de Actividad</label>
+                        <input type="text" id="newBtnName" class="form-input" placeholder="Ej: Cambio de Molde" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Categoría</label>
+                        <select id="newBtnCat" class="form-select" required>
+                            <option value="Preparación">Preparación</option>
+                            <option value="Ajuste Interno">Ajuste Interno</option>
+                            <option value="Ajuste Externo">Ajuste Externo</option>
+                            <option value="Verificación">Verificación</option>
+                            <option value="Limpieza">Limpieza</option>
+                            <option value="Muda">Muda (Desperdicio)</option>
+                            <option value="Espera">Espera</option>
+                            <option value="Transporte">Transporte</option>
+                            <option value="Movimiento">Movimiento</option>
+                            <option value="Defectos">Defectos</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:0">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="submit" class="action-btn primary">+ Crear</button>
+                    </div>
+                </form>
+
+                <!-- Lista de botones configurados -->
+                <h2>Botones Configurados</h2>
+                <div id="configButtonsList" style="max-height: 300px; overflow-y: auto;"></div>
+
+                <div class="action-bar">
+                    <button class="action-btn" onclick="ButtonManager.restore()">🔄 Restaurar Fábrica</button>
+                </div>
+
+                <!-- Sección Teoría SMED -->
+                <div class="theory-section">
+                    <div class="theory-header" onclick="Theory.toggle()">
+                        <span class="theory-title">📚 Teoría SMED / Lean / Six Sigma</span>
+                        <span class="theory-toggle" id="theoryToggle">+</span>
+                    </div>
+                    <div class="theory-content" id="theoryContent">
+                        <h4>¿Qué es SMED?</h4>
+                        <p><strong>SMED</strong> (Single-Minute Exchange of Die) es una metodología desarrollada por <strong>Shigeo Shingo</strong> para Toyota que busca reducir los tiempos de cambio de formato a menos de 10 minutos (un solo dígito de minutos).</p>
+                        
+                        <h4>Las 4 Etapas SMED</h4>
+                        <table class="theory-table">
+                            <tr>
+                                <th>Etapa</th>
+                                <th>Descripción</th>
+                                <th>Reducción</th>
+                            </tr>
+                            <tr>
+                                <td>0. Inicial</td>
+                                <td>Observar y documentar el proceso actual</td>
+                                <td>Base</td>
+                            </tr>
+                            <tr>
+                                <td>1. Separar</td>
+                                <td>Distinguir actividades internas de externas</td>
+                                <td>30-50%</td>
+                            </tr>
+                            <tr>
+                                <td>2. Convertir</td>
+                                <td>Transformar internas en externas</td>
+                                <td>25-50%</td>
+                            </tr>
+                            <tr>
+                                <td>3. Optimizar</td>
+                                <td>Mejorar todas las operaciones restantes</td>
+                                <td>25-50%</td>
+                            </tr>
+                        </table>
+
+                        <h4>Los 8 Desperdicios (MUDA)</h4>
+                        <ul>
+                            <li><strong>Sobreproducción:</strong> Producir más de lo necesario</li>
+                            <li><strong>Espera:</strong> Tiempos muertos</li>
+                            <li><strong>Transporte:</strong> Mover materiales innecesariamente</li>
+                            <li><strong>Sobreprocesamiento:</strong> Trabajo innecesario</li>
+                            <li><strong>Inventario:</strong> Stock excesivo</li>
+                            <li><strong>Movimiento:</strong> Desplazamientos innecesarios</li>
+                            <li><strong>Defectos:</strong> Errores y retrabajos</li>
+                            <li><strong>Talento:</strong> No utilizar las ideas del equipo</li>
+                        </ul>
+
+                        <h4>DMAIC de Six Sigma</h4>
+                        <table class="theory-table">
+                            <tr>
+                                <th>Fase</th>
+                                <th>Significado</th>
+                                <th>Objetivo</th>
+                            </tr>
+                            <tr>
+                                <td>D</td>
+                                <td>Define (Definir)</td>
+                                <td>Identificar el problema</td>
+                            </tr>
+                            <tr>
+                                <td>M</td>
+                                <td>Measure (Medir)</td>
+                                <td>Recopilar datos del proceso</td>
+                            </tr>
+                            <tr>
+                                <td>A</td>
+                                <td>Analyze (Analizar)</td>
+                                <td>Identificar causas raíz</td>
+                            </tr>
+                            <tr>
+                                <td>I</td>
+                                <td>Improve (Mejorar)</td>
+                                <td>Implementar soluciones</td>
+                            </tr>
+                            <tr>
+                                <td>C</td>
+                                <td>Control (Controlar)</td>
+                                <td>Mantener las mejoras</td>
+                            </tr>
+                        </table>
+
+                        <h4>Niveles de Certificación Six Sigma</h4>
+                        <table class="theory-table">
+                            <tr>
+                                <th>Belt</th>
+                                <th>Rol</th>
+                                <th>Conocimiento</th>
+                            </tr>
+                            <tr>
+                                <td>⚪ White Belt</td>
+                                <td>Equipo de apoyo</td>
+                                <td>Conceptos básicos</td>
+                            </tr>
+                            <tr>
+                                <td>🟡 Yellow Belt</td>
+                                <td>Participante de proyecto</td>
+                                <td>Herramientas básicas</td>
+                            </tr>
+                            <tr>
+                                <td>🟢 Green Belt</td>
+                                <td>Líder de proyecto</td>
+                                <td>Metodología completa</td>
+                            </tr>
+                            <tr>
+                                <td>⚫ Black Belt</td>
+                                <td>Experto/Mentor</td>
+                                <td>Estadística avanzada</td>
+                            </tr>
+                            <tr>
+                                <td>⚫⚫ Master Black Belt</td>
+                                <td>Estratega</td>
+                                <td>Transformación organizacional</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/app.js"></script>
+    <script src="js/statistics.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/gantt.js"></script>
+</body>
+</html>
