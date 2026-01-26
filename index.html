@@ -75,12 +75,32 @@
                             <select id="opTurno" 
                                     style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #f59e0b; font-size: 14px; font-weight: bold;"
                                     onchange="AppState.opActiva.turno = this.value">
-                                <option value="T1" style="color: #3b82f6;">T1 (6-14h)</option>
-                                <option value="T2" style="color: #10b981;">T2 (14-21h)</option>
-                                <option value="T3" style="color: #8b5cf6;">T3 (21-6h)</option>
+                                <option value="T1">T1 (6-14h)</option>
+                                <option value="T2">T2 (14-21h)</option>
+                                <option value="T3">T3 (21-6h)</option>
                             </select>
                         </div>
-                        <div style="flex: 0; min-width: 100px;">
+                        <div style="flex: 1; min-width: 80px;">
+                            <label style="font-size: 10px; color: #888; text-transform: uppercase;">🏭 Máquina</label>
+                            <select id="opMaquina" 
+                                    style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #00d4ff; font-size: 14px; font-weight: bold;"
+                                    onchange="AppState.opActiva.maquina = this.value">
+                                <option value="">--</option>
+                                <option value="i4">i4</option>
+                                <option value="i5">i5</option>
+                                <option value="i6">i6</option>
+                                <option value="i8">i8</option>
+                                <option value="i10">i10</option>
+                                <option value="i11">i11</option>
+                                <option value="i12">i12</option>
+                                <option value="i13">i13</option>
+                                <option value="i14">i14</option>
+                                <option value="i15">i15</option>
+                                <option value="i16">i16</option>
+                                <option value="i17">i17</option>
+                            </select>
+                        </div>
+                        <div style="flex: 0; min-width: 90px;">
                             <div id="opStatus" style="padding: 8px 12px; border-radius: 4px; font-size: 11px; background: #333; text-align: center; color: #888;">
                                 Sin OP activa
                             </div>
@@ -136,11 +156,46 @@
 
                 <!-- Historial -->
                 <h2>Historial de Actividades</h2>
-                <div class="form-row mb-10">
-                    <div class="form-group">
-                        <select id="historyFilter" class="form-select">
-                            <option value="ALL">Todas las categorías</option>
-                            <!-- Las opciones se generan dinámicamente desde app.js -->
+                <!-- Filtros de Período -->
+                <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px;">
+                    <button class="action-btn" onclick="UI.filterHistoryByPeriod('today')" style="padding: 6px 12px; font-size: 0.85em;">📅 Hoy</button>
+                    <button class="action-btn" onclick="UI.filterHistoryByPeriod('week')" style="padding: 6px 12px; font-size: 0.85em;">📆 Semana</button>
+                    <button class="action-btn" onclick="UI.filterHistoryByPeriod('month')" style="padding: 6px 12px; font-size: 0.85em;">🗓️ Mes</button>
+                    <button class="action-btn" onclick="UI.filterHistoryByPeriod('year')" style="padding: 6px 12px; font-size: 0.85em;">📊 Año</button>
+                    <button class="action-btn" onclick="UI.filterHistoryByPeriod('all')" style="padding: 6px 12px; font-size: 0.85em;">🔄 Todo</button>
+                </div>
+                <!-- Filtros Adicionales -->
+                <div class="form-row mb-10" style="flex-wrap: wrap; gap: 8px;">
+                    <div class="form-group" style="flex:1; min-width: 80px;">
+                        <select id="historyFilterMaquina" class="form-select" onchange="UI.renderHistory()">
+                            <option value="ALL">🏭 Máquina</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1; min-width: 90px;">
+                        <select id="historyFilterOP" class="form-select" onchange="UI.renderHistory()">
+                            <option value="ALL">📋 OP</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1; min-width: 70px;">
+                        <select id="historyFilterTurno" class="form-select" onchange="UI.renderHistory()">
+                            <option value="ALL">⏰ Turno</option>
+                            <option value="T1">T1</option>
+                            <option value="T2">T2</option>
+                            <option value="T3">T3</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1; min-width: 70px;">
+                        <select id="historyFilterColores" class="form-select" onchange="UI.renderHistory()">
+                            <option value="ALL">🎨 Color</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4+</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1; min-width: 90px;">
+                        <select id="historyFilter" class="form-select" onchange="UI.renderHistory()">
+                            <option value="ALL">📁 Categoría</option>
                         </select>
                     </div>
                 </div>
@@ -816,9 +871,40 @@
                 <h2>Botones Configurados</h2>
                 <div id="configButtonsList" style="max-height: 300px; overflow-y: auto;"></div>
 
-                <div class="action-bar">
-                    <button class="action-btn" onclick="ButtonManager.restore()">🔄 Restaurar Fábrica</button>
+                <div class="action-bar" style="flex-wrap: wrap; gap: 10px;">
+                    <button class="action-btn" onclick="ButtonManager.restore()">🔄 Restaurar Botones</button>
+                    <button class="action-btn success" onclick="Storage.createBackup(); alert('✅ Backup manual creado');">💾 Crear Backup</button>
+                    <button class="action-btn primary" onclick="Storage.restoreBackup()">📦 Restaurar Backup</button>
+                    <button class="action-btn danger" onclick="Storage.clearAll()">⚠️ Borrar TODO</button>
                 </div>
+                
+                <!-- Info del Backup -->
+                <div id="backupInfo" style="margin-top: 15px; padding: 15px; background: #1a1a2e; border-radius: 8px; border: 1px solid #333;">
+                    <h3 style="margin-top:0; color: #00d4ff;">📦 Sistema de Backup</h3>
+                    <p style="color: #888; font-size: 0.9em;">
+                        ✓ Backup automático diario<br>
+                        ✓ Backup al cerrar la app<br>
+                        ✓ Backup antes de borrar datos<br>
+                        ✓ Los botones personalizados NO se borran con "Reset"
+                    </p>
+                    <p style="color: #00ff9d; font-size: 0.85em;" id="backupStatus">
+                        Cargando info de backup...
+                    </p>
+                </div>
+                
+                <script>
+                    // Mostrar info del backup al cargar
+                    setTimeout(() => {
+                        const info = Storage.getBackupInfo();
+                        const el = document.getElementById('backupStatus');
+                        if (el && info) {
+                            const fecha = new Date(info.fecha).toLocaleString();
+                            el.innerHTML = `📅 Último backup: <strong>${fecha}</strong><br>📊 ${info.registros} registros | 🔘 ${info.buttons} botones`;
+                        } else if (el) {
+                            el.innerHTML = '⚠️ No hay backup guardado aún';
+                        }
+                    }, 500);
+                </script>
 
                 <!-- Sección Teoría SMED -->
                 <div class="theory-section">
