@@ -134,11 +134,11 @@ const Gantt = {
         // Renderizar escala
         Gantt.renderScale(totalTimeRange);
         
-        // Actualizar resumen
+        // Actualizar resumen (pasar registros filtrados para calcular tiempo neto)
         const totalDuration = sorted.reduce((sum, r) => sum + r.duration, 0);
         const tiempoVA = Gantt.calcularTiempoVA(registros);
         const tiempoNVA = totalDuration - tiempoVA;
-        Gantt.updateSummary(totalDuration, tiempoVA, tiempoNVA);
+        Gantt.updateSummary(totalDuration, tiempoVA, tiempoNVA, registros);
     },
     
     // Obtener datos filtrados con filtros de OP, Turno, Colores, Categoría
@@ -217,21 +217,50 @@ const Gantt = {
             .reduce((sum, r) => sum + r.duration, 0);
     },
     
-    // Actualizar resumen
-    updateSummary: (total, va, nva) => {
+    // Actualizar resumen con tiempo neto (primer botón a último)
+    updateSummary: (total, va, nva, registros) => {
         const pctVA = total > 0 ? (va / total) * 100 : 0;
         const pctNVA = total > 0 ? (nva / total) * 100 : 0;
+        
+        // Calcular tiempo neto: desde inicio de primera actividad hasta fin de última
+        let tiempoNeto = 0;
+        let rangoText = 'Sin datos';
+        
+        if (registros && registros.length > 0) {
+            // Ordenar por timestamp
+            const sorted = [...registros].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+            const primero = sorted[0];
+            const ultimo = sorted[sorted.length - 1];
+            
+            // Calcular tiempos
+            const inicioSeg = primero.inicioSeg || 0;
+            const finSeg = ultimo.finSeg || (ultimo.inicioSeg || 0) + (ultimo.duration || 0);
+            
+            // Tiempo neto = fin del último - inicio del primero
+            tiempoNeto = finSeg - inicioSeg;
+            if (tiempoNeto < 0) tiempoNeto += 86400; // Cruzó medianoche
+            
+            // Mostrar rango de horas
+            const horaInicio = Utils.secondsToHMS(inicioSeg);
+            const horaFin = Utils.secondsToHMS(finSeg);
+            rangoText = `${horaInicio} → ${horaFin}`;
+        }
         
         const mappings = {
             'gantt-total': Utils.formatDuration(total),
             'gantt-va': `${Utils.formatDuration(va)} (${pctVA.toFixed(1)}%)`,
-            'gantt-nva': `${Utils.formatDuration(nva)} (${pctNVA.toFixed(1)}%)`
+            'gantt-nva': `${Utils.formatDuration(nva)} (${pctNVA.toFixed(1)}%)`,
+            'gantt-neto': Utils.formatDuration(tiempoNeto)
         };
         
         for (const [id, value] of Object.entries(mappings)) {
             const el = document.getElementById(id);
             if (el) el.textContent = value;
         }
+        
+        // Actualizar texto del rango
+        const rangoEl = document.getElementById('gantt-neto-rango');
+        if (rangoEl) rangoEl.textContent = rangoText;
     },
     
     // Cambiar filtro
@@ -269,57 +298,84 @@ const Gantt = {
         }
     },
     
-    // Renderizar vista agrupada por categoría
+    // Renderizar vista agrupada por categoría - CON FILTROS Y COLORES POR TIPO
     renderByCategory: () => {
         const container = document.getElementById('ganttTimeline');
         if (!container) return;
         
-        const registros = AppState.registros;
+        // Usar datos filtrados
+        const registros = Gantt.getFilteredData();
         
         if (registros.length === 0) {
             container.innerHTML = '<div class="no-data-msg">No hay actividades para mostrar</div>';
+            Gantt.updateSummary(0, 0, 0, []);
             return;
         }
         
-        // Agrupar por categoría (dinámico)
+        // Agrupar por categoría con tipos SMED
         const byCategory = {};
         registros.forEach(r => {
             if (!byCategory[r.cat]) {
-                byCategory[r.cat] = 0;
+                byCategory[r.cat] = {
+                    total: 0,
+                    byTipo: { INT: 0, EXT: 0, NVA: 0 }
+                };
             }
-            byCategory[r.cat] += r.duration;
+            byCategory[r.cat].total += r.duration;
+            byCategory[r.cat].byTipo[r.tipo || 'INT'] = (byCategory[r.cat].byTipo[r.tipo || 'INT'] || 0) + r.duration;
         });
         
-        const total = Object.values(byCategory).reduce((a, b) => a + b, 0);
+        const total = Object.values(byCategory).reduce((a, b) => a + b.total, 0);
         
         let html = '';
-        let cumulativeStart = 0;
         
-        Object.entries(byCategory).forEach(([cat, duration]) => {
-            if (duration === 0) return;
+        // Ordenar categorías por tiempo total (mayor a menor)
+        const sortedCats = Object.entries(byCategory).sort((a, b) => b[1].total - a[1].total);
+        
+        sortedCats.forEach(([cat, data]) => {
+            if (data.total === 0) return;
             
-            const startPct = (cumulativeStart / total) * 100;
-            const widthPct = (duration / total) * 100;
-            const catClass = Gantt.getCategoryClass(cat);
+            const pctTotal = (data.total / total) * 100;
+            
+            // Generar barras apiladas por tipo SMED
+            let barsHtml = '';
+            let currentLeft = 0;
+            
+            ['INT', 'EXT', 'NVA'].forEach(tipo => {
+                const tiempoPorTipo = data.byTipo[tipo] || 0;
+                if (tiempoPorTipo > 0) {
+                    const widthPct = (tiempoPorTipo / data.total) * pctTotal;
+                    const tipoColor = Gantt.getTipoColor(tipo);
+                    const tipoLabel = tipo === 'INT' ? 'Interna' : tipo === 'EXT' ? 'Externa' : 'Muda';
+                    
+                    barsHtml += `
+                        <div class="gantt-bar" 
+                             style="left: ${currentLeft}%; width: ${Math.max(widthPct, 1)}%; background: ${tipoColor};"
+                             title="${cat} [${tipoLabel}]: ${tiempoPorTipo.toFixed(1)}s">
+                        </div>
+                    `;
+                    currentLeft += widthPct;
+                }
+            });
             
             html += `
                 <div class="gantt-row">
-                    <div class="gantt-label">${cat}</div>
+                    <div class="gantt-label" title="${cat}: ${data.total.toFixed(1)}s">${cat}</div>
                     <div class="gantt-bar-container">
-                        <div class="gantt-bar ${catClass}" 
-                             style="left: ${startPct}%; width: ${Math.max(widthPct, 2)}%;"
-                             title="${cat}: ${duration.toFixed(1)}s (${widthPct.toFixed(1)}%)">
-                            ${widthPct > 5 ? duration.toFixed(0) + 's' : ''}
-                        </div>
+                        ${barsHtml}
                     </div>
+                    <div class="gantt-total">${data.total.toFixed(0)}s</div>
                 </div>
             `;
-            
-            cumulativeStart += duration;
         });
         
         container.innerHTML = html;
         Gantt.renderScale(total);
+        
+        // Actualizar resumen con datos filtrados
+        const tiempoVA = Gantt.calcularTiempoVA(registros);
+        const tiempoNVA = total - tiempoVA;
+        Gantt.updateSummary(total, tiempoVA, tiempoNVA, registros);
     }
 };
 

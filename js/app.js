@@ -350,6 +350,110 @@ const Timer = {
     getElapsedTime: (cat) => {
         if (!AppState.activeTimers[cat]) return 0;
         return (Date.now() - AppState.activeTimers[cat].start) / 1000;
+    },
+    
+    // =====================================================
+    // CRONÓMETRO LIBRE
+    // =====================================================
+    
+    // Estado del timer libre
+    freeTimer: {
+        active: false,
+        start: null,
+        interval: null
+    },
+    
+    // Iniciar cronómetro libre
+    startFreeTimer: () => {
+        if (Timer.freeTimer.active) {
+            // Si ya está activo, detener y mostrar panel de datos
+            Timer.stopFreeTimerCounting();
+            document.getElementById('freeTimerPanel').style.display = 'block';
+            document.getElementById('freeTimerBtn').textContent = '⏱️ Esperando datos...';
+            document.getElementById('freeTimerBtn').style.background = '#f59e0b';
+            return;
+        }
+        
+        // Iniciar nuevo timer libre
+        Timer.freeTimer.active = true;
+        Timer.freeTimer.start = Date.now();
+        
+        document.getElementById('freeTimerBtn').textContent = '⏹️ Detener';
+        document.getElementById('freeTimerBtn').style.background = '#ef4444';
+        
+        // Actualizar display cada 100ms
+        Timer.freeTimer.interval = setInterval(() => {
+            const elapsed = (Date.now() - Timer.freeTimer.start) / 1000;
+            document.getElementById('freeTimerDisplay').textContent = elapsed.toFixed(1) + 's';
+        }, 100);
+    },
+    
+    // Detener el conteo (pero mantener el tiempo)
+    stopFreeTimerCounting: () => {
+        if (Timer.freeTimer.interval) {
+            clearInterval(Timer.freeTimer.interval);
+            Timer.freeTimer.interval = null;
+        }
+    },
+    
+    // Guardar timer libre con los datos ingresados
+    saveFreeTimer: () => {
+        const nameInput = document.getElementById('freeTimerName');
+        const tipoSelect = document.getElementById('freeTimerTipo');
+        
+        const name = nameInput.value.trim() || 'Actividad Libre';
+        const tipo = tipoSelect.value || 'NVA';
+        
+        if (!Timer.freeTimer.start) {
+            alert('No hay tiempo registrado');
+            return;
+        }
+        
+        const duration = (Date.now() - Timer.freeTimer.start) / 1000;
+        const now = new Date();
+        const endSeconds = Utils.getDaySeconds(now);
+        const startSeconds = Utils.round2(endSeconds - duration);
+        
+        // Crear registro
+        const record = {
+            id: Utils.generateId(),
+            name: name,
+            cat: Utils.extractCategory(name),
+            tipo: tipo,
+            op: AppState.opActiva.numero || '',
+            colores: AppState.opActiva.colores || 1,
+            turno: AppState.opActiva.turno || 'T1',
+            fechaExcel: Utils.dateToExcel(now),
+            inicioSeg: startSeconds < 0 ? startSeconds + 86400 : startSeconds,
+            finSeg: Utils.round2(endSeconds),
+            duracion: Utils.round2(duration),
+            duration: Utils.round2(duration),
+            endTime: Utils.formatHMS(now),
+            timestamp: Date.now(),
+            fecha: now.toISOString().split('T')[0]
+        };
+        
+        AppState.registros.unshift(record);
+        Storage.save();
+        
+        // Resetear timer libre
+        Timer.cancelFreeTimer();
+        UI.renderAll();
+        
+        alert(`Actividad "${name}" guardada: ${duration.toFixed(1)}s`);
+    },
+    
+    // Cancelar timer libre
+    cancelFreeTimer: () => {
+        Timer.stopFreeTimerCounting();
+        Timer.freeTimer.active = false;
+        Timer.freeTimer.start = null;
+        
+        document.getElementById('freeTimerPanel').style.display = 'none';
+        document.getElementById('freeTimerDisplay').textContent = '--';
+        document.getElementById('freeTimerBtn').textContent = '⏱️ Cronómetro Libre';
+        document.getElementById('freeTimerBtn').style.background = '#8b5cf6';
+        document.getElementById('freeTimerName').value = '';
     }
 };
 
