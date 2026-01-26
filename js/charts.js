@@ -57,15 +57,16 @@ const Analysis = {
         // Tiempo total
         const tiempoTotal = registros.reduce((sum, r) => sum + r.duration, 0);
         
-        // Tiempo por categoría
+        // Tiempo por categoría (dinámico)
         const porCategoria = {};
-        CATEGORIAS_SMED.forEach(cat => {
-            porCategoria[cat.nombre] = registros
-                .filter(r => r.cat === cat.nombre)
-                .reduce((sum, r) => sum + r.duration, 0);
+        registros.forEach(r => {
+            if (!porCategoria[r.cat]) {
+                porCategoria[r.cat] = 0;
+            }
+            porCategoria[r.cat] += r.duration;
         });
         
-        // Tiempo de mudas (desperdicios)
+        // Tiempo de mudas (desperdicios) - categorías que típicamente son NVA
         const categoriasNVA = ['Muda', 'Espera', 'Transporte', 'Movimiento', 'Defectos'];
         const tiempoMuda = categoriasNVA.reduce((sum, cat) => sum + (porCategoria[cat] || 0), 0);
         
