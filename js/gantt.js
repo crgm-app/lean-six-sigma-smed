@@ -141,7 +141,7 @@ const Gantt = {
         Gantt.updateSummary(totalDuration, tiempoVA, tiempoNVA, registros);
     },
     
-    // Obtener datos filtrados con filtros de OP, Turno, Colores, Categoría
+    // Obtener datos filtrados con filtros de OP, Turno, Colores, Categoría, Máquina
     getFilteredData: () => {
         let data = [...AppState.registros];
         
@@ -172,6 +172,12 @@ const Gantt = {
         const filterCat = document.getElementById('ganttFilter')?.value || 'ALL';
         if (filterCat !== 'ALL') {
             data = data.filter(r => r.cat === filterCat);
+        }
+        
+        // Filtro por Máquina
+        const filterMaquina = document.getElementById('ganttFilterMaquina')?.value || 'ALL';
+        if (filterMaquina !== 'ALL') {
+            data = data.filter(r => r.maquina === filterMaquina);
         }
         
         return data;

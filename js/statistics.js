@@ -55,15 +55,21 @@ const Statistics = {
         }
     },
     
-    // Calcular estadísticas con filtros de OP, Turno, Colores, Categoría
+    // Calcular estadísticas con filtros de Máquina, OP, Turno, Colores, Categoría
     calculate: () => {
         const filterCat = document.getElementById('statsFilter')?.value || 'ALL';
         const filterOP = document.getElementById('statsFilterOP')?.value || 'ALL';
         const filterTurno = document.getElementById('statsFilterTurno')?.value || 'ALL';
         const filterColores = document.getElementById('statsFilterColores')?.value || 'ALL';
+        const filterMaquina = document.getElementById('statsFilterMaquina')?.value || 'ALL';
         
         // Aplicar todos los filtros
         let filtered = [...AppState.registros];
+        
+        // Filtro por Máquina
+        if (filterMaquina !== 'ALL') {
+            filtered = filtered.filter(r => r.maquina === filterMaquina);
+        }
         
         // Filtro por OP
         if (filterOP !== 'ALL') {
