@@ -92,6 +92,37 @@
                 <h2>Actividades SMED</h2>
                 <div id="buttonsGrid" class="btn-grid"></div>
 
+                <!-- Botón Libre de Cronómetro -->
+                <div style="margin: 15px 0; padding: 15px; background: linear-gradient(135deg, #2d1f5c, #1a1a2e); border: 2px dashed #8b5cf6; border-radius: 8px;">
+                    <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                        <button id="freeTimerBtn" class="action-btn" style="background: #8b5cf6; font-size: 1.1em; padding: 12px 20px;" onclick="Timer.startFreeTimer()">
+                            ⏱️ Cronómetro Libre
+                        </button>
+                        <span id="freeTimerDisplay" style="font-size: 1.5em; color: #8b5cf6; font-weight: bold; font-family: monospace;">--</span>
+                        <span style="color: #888; font-size: 0.85em;">Inicia sin definir actividad. Luego asigna nombre y tipo.</span>
+                    </div>
+                    <!-- Panel para asignar datos al timer libre -->
+                    <div id="freeTimerPanel" style="display: none; margin-top: 15px; padding: 15px; background: #1a1a2e; border-radius: 8px;">
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
+                            <div style="flex: 2; min-width: 150px;">
+                                <label style="font-size: 10px; color: #888;">Nombre de la actividad:</label>
+                                <input type="text" id="freeTimerName" placeholder="Ej: Espera supervisor" 
+                                       style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #fff;">
+                            </div>
+                            <div style="flex: 1; min-width: 100px;">
+                                <label style="font-size: 10px; color: #888;">Tipo:</label>
+                                <select id="freeTimerTipo" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #f59e0b;">
+                                    <option value="NVA">🔴 Muda/NVA</option>
+                                    <option value="INT">🟠 Interna</option>
+                                    <option value="EXT">🟢 Externa</option>
+                                </select>
+                            </div>
+                            <button class="action-btn success" onclick="Timer.saveFreeTimer()">✓ Guardar</button>
+                            <button class="action-btn danger" onclick="Timer.cancelFreeTimer()">✕ Cancelar</button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Barra de Acciones -->
                 <div class="action-bar">
                     <button class="action-btn primary" onclick="Timer.stopAllTimers()">⏹️ Detener Todo</button>
@@ -326,7 +357,7 @@
 
                 <div class="kpi-grid mt-10">
                     <div class="kpi-card blue">
-                        <div class="kpi-label">Total</div>
+                        <div class="kpi-label">Total Actividades</div>
                         <div class="kpi-value" id="gantt-total">0s</div>
                     </div>
                     <div class="kpi-card green">
@@ -336,6 +367,11 @@
                     <div class="kpi-card red">
                         <div class="kpi-label">No Valor Agregado</div>
                         <div class="kpi-value" id="gantt-nva">0s</div>
+                    </div>
+                    <div class="kpi-card purple">
+                        <div class="kpi-label">⏱️ Tiempo Neto Cambio</div>
+                        <div class="kpi-value" id="gantt-neto">0s</div>
+                        <div style="font-size: 0.7em; color: #888;" id="gantt-neto-rango">Inicio → Fin</div>
                     </div>
                 </div>
 
@@ -366,8 +402,8 @@
                         <select id="statsFilterTurno" class="form-select" onchange="Statistics.calculate()">
                             <option value="ALL">Todos</option>
                             <option value="T1">T1 (6-14h)</option>
-                            <option value="T2">T2 (14-21h)</option>
-                            <option value="T3">T3 (21-6h)</option>
+                            <option value="T2">T2 (14-22h)</option>
+                            <option value="T3">T3 (22-6h)</option>
                         </select>
                     </div>
                     <div class="form-group" style="flex:1; min-width: 100px;">
