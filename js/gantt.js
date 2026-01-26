@@ -14,7 +14,7 @@ const Gantt = {
         filter: 'ALL'
     },
     
-    // Renderizar diagrama de Gantt
+    // Renderizar diagrama de Gantt - AGRUPADO POR NOMBRE DE ACTIVIDAD
     render: () => {
         const container = document.getElementById('ganttTimeline');
         if (!container) return;
@@ -30,43 +30,60 @@ const Gantt = {
         // Ordenar por timestamp
         const sorted = [...registros].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
         
-        // Calcular rango de tiempo
+        // Calcular el rango total de tiempo
         const firstTimestamp = sorted[0].timestamp || Date.now() - sorted[0].duration * 1000;
-        let currentTime = firstTimestamp;
+        const lastRecord = sorted[sorted.length - 1];
+        const lastTimestamp = lastRecord.timestamp || Date.now();
+        const totalTimeRange = (lastTimestamp - firstTimestamp) / 1000 + lastRecord.duration;
         
-        // Preparar datos para visualización
-        const ganttData = [];
-        let cumulativeStart = 0;
-        
+        // Agrupar registros por nombre de actividad
+        const byName = {};
         sorted.forEach(record => {
-            ganttData.push({
+            if (!byName[record.name]) {
+                byName[record.name] = {
+                    name: record.name,
+                    cat: record.cat,
+                    records: [],
+                    totalDuration: 0
+                };
+            }
+            // Calcular posición relativa de cada registro
+            const startTime = ((record.timestamp || Date.now()) - firstTimestamp) / 1000 - record.duration;
+            byName[record.name].records.push({
                 ...record,
-                start: cumulativeStart,
-                end: cumulativeStart + record.duration
+                startTime: Math.max(0, startTime),
+                endTime: startTime + record.duration
             });
-            cumulativeStart += record.duration;
+            byName[record.name].totalDuration += record.duration;
         });
         
-        const totalDuration = cumulativeStart;
-        
-        // Generar HTML del Gantt
+        // Generar HTML del Gantt - UNA FILA POR ACTIVIDAD
         let html = '';
         
-        ganttData.forEach(item => {
-            const startPct = (item.start / totalDuration) * 100;
-            const widthPct = (item.duration / totalDuration) * 100;
-            const catClass = Gantt.getCategoryClass(item.cat);
+        Object.values(byName).forEach(activity => {
+            const catClass = Gantt.getCategoryClass(activity.cat);
+            
+            // Generar todas las barras de esta actividad
+            let barsHtml = '';
+            activity.records.forEach(rec => {
+                const startPct = (rec.startTime / totalTimeRange) * 100;
+                const widthPct = (rec.duration / totalTimeRange) * 100;
+                
+                barsHtml += `
+                    <div class="gantt-bar ${catClass}" 
+                         style="left: ${startPct}%; width: ${Math.max(widthPct, 1)}%;"
+                         title="${rec.name}: ${rec.duration.toFixed(1)}s (${rec.endTime ? Utils.secondsToHMS(rec.finSeg || 0) : ''})">
+                    </div>
+                `;
+            });
             
             html += `
                 <div class="gantt-row">
-                    <div class="gantt-label" title="${item.name}">${item.name.substring(0, 15)}</div>
+                    <div class="gantt-label" title="${activity.name} (Total: ${activity.totalDuration.toFixed(1)}s)">${activity.name.substring(0, 18)}</div>
                     <div class="gantt-bar-container">
-                        <div class="gantt-bar ${catClass}" 
-                             style="left: ${startPct}%; width: ${Math.max(widthPct, 2)}%;"
-                             title="${item.name} (${item.cat}): ${item.duration}s">
-                            ${widthPct > 8 ? item.duration.toFixed(1) + 's' : ''}
-                        </div>
+                        ${barsHtml}
                     </div>
+                    <div class="gantt-total">${activity.totalDuration.toFixed(0)}s</div>
                 </div>
             `;
         });
@@ -74,9 +91,10 @@ const Gantt = {
         container.innerHTML = html;
         
         // Renderizar escala
-        Gantt.renderScale(totalDuration);
+        Gantt.renderScale(totalTimeRange);
         
         // Actualizar resumen
+        const totalDuration = sorted.reduce((sum, r) => sum + r.duration, 0);
         const tiempoVA = Gantt.calcularTiempoVA(registros);
         const tiempoNVA = totalDuration - tiempoVA;
         Gantt.updateSummary(totalDuration, tiempoVA, tiempoNVA);

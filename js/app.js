@@ -41,6 +41,12 @@ const AppState = {
     // Configuración de botones
     buttons: [],
     
+    // OP (Orden de Producción) activa
+    opActiva: {
+        numero: '',
+        colores: 1
+    },
+    
     // Configuración general
     config: {
         costoHora: COSTO_HORA_DEFAULT,
@@ -50,7 +56,8 @@ const AppState = {
     // Filtros actuales
     filtros: {
         categoria: 'ALL',
-        vista: 'general'
+        vista: 'general',
+        op: 'ALL'
     }
 };
 
@@ -310,6 +317,10 @@ const Timer = {
             name: timer.btnName,
             cat: timer.cat,
             tipo: btn?.tipo || 'INT',          // Tipo: INT, EXT, NVA
+            // OP (Orden de Producción) activa
+            op: AppState.opActiva.numero || '',
+            colores: AppState.opActiva.colores || 1,
+            // Tiempos
             fechaExcel: Utils.dateToExcel(now), // Fecha en formato Excel (con decimales para hora)
             inicioSeg: startSeconds < 0 ? startSeconds + 86400 : startSeconds, // Segundos del día inicio
             finSeg: Utils.round2(endSeconds),   // Segundos del día fin
