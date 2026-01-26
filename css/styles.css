@@ -735,6 +735,16 @@ h3 {
     color: var(--text-muted);
 }
 
+.gantt-total {
+    width: 60px;
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    color: var(--accent-primary);
+    text-align: right;
+    font-weight: bold;
+    padding-left: 8px;
+}
+
 /* --- FORMULARIOS --- */
 .form-row {
     display: flex;
