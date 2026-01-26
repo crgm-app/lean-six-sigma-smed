@@ -1,6 +1,7 @@
 /**
  * SMED Analyzer Pro - Módulo de Sincronización con Google Drive
- * Backup automático y sincronización multi-dispositivo
+ * Backup automático, sincronización multi-dispositivo y colaboración en tiempo real
+ * v2.0 - Con fusión de datos y sincronización bidireccional
  */
 
 // =====================================================
@@ -12,11 +13,12 @@ const GOOGLE_CONFIG = {
     SCOPES: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.appdata',
     DISCOVERY_DOC: 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest',
     FOLDER_NAME: 'SMED_Analyzer_Pro',
-    BACKUP_FILE: 'smed_backup.json'
+    BACKUP_FILE: 'smed_backup.json',
+    SYNC_INTERVAL: 2 * 60 * 1000  // Cada 2 minutos para colaboración activa
 };
 
 // =====================================================
-// MÓDULO GOOGLE DRIVE
+// MÓDULO GOOGLE DRIVE - MEJORADO
 // =====================================================
 
 const GoogleDrive = {
@@ -30,12 +32,18 @@ const GoogleDrive = {
     folderId: null,
     backupFileId: null,
     autoSyncInterval: null,
+    lastRemoteModified: null,
+    isSyncing: false,
     
     // Inicializar Google API
     init: async () => {
-        // Cargar la librería GAPI
+        // Cargar las librerías
         await GoogleDrive.loadGapiScript();
         await GoogleDrive.loadGisScript();
+        
+        // Recuperar IDs guardados de sesiones anteriores
+        GoogleDrive.folderId = localStorage.getItem('smed_drive_folder_id') || null;
+        GoogleDrive.backupFileId = localStorage.getItem('smed_drive_file_id') || null;
         
         // Verificar si hay token guardado
         const savedToken = localStorage.getItem('smed_google_token');
@@ -46,6 +54,8 @@ const GoogleDrive = {
             } catch (e) {
                 console.log('Token expirado, necesita reautenticar');
                 localStorage.removeItem('smed_google_token');
+                GoogleDrive.folderId = null;
+                GoogleDrive.backupFileId = null;
             }
         }
         
@@ -136,8 +146,7 @@ const GoogleDrive = {
         GoogleDrive.accessToken = null;
         GoogleDrive.isSignedIn = false;
         GoogleDrive.userEmail = null;
-        GoogleDrive.folderId = null;
-        GoogleDrive.backupFileId = null;
+        // NO borrar folderId/backupFileId - pueden ser útiles si se reconecta
         localStorage.removeItem('smed_google_token');
         
         if (GoogleDrive.autoSyncInterval) {
@@ -151,27 +160,37 @@ const GoogleDrive = {
     // Callback después de login exitoso
     onSignIn: async () => {
         try {
+            GoogleDrive.updateUI();
+            document.getElementById('googleDriveStatus').innerHTML = '<span style="color:#f59e0b;">⏳ Conectando...</span>';
+            
             // Obtener info del usuario
             const userInfo = await GoogleDrive.fetchUserInfo();
             GoogleDrive.userEmail = userInfo.email;
             
-            // Buscar o crear carpeta de la app
+            // Buscar o usar carpeta existente (propia o compartida)
             GoogleDrive.folderId = await GoogleDrive.findOrCreateFolder();
+            localStorage.setItem('smed_drive_folder_id', GoogleDrive.folderId);
             
             // Buscar archivo de backup existente
             GoogleDrive.backupFileId = await GoogleDrive.findBackupFile();
+            if (GoogleDrive.backupFileId) {
+                localStorage.setItem('smed_drive_file_id', GoogleDrive.backupFileId);
+            }
             
-            // Iniciar auto-sync
+            // Sincronizar datos (bidireccional)
+            await GoogleDrive.syncData();
+            
+            // Iniciar auto-sync colaborativo
             GoogleDrive.startAutoSync();
             
             GoogleDrive.updateUI();
             
             console.log(`✅ Conectado como: ${GoogleDrive.userEmail}`);
-            alert(`✅ Conectado como: ${GoogleDrive.userEmail}\n\nLa sincronización automática está activa.`);
+            alert(`✅ Conectado como: ${GoogleDrive.userEmail}\n\n🔄 Sincronización colaborativa activa cada 2 minutos.`);
             
         } catch (error) {
             console.error('Error en onSignIn:', error);
-            alert('Error al conectar con Google Drive. Intenta de nuevo.');
+            alert('Error al conectar con Google Drive: ' + error.message);
         }
     },
     
@@ -193,22 +212,81 @@ const GoogleDrive = {
         return response.json();
     },
     
-    // Buscar o crear carpeta de la app en Drive
+    // =====================================================
+    // BUSCAR CARPETA - MEJORADO PARA EVITAR DUPLICADOS
+    // =====================================================
     findOrCreateFolder: async () => {
-        // Buscar carpeta existente
-        const searchResponse = await fetch(
-            `https://www.googleapis.com/drive/v3/files?q=name='${GOOGLE_CONFIG.FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-            { headers: { 'Authorization': `Bearer ${GoogleDrive.accessToken}` } }
-        );
-        const searchData = await searchResponse.json();
-        
-        if (searchData.files && searchData.files.length > 0) {
-            console.log('📁 Carpeta encontrada:', searchData.files[0].id);
-            return searchData.files[0].id;
+        // 1. Si ya tenemos un folderId guardado, verificar que existe
+        if (GoogleDrive.folderId) {
+            const exists = await GoogleDrive.checkFolderExists(GoogleDrive.folderId);
+            if (exists) {
+                console.log('📁 Usando carpeta guardada:', GoogleDrive.folderId);
+                return GoogleDrive.folderId;
+            }
         }
         
-        // Crear carpeta nueva
-        const createResponse = await fetch('https://www.googleapis.com/drive/v3/files', {
+        // 2. Buscar carpeta PROPIA con ese nombre (no compartida)
+        const ownedFolder = await GoogleDrive.searchFolder(false);
+        if (ownedFolder) {
+            console.log('📁 Carpeta propia encontrada:', ownedFolder);
+            return ownedFolder;
+        }
+        
+        // 3. Buscar carpeta COMPARTIDA conmigo
+        const sharedFolder = await GoogleDrive.searchFolder(true);
+        if (sharedFolder) {
+            console.log('📁 Carpeta compartida encontrada:', sharedFolder);
+            return sharedFolder;
+        }
+        
+        // 4. Si no existe ninguna, crear una nueva
+        const newFolder = await GoogleDrive.createFolder();
+        console.log('📁 Carpeta nueva creada:', newFolder);
+        return newFolder;
+    },
+    
+    // Verificar si una carpeta existe
+    checkFolderExists: async (folderId) => {
+        try {
+            const response = await fetch(
+                `https://www.googleapis.com/drive/v3/files/${folderId}?fields=id,trashed`,
+                { headers: { 'Authorization': `Bearer ${GoogleDrive.accessToken}` } }
+            );
+            if (!response.ok) return false;
+            const data = await response.json();
+            return !data.trashed;
+        } catch (e) {
+            return false;
+        }
+    },
+    
+    // Buscar carpeta (propia o compartida)
+    searchFolder: async (sharedWithMe = false) => {
+        // Construir query según tipo de búsqueda
+        let query = `name='${GOOGLE_CONFIG.FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+        
+        if (sharedWithMe) {
+            query += ` and sharedWithMe=true`;
+        } else {
+            query += ` and 'me' in owners`;
+        }
+        
+        const response = await fetch(
+            `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,modifiedTime,owners)`,
+            { headers: { 'Authorization': `Bearer ${GoogleDrive.accessToken}` } }
+        );
+        const data = await response.json();
+        
+        if (data.files && data.files.length > 0) {
+            // Devolver la más reciente si hay varias
+            return data.files[0].id;
+        }
+        return null;
+    },
+    
+    // Crear carpeta nueva
+    createFolder: async () => {
+        const response = await fetch('https://www.googleapis.com/drive/v3/files', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${GoogleDrive.accessToken}`,
@@ -219,27 +297,177 @@ const GoogleDrive = {
                 mimeType: 'application/vnd.google-apps.folder'
             })
         });
-        const createData = await createResponse.json();
-        console.log('📁 Carpeta creada:', createData.id);
-        return createData.id;
+        const data = await response.json();
+        return data.id;
     },
     
-    // Buscar archivo de backup existente
+    // =====================================================
+    // BUSCAR ARCHIVO BACKUP
+    // =====================================================
     findBackupFile: async () => {
-        const searchResponse = await fetch(
-            `https://www.googleapis.com/drive/v3/files?q=name='${GOOGLE_CONFIG.BACKUP_FILE}' and '${GoogleDrive.folderId}' in parents and trashed=false`,
+        // Si ya tenemos ID guardado, verificar que existe
+        if (GoogleDrive.backupFileId) {
+            const exists = await GoogleDrive.checkFileExists(GoogleDrive.backupFileId);
+            if (exists) {
+                return GoogleDrive.backupFileId;
+            }
+        }
+        
+        // Buscar en la carpeta
+        const response = await fetch(
+            `https://www.googleapis.com/drive/v3/files?q=name='${GOOGLE_CONFIG.BACKUP_FILE}' and '${GoogleDrive.folderId}' in parents and trashed=false&fields=files(id,modifiedTime)`,
             { headers: { 'Authorization': `Bearer ${GoogleDrive.accessToken}` } }
         );
-        const searchData = await searchResponse.json();
+        const data = await response.json();
         
-        if (searchData.files && searchData.files.length > 0) {
-            console.log('📄 Archivo backup encontrado:', searchData.files[0].id);
-            return searchData.files[0].id;
+        if (data.files && data.files.length > 0) {
+            // Guardar fecha de modificación para comparar
+            GoogleDrive.lastRemoteModified = data.files[0].modifiedTime;
+            console.log('📄 Archivo backup encontrado:', data.files[0].id);
+            return data.files[0].id;
         }
         return null;
     },
     
-    // Guardar backup en Google Drive
+    // Verificar si un archivo existe
+    checkFileExists: async (fileId) => {
+        try {
+            const response = await fetch(
+                `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,trashed`,
+                { headers: { 'Authorization': `Bearer ${GoogleDrive.accessToken}` } }
+            );
+            if (!response.ok) return false;
+            const data = await response.json();
+            return !data.trashed;
+        } catch (e) {
+            return false;
+        }
+    },
+    
+    // =====================================================
+    // SINCRONIZACIÓN BIDIRECCIONAL (PULL + PUSH + MERGE)
+    // =====================================================
+    syncData: async (showAlert = false) => {
+        if (GoogleDrive.isSyncing) {
+            console.log('⏳ Sincronización ya en progreso...');
+            return;
+        }
+        
+        GoogleDrive.isSyncing = true;
+        
+        try {
+            // Si no hay archivo remoto, solo subir
+            if (!GoogleDrive.backupFileId) {
+                await GoogleDrive.saveBackup(showAlert);
+                return;
+            }
+            
+            // Obtener metadatos del archivo remoto
+            const metaResponse = await fetch(
+                `https://www.googleapis.com/drive/v3/files/${GoogleDrive.backupFileId}?fields=modifiedTime`,
+                { headers: { 'Authorization': `Bearer ${GoogleDrive.accessToken}` } }
+            );
+            const metadata = await metaResponse.json();
+            const remoteModified = new Date(metadata.modifiedTime);
+            const lastSync = localStorage.getItem('smed_last_sync');
+            const localLastSync = lastSync ? new Date(lastSync) : new Date(0);
+            
+            // Si el archivo remoto es más reciente que nuestra última sincronización
+            if (remoteModified > localLastSync) {
+                console.log('📥 Datos remotos más recientes, descargando y fusionando...');
+                await GoogleDrive.pullAndMerge();
+            }
+            
+            // Subir datos locales (fusionados)
+            await GoogleDrive.saveBackup(false);
+            
+            if (showAlert) {
+                alert('✅ Sincronización completada');
+            }
+            
+        } catch (error) {
+            console.error('Error en syncData:', error);
+        } finally {
+            GoogleDrive.isSyncing = false;
+        }
+    },
+    
+    // Descargar datos remotos y fusionar con locales
+    pullAndMerge: async () => {
+        const response = await fetch(
+            `https://www.googleapis.com/drive/v3/files/${GoogleDrive.backupFileId}?alt=media`,
+            { headers: { 'Authorization': `Bearer ${GoogleDrive.accessToken}` } }
+        );
+        
+        const remoteData = await response.json();
+        const remoteRegistros = remoteData.registros || [];
+        const localRegistros = AppState.registros || [];
+        
+        // FUSIONAR registros por ID (evita duplicados)
+        const merged = GoogleDrive.mergeRegistros(localRegistros, remoteRegistros);
+        
+        // Actualizar AppState
+        AppState.registros = merged;
+        
+        // Fusionar botones si hay nuevos
+        if (remoteData.buttons && remoteData.buttons.length > 0) {
+            AppState.buttons = GoogleDrive.mergeButtons(AppState.buttons, remoteData.buttons);
+        }
+        
+        // Guardar localmente
+        Storage.save();
+        UI.renderAll();
+        
+        console.log(`🔀 Fusionados: ${localRegistros.length} local + ${remoteRegistros.length} remoto = ${merged.length} total`);
+    },
+    
+    // Fusionar registros por ID (sin duplicados)
+    mergeRegistros: (local, remote) => {
+        const merged = new Map();
+        
+        // Agregar registros locales
+        local.forEach(r => {
+            merged.set(r.id, r);
+        });
+        
+        // Agregar/actualizar con registros remotos
+        remote.forEach(r => {
+            if (!merged.has(r.id)) {
+                // Registro nuevo del remoto
+                merged.set(r.id, r);
+            } else {
+                // Si existe, mantener el más reciente (por timestamp)
+                const existing = merged.get(r.id);
+                const existingTime = existing.timestamp || 0;
+                const remoteTime = r.timestamp || 0;
+                if (remoteTime > existingTime) {
+                    merged.set(r.id, r);
+                }
+            }
+        });
+        
+        // Convertir Map a array y ordenar por timestamp (más reciente primero)
+        return Array.from(merged.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    },
+    
+    // Fusionar botones (por nombre)
+    mergeButtons: (local, remote) => {
+        const merged = new Map();
+        
+        local.forEach(b => merged.set(b.name, b));
+        
+        remote.forEach(b => {
+            if (!merged.has(b.name)) {
+                merged.set(b.name, b);
+            }
+        });
+        
+        return Array.from(merged.values());
+    },
+    
+    // =====================================================
+    // GUARDAR BACKUP
+    // =====================================================
     saveBackup: async (showAlert = true) => {
         if (!GoogleDrive.isSignedIn) {
             if (showAlert) alert('⚠️ No estás conectado a Google Drive');
@@ -248,7 +476,7 @@ const GoogleDrive = {
         
         try {
             const backupData = {
-                version: '2.0',
+                version: '2.1',
                 fecha: new Date().toISOString(),
                 email: GoogleDrive.userEmail,
                 registros: AppState.registros,
@@ -265,6 +493,7 @@ const GoogleDrive = {
             } else {
                 // Crear archivo nuevo
                 GoogleDrive.backupFileId = await GoogleDrive.createFile(GOOGLE_CONFIG.BACKUP_FILE, blob);
+                localStorage.setItem('smed_drive_file_id', GoogleDrive.backupFileId);
             }
             
             // Actualizar fecha de última sincronización
@@ -303,9 +532,9 @@ const GoogleDrive = {
         return data.id;
     },
     
-    // Actualizar archivo en Drive
+    // Actualizar archivo existente en Drive
     updateFile: async (fileId, blob) => {
-        await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+        const response = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
             method: 'PATCH',
             headers: {
                 'Authorization': `Bearer ${GoogleDrive.accessToken}`,
@@ -313,9 +542,15 @@ const GoogleDrive = {
             },
             body: blob
         });
+        
+        if (!response.ok) {
+            throw new Error('Error actualizando archivo');
+        }
     },
     
-    // Cargar backup desde Google Drive
+    // =====================================================
+    // CARGAR BACKUP MANUAL
+    // =====================================================
     loadBackup: async () => {
         if (!GoogleDrive.isSignedIn) {
             alert('⚠️ No estás conectado a Google Drive');
@@ -323,8 +558,12 @@ const GoogleDrive = {
         }
         
         if (!GoogleDrive.backupFileId) {
-            alert('⚠️ No hay backup en Google Drive');
-            return false;
+            // Intentar buscar archivo
+            GoogleDrive.backupFileId = await GoogleDrive.findBackupFile();
+            if (!GoogleDrive.backupFileId) {
+                alert('⚠️ No hay backup en Google Drive');
+                return false;
+            }
         }
         
         try {
@@ -338,17 +577,34 @@ const GoogleDrive = {
             const registrosActuales = AppState.registros.length;
             const registrosNube = data.registros?.length || 0;
             
-            if (confirm(`📥 Backup encontrado:\n\n- Fecha: ${new Date(data.fecha).toLocaleString()}\n- Registros en nube: ${registrosNube}\n- Registros locales: ${registrosActuales}\n\n¿Deseas cargar los datos de la nube?\n(Los datos locales se reemplazarán)`)) {
+            const opcion = prompt(`📥 Backup encontrado:\n\n- Fecha: ${new Date(data.fecha).toLocaleString()}\n- Registros en nube: ${registrosNube}\n- Registros locales: ${registrosActuales}\n\n¿Qué deseas hacer?\n\n1 = REEMPLAZAR locales con nube\n2 = FUSIONAR (combinar ambos)\n0 = Cancelar`);
+            
+            if (opcion === '1') {
+                // Reemplazar
                 AppState.registros = data.registros || [];
                 AppState.buttons = data.buttons || AppState.buttons;
                 if (data.config) AppState.config = { ...AppState.config, ...data.config };
                 
                 Storage.save();
                 UI.renderAll();
+                alert('✅ Datos reemplazados desde Google Drive');
                 
-                alert('✅ Datos restaurados desde Google Drive');
-                return true;
+            } else if (opcion === '2') {
+                // Fusionar
+                const merged = GoogleDrive.mergeRegistros(AppState.registros, data.registros || []);
+                AppState.registros = merged;
+                AppState.buttons = GoogleDrive.mergeButtons(AppState.buttons, data.buttons || []);
+                
+                Storage.save();
+                UI.renderAll();
+                alert(`✅ Datos fusionados: ${merged.length} registros totales`);
+                
+                // Subir la versión fusionada
+                await GoogleDrive.saveBackup(false);
             }
+            
+            return true;
+            
         } catch (error) {
             console.error('Error cargando backup:', error);
             alert('❌ Error cargando backup: ' + error.message);
@@ -356,26 +612,40 @@ const GoogleDrive = {
         return false;
     },
     
-    // Iniciar sincronización automática
+    // =====================================================
+    // AUTO-SYNC COLABORATIVO
+    // =====================================================
     startAutoSync: () => {
-        // Sincronizar cada 5 minutos (300000 ms)
-        const SYNC_INTERVAL = 5 * 60 * 1000;
-        
         if (GoogleDrive.autoSyncInterval) {
             clearInterval(GoogleDrive.autoSyncInterval);
         }
         
-        GoogleDrive.autoSyncInterval = setInterval(() => {
-            if (GoogleDrive.isSignedIn && AppState.registros.length > 0) {
-                console.log('🔄 Auto-sync ejecutando...');
-                GoogleDrive.saveBackup(false);
+        // Sincronización cada 2 minutos para colaboración activa
+        GoogleDrive.autoSyncInterval = setInterval(async () => {
+            if (GoogleDrive.isSignedIn) {
+                console.log('🔄 Auto-sync colaborativo ejecutando...');
+                await GoogleDrive.syncData(false);
             }
-        }, SYNC_INTERVAL);
+        }, GOOGLE_CONFIG.SYNC_INTERVAL);
         
-        console.log('🔄 Auto-sync iniciado (cada 5 min)');
+        console.log(`🔄 Auto-sync colaborativo iniciado (cada ${GOOGLE_CONFIG.SYNC_INTERVAL / 60000} min)`);
     },
     
-    // Compartir carpeta con otro usuario
+    // Forzar sincronización manual
+    forceSync: async () => {
+        if (!GoogleDrive.isSignedIn) {
+            alert('⚠️ No estás conectado a Google Drive');
+            return;
+        }
+        
+        document.getElementById('googleDriveStatus').innerHTML = '<span style="color:#f59e0b;">🔄 Sincronizando...</span>';
+        await GoogleDrive.syncData(true);
+        GoogleDrive.updateUI();
+    },
+    
+    // =====================================================
+    // COMPARTIR CON COLABORADORES
+    // =====================================================
     shareWith: async (email) => {
         if (!GoogleDrive.isSignedIn || !GoogleDrive.folderId) {
             alert('⚠️ Debes estar conectado a Google Drive');
@@ -388,7 +658,8 @@ const GoogleDrive = {
         }
         
         try {
-            const response = await fetch(
+            // Compartir la CARPETA con permisos de escritura
+            const folderResponse = await fetch(
                 `https://www.googleapis.com/drive/v3/files/${GoogleDrive.folderId}/permissions`,
                 {
                     method: 'POST',
@@ -404,13 +675,33 @@ const GoogleDrive = {
                 }
             );
             
-            if (response.ok) {
-                alert(`✅ Carpeta compartida con ${email}\n\nEsta persona ahora puede ver y editar los datos.`);
-                return true;
-            } else {
-                const error = await response.json();
-                throw new Error(error.error?.message || 'Error desconocido');
+            if (!folderResponse.ok) {
+                const error = await folderResponse.json();
+                throw new Error(error.error?.message || 'Error compartiendo carpeta');
             }
+            
+            // También compartir el ARCHIVO de backup si existe
+            if (GoogleDrive.backupFileId) {
+                await fetch(
+                    `https://www.googleapis.com/drive/v3/files/${GoogleDrive.backupFileId}/permissions`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${GoogleDrive.accessToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            type: 'user',
+                            role: 'writer',
+                            emailAddress: email
+                        })
+                    }
+                );
+            }
+            
+            alert(`✅ Compartido con ${email}\n\n📋 Instrucciones para el colaborador:\n\n1. Abrir SMED Analyzer Pro\n2. Ir a Config → Google Drive\n3. Conectar con su cuenta de Google\n4. La app detectará automáticamente la carpeta compartida\n5. Los datos se sincronizarán cada 2 minutos`);
+            return true;
+            
         } catch (error) {
             console.error('Error compartiendo:', error);
             alert('❌ Error al compartir: ' + error.message);
@@ -418,7 +709,9 @@ const GoogleDrive = {
         }
     },
     
-    // Actualizar UI
+    // =====================================================
+    // ACTUALIZAR UI
+    // =====================================================
     updateUI: () => {
         const statusEl = document.getElementById('googleDriveStatus');
         const emailEl = document.getElementById('googleEmail');

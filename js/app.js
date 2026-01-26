@@ -146,17 +146,194 @@ const AppState = {
         maquinas: [...MAQUINAS_DEFAULT]  // Lista de máquinas configurables
     },
     
-    // Filtros actuales
+    // Filtros actuales - CENTRALIZADOS
     filtros: {
         categoria: 'ALL',
+        tipo: 'ALL',       // INT, EXT, NVA
         vista: 'general',
         op: 'ALL',
-        periodo: 'today',
+        periodo: 'all',    // today, week, month, year, all, custom
         maquina: 'ALL',
         turno: 'ALL',
-        colores: 'ALL'
+        colores: 'ALL',
+        fechaDesde: null,  // Para rango personalizado
+        fechaHasta: null   // Para rango personalizado
     }
 };
+
+// =====================================================
+// FILTRADO CENTRALIZADO - Función usada por todos los módulos
+// =====================================================
+
+const Filtros = {
+    // Obtener registros filtrados según todos los criterios activos
+    getFiltered: (source = 'history') => {
+        let data = [...AppState.registros];
+        const f = AppState.filtros;
+        
+        // Obtener valores de filtros del DOM según el módulo
+        const prefix = source === 'history' ? 'historyFilter' : 
+                       source === 'gantt' ? 'ganttFilter' : 
+                       source === 'stats' ? 'statsFilter' : 'historyFilter';
+        
+        // Filtro por Máquina
+        const maquina = document.getElementById(`${prefix}Maquina`)?.value || f.maquina;
+        if (maquina && maquina !== 'ALL') {
+            data = data.filter(r => r.maquina === maquina);
+        }
+        
+        // Filtro por OP
+        const op = document.getElementById(`${prefix}OP`)?.value || f.op;
+        if (op && op !== 'ALL') {
+            data = data.filter(r => r.op === op);
+        }
+        
+        // Filtro por Turno
+        const turno = document.getElementById(`${prefix}Turno`)?.value || f.turno;
+        if (turno && turno !== 'ALL') {
+            data = data.filter(r => r.turno === turno);
+        }
+        
+        // Filtro por Colores
+        const colores = document.getElementById(`${prefix}Colores`)?.value || f.colores;
+        if (colores && colores !== 'ALL') {
+            const numColores = parseInt(colores);
+            if (numColores >= 4) {
+                data = data.filter(r => (r.colores || 1) >= 4);
+            } else {
+                data = data.filter(r => (r.colores || 1) === numColores);
+            }
+        }
+        
+        // Filtro por Categoría
+        const categoria = document.getElementById(`${prefix}`)?.value || 
+                          document.getElementById('historyFilter')?.value || f.categoria;
+        if (categoria && categoria !== 'ALL') {
+            if (categoria.startsWith('CAT:')) {
+                data = data.filter(r => r.cat === categoria.split(':')[1]);
+            } else if (categoria.startsWith('NAME:')) {
+                data = data.filter(r => r.name === categoria.split(':')[1]);
+            } else {
+                data = data.filter(r => r.cat === categoria);
+            }
+        }
+        
+        // Filtro por Tipo (INT/EXT/NVA)
+        const tipo = document.getElementById(`${prefix}Tipo`)?.value || f.tipo;
+        if (tipo && tipo !== 'ALL') {
+            data = data.filter(r => r.tipo === tipo);
+        }
+        
+        // Filtro por Período/Fecha
+        const periodo = f.periodo || 'all';
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        
+        if (periodo !== 'all') {
+            data = data.filter(r => {
+                // Obtener fecha del registro
+                let fechaReg;
+                if (r.fecha) {
+                    fechaReg = new Date(r.fecha + 'T00:00:00');
+                } else if (r.timestamp) {
+                    fechaReg = new Date(r.timestamp);
+                    fechaReg.setHours(0, 0, 0, 0);
+                } else if (r.fechaExcel) {
+                    fechaReg = Utils.excelToDate(r.fechaExcel);
+                    fechaReg.setHours(0, 0, 0, 0);
+                } else {
+                    return true; // Sin fecha, incluir
+                }
+                
+                switch (periodo) {
+                    case 'today':
+                        return fechaReg.getTime() === hoy.getTime();
+                    case 'week':
+                        const inicioSemana = new Date(hoy);
+                        inicioSemana.setDate(hoy.getDate() - hoy.getDay());
+                        return fechaReg >= inicioSemana;
+                    case 'month':
+                        return fechaReg.getMonth() === hoy.getMonth() && 
+                               fechaReg.getFullYear() === hoy.getFullYear();
+                    case 'year':
+                        return fechaReg.getFullYear() === hoy.getFullYear();
+                    case 'custom':
+                        const desde = f.fechaDesde ? new Date(f.fechaDesde + 'T00:00:00') : null;
+                        const hasta = f.fechaHasta ? new Date(f.fechaHasta + 'T23:59:59') : null;
+                        if (desde && fechaReg < desde) return false;
+                        if (hasta && fechaReg > hasta) return false;
+                        return true;
+                    default:
+                        return true;
+                }
+            });
+        }
+        
+        return data;
+    },
+    
+    // Actualizar todos los selectores de filtros dinámicos
+    updateAllFilters: () => {
+        Filtros.updateOPFilter('historyFilterOP');
+        Filtros.updateOPFilter('ganttFilterOP');
+        Filtros.updateOPFilter('statsFilterOP');
+        Filtros.updateCategoryFilter('historyFilter');
+        Filtros.updateCategoryFilter('ganttFilter');
+        Filtros.updateCategoryFilter('statsFilter');
+        MaquinaManager.updateSelectors();
+    },
+    
+    // Actualizar filtro de OP
+    updateOPFilter: (selectId) => {
+        const select = document.getElementById(selectId);
+        if (!select) return;
+        
+        const currentValue = select.value;
+        const ops = [...new Set(AppState.registros.filter(r => r.op).map(r => r.op))].sort();
+        
+        let html = '<option value="ALL">📋 Todas las OP</option>';
+        ops.forEach(op => {
+            const count = AppState.registros.filter(r => r.op === op).length;
+            html += `<option value="${op}">${op.padStart(8, '0')} (${count})</option>`;
+        });
+        select.innerHTML = html;
+        if (ops.includes(currentValue)) select.value = currentValue;
+    },
+    
+    // Actualizar filtro de categoría
+    updateCategoryFilter: (selectId) => {
+        const select = document.getElementById(selectId);
+        if (!select) return;
+        
+        const currentValue = select.value;
+        const cats = [...new Set(AppState.registros.map(r => r.cat))].sort();
+        
+        let html = '<option value="ALL">📁 Todas</option>';
+        cats.forEach(c => html += `<option value="${c}">${c}</option>`);
+        select.innerHTML = html;
+        if (cats.includes(currentValue) || currentValue === 'ALL') select.value = currentValue;
+    },
+    
+    // Aplicar período desde botones rápidos
+    setPeriodo: (periodo) => {
+        AppState.filtros.periodo = periodo;
+        UI.renderHistory();
+        // Actualizar otros módulos si están visibles
+        if (typeof Statistics !== 'undefined') Statistics.calculate();
+        if (typeof Analysis !== 'undefined') Analysis.render();
+        if (typeof Gantt !== 'undefined') Gantt.render();
+    },
+    
+    // Aplicar rango personalizado
+    setCustomRange: (desde, hasta) => {
+        AppState.filtros.periodo = 'custom';
+        AppState.filtros.fechaDesde = desde;
+        AppState.filtros.fechaHasta = hasta;
+        UI.renderHistory();
+    }
+};
+
+window.Filtros = Filtros;
 
 // =====================================================
 // UTILIDADES
@@ -1055,38 +1232,58 @@ const UI = {
         }
     },
     
-    // Historial de actividades
+    // Historial de actividades - USA FILTROS CENTRALIZADOS
     renderHistory: () => {
         const container = document.getElementById('historyList');
         if (!container) return;
         
         // Actualizar opciones del filtro
         UI.updateHistoryFilterOptions();
+        Filtros.updateAllFilters();
         
         if (AppState.registros.length === 0) {
             container.innerHTML = '<div class="no-data-msg">No hay actividades registradas</div>';
+            UI.updateHistoryCount(0, 0);
             return;
         }
         
-        // Filtrar si es necesario
-        let filtered = AppState.registros;
-        if (AppState.filtros.categoria !== 'ALL') {
-            filtered = filtered.filter(r => r.cat === AppState.filtros.categoria);
+        // USAR FILTROS CENTRALIZADOS
+        const filtered = Filtros.getFiltered('history');
+        
+        // Actualizar contador
+        UI.updateHistoryCount(filtered.length, AppState.registros.length);
+        
+        if (filtered.length === 0) {
+            container.innerHTML = '<div class="no-data-msg">No hay actividades con los filtros actuales</div>';
+            return;
         }
         
-        container.innerHTML = filtered.slice(0, 50).map(record => `
-            <div class="history-item">
+        container.innerHTML = filtered.slice(0, 100).map(record => {
+            const tipoColor = record.tipo === 'NVA' ? '#ef4444' : record.tipo === 'EXT' ? '#10b981' : '#f97316';
+            const tipoIcon = record.tipo === 'NVA' ? '🔴' : record.tipo === 'EXT' ? '🟢' : '🟠';
+            
+            return `
+            <div class="history-item" data-record-id="${record.id}">
                 <div class="item-info">
-                    <span class="item-name">${record.name}</span>
-                    <span class="item-cat">${record.cat}${record.op ? ` • <span style="color:#00ff9d;">${record.op}</span>` : ''}${record.turno ? ` [${record.turno}]` : ''}</span>
-                    <span class="item-time">Fin: ${record.endTime}${record.colores > 1 ? ` • ${record.colores} colores` : ''}</span>
+                    <span class="item-name">${tipoIcon} ${record.name}</span>
+                    <span class="item-cat">${record.cat}${record.op ? ` • <span style="color:#00ff9d;">OP:${record.op}</span>` : ''}${record.turno ? ` [${record.turno}]` : ''}${record.maquina ? ` <span style="color:#00d4ff;">${record.maquina}</span>` : ''}</span>
+                    <span class="item-time">${record.fecha || ''} ${record.endTime || ''}${record.colores > 1 ? ` • ${record.colores}col` : ''}</span>
                 </div>
-                <div class="item-actions">
-                    <span class="item-duration">${record.duration}s</span>
+                <div class="item-actions" style="display: flex; gap: 5px; align-items: center;">
+                    <span class="item-duration" style="color: ${tipoColor}; font-weight: bold;">${(record.duration || record.duracion || 0).toFixed(1)}s</span>
+                    <button class="edit-btn" onclick="RecordEditor.open('${record.id}')" title="Editar" style="background:#3b82f6; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">✏️</button>
                     <button class="delete-btn" onclick="Timer.deleteRecord('${record.id}')" title="Eliminar">×</button>
                 </div>
             </div>
-        `).join('');
+        `}).join('');
+    },
+    
+    // Actualizar contador de registros filtrados
+    updateHistoryCount: (filtrados, total) => {
+        const countEl = document.getElementById('historyCount');
+        if (countEl) {
+            countEl.textContent = filtrados === total ? `${total} registros` : `${filtrados} de ${total} registros`;
+        }
     },
     
     // Estadísticas en tab Stats
@@ -1561,6 +1758,177 @@ const MaquinaManager = {
     }
 };
 
+// =====================================================
+// EDITOR DE REGISTROS INDIVIDUALES
+// =====================================================
+
+const RecordEditor = {
+    currentId: null,
+    
+    // Abrir editor para un registro específico
+    open: (id) => {
+        const record = AppState.registros.find(r => r.id === id);
+        if (!record) {
+            alert('Registro no encontrado');
+            return;
+        }
+        
+        RecordEditor.currentId = id;
+        
+        // Crear modal si no existe
+        let modal = document.getElementById('recordEditorModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'recordEditorModal';
+            modal.innerHTML = `
+                <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center;">
+                    <div style="background: #1a1a2e; padding: 20px; border-radius: 12px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; border: 2px solid #3b82f6;">
+                        <h3 style="margin: 0 0 15px 0; color: #00d4ff;">✏️ Editar Actividad</h3>
+                        <div id="editorFields" style="display: grid; gap: 12px;"></div>
+                        <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end;">
+                            <button onclick="RecordEditor.close()" style="padding: 10px 20px; background: #666; color: white; border: none; border-radius: 6px; cursor: pointer;">Cancelar</button>
+                            <button onclick="RecordEditor.save()" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer;">💾 Guardar</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        // Llenar campos
+        const fieldsContainer = document.getElementById('editorFields');
+        
+        // Generar opciones de máquinas
+        const maquinaOpts = AppState.config.maquinas.map(m => 
+            `<option value="${m}" ${record.maquina === m ? 'selected' : ''}>${m}</option>`
+        ).join('');
+        
+        fieldsContainer.innerHTML = `
+            <div>
+                <label style="font-size: 11px; color: #888;">Actividad:</label>
+                <input type="text" id="edit_name" value="${record.name || ''}" 
+                       style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #444; background: #0a0a0a; color: #fff;">
+            </div>
+            <div>
+                <label style="font-size: 11px; color: #888;">Categoría:</label>
+                <input type="text" id="edit_cat" value="${record.cat || ''}" 
+                       style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #444; background: #0a0a0a; color: #fff;">
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>
+                    <label style="font-size: 11px; color: #888;">Tipo SMED:</label>
+                    <select id="edit_tipo" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #444; background: #0a0a0a; color: #fff;">
+                        <option value="INT" ${record.tipo === 'INT' ? 'selected' : ''}>🟠 Interna</option>
+                        <option value="EXT" ${record.tipo === 'EXT' ? 'selected' : ''}>🟢 Externa</option>
+                        <option value="NVA" ${record.tipo === 'NVA' ? 'selected' : ''}>🔴 Muda/NVA</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 11px; color: #888;">Duración (seg):</label>
+                    <input type="number" step="0.1" id="edit_duracion" value="${record.duracion || record.duration || 0}" 
+                           style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #444; background: #0a0a0a; color: #fff;">
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>
+                    <label style="font-size: 11px; color: #888;">Máquina:</label>
+                    <select id="edit_maquina" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #444; background: #0a0a0a; color: #fff;">
+                        <option value="">-- Sin asignar --</option>
+                        ${maquinaOpts}
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 11px; color: #888;">OP:</label>
+                    <input type="text" id="edit_op" value="${record.op || ''}" 
+                           style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #444; background: #0a0a0a; color: #fff;">
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                <div>
+                    <label style="font-size: 11px; color: #888;">Turno:</label>
+                    <select id="edit_turno" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #444; background: #0a0a0a; color: #fff;">
+                        <option value="T1" ${record.turno === 'T1' ? 'selected' : ''}>T1</option>
+                        <option value="T2" ${record.turno === 'T2' ? 'selected' : ''}>T2</option>
+                        <option value="T3" ${record.turno === 'T3' ? 'selected' : ''}>T3</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 11px; color: #888;">Colores:</label>
+                    <input type="number" min="1" max="8" id="edit_colores" value="${record.colores || 1}" 
+                           style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #444; background: #0a0a0a; color: #fff;">
+                </div>
+                <div>
+                    <label style="font-size: 11px; color: #888;">Fecha:</label>
+                    <input type="date" id="edit_fecha" value="${record.fecha || ''}" 
+                           style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #444; background: #0a0a0a; color: #fff;">
+                </div>
+            </div>
+        `;
+        
+        modal.style.display = 'block';
+    },
+    
+    // Cerrar editor
+    close: () => {
+        const modal = document.getElementById('recordEditorModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+        RecordEditor.currentId = null;
+    },
+    
+    // Guardar cambios
+    save: () => {
+        if (!RecordEditor.currentId) return;
+        
+        const record = AppState.registros.find(r => r.id === RecordEditor.currentId);
+        if (!record) {
+            alert('Registro no encontrado');
+            return;
+        }
+        
+        // Obtener valores del formulario
+        const newName = document.getElementById('edit_name')?.value.trim();
+        const newCat = document.getElementById('edit_cat')?.value.trim();
+        const newTipo = document.getElementById('edit_tipo')?.value;
+        const newDuracion = parseFloat(document.getElementById('edit_duracion')?.value) || 0;
+        const newMaquina = document.getElementById('edit_maquina')?.value;
+        const newOP = document.getElementById('edit_op')?.value.trim();
+        const newTurno = document.getElementById('edit_turno')?.value;
+        const newColores = parseInt(document.getElementById('edit_colores')?.value) || 1;
+        const newFecha = document.getElementById('edit_fecha')?.value;
+        
+        // Validar
+        if (!newName) {
+            alert('El nombre de la actividad es requerido');
+            return;
+        }
+        
+        // Actualizar registro
+        record.name = newName;
+        record.cat = newCat || Utils.extractCategory(newName);
+        record.tipo = newTipo || 'INT';
+        record.duracion = Utils.round2(newDuracion);
+        record.duration = Utils.round2(newDuracion);
+        record.maquina = newMaquina || '';
+        record.op = newOP || '';
+        record.turno = newTurno || 'T1';
+        record.colores = newColores;
+        
+        if (newFecha) {
+            record.fecha = newFecha;
+            record.fechaExcel = Utils.dateToExcel(new Date(newFecha + 'T12:00:00'));
+        }
+        
+        // Guardar y actualizar UI
+        Storage.save();
+        UI.renderAll();
+        RecordEditor.close();
+        
+        console.log('✅ Registro actualizado:', record.id);
+    }
+};
+
 // Exponer funciones globales necesarias
 window.Timer = Timer;
 window.ButtonManager = ButtonManager;
@@ -1570,3 +1938,5 @@ window.Tabs = Tabs;
 window.Theory = Theory;
 window.FreeTimers = FreeTimers;
 window.MaquinaManager = MaquinaManager;
+window.RecordEditor = RecordEditor;
+window.Filtros = Filtros;

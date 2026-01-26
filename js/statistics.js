@@ -55,50 +55,24 @@ const Statistics = {
         }
     },
     
-    // Calcular estadísticas con filtros de Máquina, OP, Turno, Colores, Categoría
+    // Calcular estadísticas - USA FILTROS CENTRALIZADOS
     calculate: () => {
+        // USAR FILTROS CENTRALIZADOS si están disponibles
+        let filtered = typeof Filtros !== 'undefined' ? Filtros.getFiltered('stats') : [...AppState.registros];
+        
+        // Aplicar filtro adicional por Tipo (INT/EXT/NVA) si existe el selector
+        const filterTipo = document.getElementById('statsFilterTipo')?.value || 'ALL';
+        if (filterTipo !== 'ALL') {
+            filtered = filtered.filter(r => r.tipo === filterTipo);
+        }
+        
+        // Aplicar filtro adicional por Categoría/Actividad específica si existe
         const filterCat = document.getElementById('statsFilter')?.value || 'ALL';
-        const filterOP = document.getElementById('statsFilterOP')?.value || 'ALL';
-        const filterTurno = document.getElementById('statsFilterTurno')?.value || 'ALL';
-        const filterColores = document.getElementById('statsFilterColores')?.value || 'ALL';
-        const filterMaquina = document.getElementById('statsFilterMaquina')?.value || 'ALL';
-        
-        // Aplicar todos los filtros
-        let filtered = [...AppState.registros];
-        
-        // Filtro por Máquina
-        if (filterMaquina !== 'ALL') {
-            filtered = filtered.filter(r => r.maquina === filterMaquina);
-        }
-        
-        // Filtro por OP
-        if (filterOP !== 'ALL') {
-            filtered = filtered.filter(r => r.op === filterOP);
-        }
-        
-        // Filtro por Turno
-        if (filterTurno !== 'ALL') {
-            filtered = filtered.filter(r => r.turno === filterTurno);
-        }
-        
-        // Filtro por Colores
-        if (filterColores !== 'ALL') {
-            const numColores = parseInt(filterColores);
-            if (numColores === 5) {
-                filtered = filtered.filter(r => (r.colores || 1) >= 5);
-            } else {
-                filtered = filtered.filter(r => (r.colores || 1) === numColores);
-            }
-        }
-        
-        // Filtro por Categoría/Actividad
         if (filterCat !== 'ALL') {
             if (filterCat.startsWith('CAT:')) {
-                const cat = filterCat.split(':')[1];
-                filtered = filtered.filter(r => r.cat === cat);
+                filtered = filtered.filter(r => r.cat === filterCat.split(':')[1]);
             } else if (filterCat.startsWith('NAME:')) {
-                const name = filterCat.split(':')[1];
-                filtered = filtered.filter(r => r.name === name);
+                filtered = filtered.filter(r => r.name === filterCat.split(':')[1]);
             }
         }
         

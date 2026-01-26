@@ -50,12 +50,13 @@ const Analysis = {
         Charts.renderPieChart();
     },
     
-    // Calcular todos los datos
+    // Calcular todos los datos - USANDO DATOS FILTRADOS
     calculate: () => {
-        const registros = AppState.registros;
+        // USAR FILTROS CENTRALIZADOS si están disponibles
+        const registros = typeof Filtros !== 'undefined' ? Filtros.getFiltered('analysis') : AppState.registros;
         
         // Tiempo total
-        const tiempoTotal = registros.reduce((sum, r) => sum + r.duration, 0);
+        const tiempoTotal = registros.reduce((sum, r) => sum + (r.duration || r.duracion || 0), 0);
         
         // Tiempo por categoría (dinámico)
         const porCategoria = {};
@@ -63,22 +64,28 @@ const Analysis = {
             if (!porCategoria[r.cat]) {
                 porCategoria[r.cat] = 0;
             }
-            porCategoria[r.cat] += r.duration;
+            porCategoria[r.cat] += (r.duration || r.duracion || 0);
         });
         
-        // Tiempo de mudas (desperdicios) - categorías que típicamente son NVA
-        const categoriasNVA = ['Muda', 'Espera', 'Transporte', 'Movimiento', 'Defectos'];
-        const tiempoMuda = categoriasNVA.reduce((sum, cat) => sum + (porCategoria[cat] || 0), 0);
+        // Tiempo de mudas - USAR CAMPO TIPO (NVA) en lugar de nombres de categoría
+        // Esto es más preciso porque el usuario define qué es muda
+        const tiempoMuda = registros
+            .filter(r => r.tipo === 'NVA')
+            .reduce((sum, r) => sum + (r.duration || r.duracion || 0), 0);
         
-        // Tiempo de valor agregado
+        // Tiempo de valor agregado (INT + EXT)
         const tiempoVA = tiempoTotal - tiempoMuda;
         
-        // Eficiencia
+        // Eficiencia (tiempo VA / total)
         const eficiencia = tiempoTotal > 0 ? (tiempoVA / tiempoTotal) * 100 : 0;
         
-        // Ajuste interno vs externo
-        const tiempoAjusteInt = porCategoria['Ajuste Interno'] || 0;
-        const tiempoAjusteExt = porCategoria['Ajuste Externo'] || 0;
+        // Ajuste interno vs externo - USAR CAMPO TIPO
+        const tiempoAjusteInt = registros
+            .filter(r => r.tipo === 'INT')
+            .reduce((sum, r) => sum + (r.duration || r.duracion || 0), 0);
+        const tiempoAjusteExt = registros
+            .filter(r => r.tipo === 'EXT')
+            .reduce((sum, r) => sum + (r.duration || r.duracion || 0), 0);
         const ratioInEx = tiempoAjusteExt > 0 ? tiempoAjusteInt / tiempoAjusteExt : 0;
         
         // Promedio por registro

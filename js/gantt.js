@@ -141,43 +141,21 @@ const Gantt = {
         Gantt.updateSummary(totalDuration, tiempoVA, tiempoNVA, registros);
     },
     
-    // Obtener datos filtrados con filtros de OP, Turno, Colores, Categoría, Máquina
+    // Obtener datos filtrados - USA FILTROS CENTRALIZADOS
     getFilteredData: () => {
-        let data = [...AppState.registros];
+        // USAR FILTROS CENTRALIZADOS si están disponibles
+        let data = typeof Filtros !== 'undefined' ? Filtros.getFiltered('gantt') : [...AppState.registros];
         
-        // Filtro por OP
-        const filterOP = document.getElementById('ganttFilterOP')?.value || 'ALL';
-        if (filterOP !== 'ALL') {
-            data = data.filter(r => r.op === filterOP);
+        // Aplicar filtro adicional por Tipo (INT/EXT/NVA) si existe el selector
+        const filterTipo = document.getElementById('ganttFilterTipo')?.value || 'ALL';
+        if (filterTipo !== 'ALL') {
+            data = data.filter(r => r.tipo === filterTipo);
         }
         
-        // Filtro por Turno
-        const filterTurno = document.getElementById('ganttFilterTurno')?.value || 'ALL';
-        if (filterTurno !== 'ALL') {
-            data = data.filter(r => r.turno === filterTurno);
-        }
-        
-        // Filtro por Colores
-        const filterColores = document.getElementById('ganttFilterColores')?.value || 'ALL';
-        if (filterColores !== 'ALL') {
-            const numColores = parseInt(filterColores);
-            if (numColores === 5) {
-                data = data.filter(r => (r.colores || 1) >= 5);
-            } else {
-                data = data.filter(r => (r.colores || 1) === numColores);
-            }
-        }
-        
-        // Filtro por Categoría
+        // Aplicar filtro adicional por Categoría específica si existe
         const filterCat = document.getElementById('ganttFilter')?.value || 'ALL';
         if (filterCat !== 'ALL') {
             data = data.filter(r => r.cat === filterCat);
-        }
-        
-        // Filtro por Máquina
-        const filterMaquina = document.getElementById('ganttFilterMaquina')?.value || 'ALL';
-        if (filterMaquina !== 'ALL') {
-            data = data.filter(r => r.maquina === filterMaquina);
         }
         
         return data;
