@@ -7,6 +7,13 @@
 // MÓDULO DE GANTT
 // =====================================================
 
+// Colores por Tipo SMED
+const TIPO_COLORS = {
+    'INT': '#f97316', // Naranja - Interna
+    'EXT': '#10b981', // Verde - Externa
+    'NVA': '#ef4444'  // Rojo - Muda
+};
+
 const Gantt = {
     // Configuración
     config: {
@@ -14,10 +21,41 @@ const Gantt = {
         filter: 'ALL'
     },
     
-    // Renderizar diagrama de Gantt - AGRUPADO POR NOMBRE DE ACTIVIDAD
+    // Actualizar dropdown de OPs
+    updateOPFilter: () => {
+        const select = document.getElementById('ganttFilterOP');
+        if (!select) return;
+        
+        const currentOP = select.value;
+        const ops = [...new Set(AppState.registros.filter(r => r.op).map(r => r.op))].sort();
+        
+        let html = '<option value="ALL">Todas las OP</option>';
+        ops.forEach(op => {
+            const count = AppState.registros.filter(r => r.op === op).length;
+            html += `<option value="${op}">${op.padStart(8, '0')} (${count})</option>`;
+        });
+        select.innerHTML = html;
+        select.value = currentOP || 'ALL';
+        
+        // También actualizar filtro de categorías
+        const selectCat = document.getElementById('ganttFilter');
+        if (selectCat) {
+            const currentCat = selectCat.value;
+            const cats = [...new Set(AppState.registros.map(r => r.cat))].sort();
+            let catHtml = '<option value="ALL">Todas</option>';
+            cats.forEach(c => catHtml += `<option value="${c}">${c}</option>`);
+            selectCat.innerHTML = catHtml;
+            selectCat.value = currentCat || 'ALL';
+        }
+    },
+    
+    // Renderizar diagrama de Gantt - AGRUPADO POR NOMBRE + COLORES POR TIPO
     render: () => {
         const container = document.getElementById('ganttTimeline');
         if (!container) return;
+        
+        // Actualizar filtros dinámicos
+        Gantt.updateOPFilter();
         
         const registros = Gantt.getFilteredData();
         
@@ -63,16 +101,19 @@ const Gantt = {
         Object.values(byName).forEach(activity => {
             const catClass = Gantt.getCategoryClass(activity.cat);
             
-            // Generar todas las barras de esta actividad
+            // Generar todas las barras de esta actividad (coloreadas por Tipo SMED)
             let barsHtml = '';
             activity.records.forEach(rec => {
                 const startPct = (rec.startTime / totalTimeRange) * 100;
                 const widthPct = (rec.duration / totalTimeRange) * 100;
+                const tipoColor = Gantt.getTipoColor(rec.tipo);
+                const opLabel = rec.op ? rec.op.padStart(8, '0') : '';
+                const turnoLabel = rec.turno || 'T1';
                 
                 barsHtml += `
-                    <div class="gantt-bar ${catClass}" 
-                         style="left: ${startPct}%; width: ${Math.max(widthPct, 1)}%;"
-                         title="${rec.name}: ${rec.duration.toFixed(1)}s (${rec.endTime ? Utils.secondsToHMS(rec.finSeg || 0) : ''})">
+                    <div class="gantt-bar" 
+                         style="left: ${startPct}%; width: ${Math.max(widthPct, 1)}%; background: ${tipoColor};"
+                         title="${rec.name} | ${rec.duration.toFixed(1)}s | ${rec.tipo || 'INT'} | OP: ${opLabel} | ${turnoLabel}">
                     </div>
                 `;
             });
@@ -100,15 +141,45 @@ const Gantt = {
         Gantt.updateSummary(totalDuration, tiempoVA, tiempoNVA);
     },
     
-    // Obtener datos filtrados
+    // Obtener datos filtrados con filtros de OP, Turno, Colores, Categoría
     getFilteredData: () => {
         let data = [...AppState.registros];
         
-        if (Gantt.config.filter !== 'ALL') {
-            data = data.filter(r => r.cat === Gantt.config.filter);
+        // Filtro por OP
+        const filterOP = document.getElementById('ganttFilterOP')?.value || 'ALL';
+        if (filterOP !== 'ALL') {
+            data = data.filter(r => r.op === filterOP);
+        }
+        
+        // Filtro por Turno
+        const filterTurno = document.getElementById('ganttFilterTurno')?.value || 'ALL';
+        if (filterTurno !== 'ALL') {
+            data = data.filter(r => r.turno === filterTurno);
+        }
+        
+        // Filtro por Colores
+        const filterColores = document.getElementById('ganttFilterColores')?.value || 'ALL';
+        if (filterColores !== 'ALL') {
+            const numColores = parseInt(filterColores);
+            if (numColores === 5) {
+                data = data.filter(r => (r.colores || 1) >= 5);
+            } else {
+                data = data.filter(r => (r.colores || 1) === numColores);
+            }
+        }
+        
+        // Filtro por Categoría
+        const filterCat = document.getElementById('ganttFilter')?.value || 'ALL';
+        if (filterCat !== 'ALL') {
+            data = data.filter(r => r.cat === filterCat);
         }
         
         return data;
+    },
+    
+    // Obtener color según tipo SMED
+    getTipoColor: (tipo) => {
+        return TIPO_COLORS[tipo] || TIPO_COLORS['INT'];
     },
     
     // Obtener clase CSS para categoría (dinámico)
