@@ -942,22 +942,43 @@ const ButtonManager = {
 };
 
 // =====================================================
-// EXPORT/IMPORT CSV - FORMATO NUMÉRICO SIMPLE
+// EXPORT/IMPORT CSV - FORMATO v3 OPTIMIZADO (13 campos)
 // =====================================================
 
 /*
- * FORMATO CSV:
- * - FechaExcel: Número entero = días desde 1900, decimales = fracción del día (formato Excel)
- * - InicioSeg: Segundos del día (0-86399) cuando inició la actividad
- * - FinSeg: Segundos del día (0-86399) cuando terminó la actividad
- * - DuracionSeg: Duración en segundos
+ * FORMATO CSV v3 (sin redundancia):
+ * 
+ * HEADERS: ID, FechaExcel, Maquina, OP, Colores, Turno, Actividad, Categoria, Tipo, InicioSeg, FinSeg, DuracionSeg, Notas
+ * 
+ * CAMPOS:
+ * - ID: Identificador único del registro
+ * - FechaExcel: Número ENTERO = días desde 1900 (formato Excel, SIN decimales)
+ * - Maquina: Código de máquina (ej: "i5", "i10")
+ * - OP: Número de orden de producción
+ * - Colores: Cantidad de colores del pedido (1-8)
+ * - Turno: T1, T2, T3
+ * - Actividad: Nombre de la actividad
+ * - Categoria: Categoría (primera palabra del nombre)
  * - Tipo: INT (interna), EXT (externa), NVA (muda/no valor agregado)
+ * - InicioSeg: Segundos del día (0-86399) cuando INICIÓ la actividad
+ * - FinSeg: Segundos del día (0-86399) cuando TERMINÓ la actividad
+ * - DuracionSeg: Duración en segundos
+ * - Notas: Observaciones opcionales
+ * 
+ * LÓGICA DE DATOS:
+ * - Localización temporal: FechaExcel (entero) = DÍA
+ * - Ubicación en el día: InicioSeg y FinSeg = segundos 0-86399
+ * - Sin redundancia: La fecha no tiene hora, los segundos no tienen fecha
  * 
  * EJEMPLO para importar datos externos:
- * FechaExcel = 45678 (es 22/01/2026)
+ * FechaExcel = 46047 (es 27/01/2026)
  * InicioSeg = 36000 (es 10:00:00)
  * FinSeg = 36300 (es 10:05:00)
  * DuracionSeg = 300 (5 minutos)
+ * 
+ * COMPATIBILIDAD:
+ * - Importa formatos v1 (legacy), v2 (16 campos) y v3 (13 campos)
+ * - Exporta solo formato v3
  */
 
 // =====================================================
@@ -1088,7 +1109,7 @@ const CSVIntegrity = {
 };
 
 const CSV = {
-    // Exportar con formato completo v2 (TODOS los campos + integridad)
+    // Exportar con formato v3 optimizado (13 campos, sin redundancia)
     export: () => {
         if (AppState.registros.length === 0) {
             alert('No hay datos para exportar');
@@ -1104,8 +1125,9 @@ const CSV = {
         const nombreLimpio = nombreUsuario.trim().replace(/[^a-zA-Z0-9]/g, '_') || 'Usuario';
         const fechaExport = new Date().toISOString();
         
-        // Headers v2 - incluye NOTAS y todos los campos necesarios
-        const headers = ['ID', 'Fecha', 'HoraFin', 'FechaExcel', 'Maquina', 'OP', 'Colores', 'Turno', 'Actividad', 'Categoria', 'Tipo', 'InicioSeg', 'FinSeg', 'DuracionSeg', 'Timestamp', 'Notas'];
+        // Headers v3 - 13 campos sin redundancia
+        // FechaExcel = entero (solo día), InicioSeg/FinSeg = segundos del día
+        const headers = ['ID', 'FechaExcel', 'Maquina', 'OP', 'Colores', 'Turno', 'Actividad', 'Categoria', 'Tipo', 'InicioSeg', 'FinSeg', 'DuracionSeg', 'Notas'];
         
         const rows = AppState.registros.map(r => {
             // Normalizar registro antes de exportar
@@ -1126,11 +1148,12 @@ const CSV = {
                 if (inicioSeg < 0) inicioSeg += 86400;
             }
             
+            // FechaExcel como entero (solo día, sin decimales)
+            const fechaExcelInt = Math.floor(nr.fechaExcel || Utils.dateToExcel(new Date()));
+            
             return [
                 nr.id,
-                nr.fecha || '',
-                nr.endTime || '',
-                Utils.round2(nr.fechaExcel),
+                fechaExcelInt,                              // Entero: solo día
                 nr.maquina || '',
                 nr.op || '',
                 nr.colores || 1,
@@ -1141,8 +1164,7 @@ const CSV = {
                 Utils.round2(inicioSeg),
                 Utils.round2(finSeg),
                 Utils.round2(nr.duracion || nr.duration || 0),
-                nr.timestamp || Date.now(),
-                (nr.notas || '').replace(/[\r\n]+/g, ' ') // Notas sin saltos de línea
+                (nr.notas || '').replace(/[\r\n]+/g, ' ')   // Notas sin saltos de línea
             ];
         });
         
@@ -1151,13 +1173,13 @@ const CSV = {
         
         // Construir CSV con metadatos
         let csvContent = '\ufeff'; // BOM para UTF-8
-        // Línea de metadatos (comentario)
-        csvContent += `#SMED_CSV_V${CSVIntegrity.VERSION},${fechaExport},${nombreLimpio},${AppState.registros.length},${checksum}\n`;
+        // Línea de metadatos (comentario) - v3
+        csvContent += `#SMED_CSV_V3.0,${fechaExport},${nombreLimpio},${AppState.registros.length},${checksum}\n`;
         csvContent += headers.join(',') + '\n';
         csvContent += rows.map(row => 
             row.map((cell, i) => {
-                // Campos de texto entre comillas
-                if ([0, 1, 2, 4, 5, 7, 8, 9, 10, 15].includes(i)) {
+                // Campos de texto entre comillas: ID, Maquina, OP, Turno, Actividad, Categoria, Tipo, Notas
+                if ([0, 2, 3, 5, 6, 7, 8, 12].includes(i)) {
                     return `"${String(cell).replace(/"/g, '""')}"`;
                 }
                 return cell;
@@ -1171,7 +1193,7 @@ const CSV = {
         link.click();
         URL.revokeObjectURL(link.href);
         
-        console.log(`✅ CSV exportado: ${rows.length} registros, checksum: ${checksum}`);
+        console.log(`✅ CSV v3 exportado: ${rows.length} registros, checksum: ${checksum}`);
     },
     
     // Parsear una línea CSV respetando comillas
@@ -1223,7 +1245,12 @@ const CSV = {
                 
                 // Detectar formato por headers
                 const headerLine = lines[0].toLowerCase();
-                const isV2Format = headerLine.includes('notas') || headerLine.includes('id,fecha,horafin');
+                // v3: ID, FechaExcel, Maquina, OP, Colores, Turno, Actividad, Categoria, Tipo, InicioSeg, FinSeg, DuracionSeg, Notas
+                const isV3Format = headerLine.startsWith('id,fechaexcel,maquina') || 
+                                   (headerLine.includes('fechaexcel') && !headerLine.includes('fecha,horafin'));
+                // v2: ID, Fecha, HoraFin, FechaExcel, ...
+                const isV2Format = headerLine.includes('id,fecha,horafin') || 
+                                   (headerLine.includes('horafin') && headerLine.includes('timestamp'));
                 const isNewFormat = headerLine.includes('fechaexcel') || headerLine.includes('inicioseg');
                 
                 // Obtener headers
@@ -1241,8 +1268,36 @@ const CSV = {
                     const values = CSV.parseCSVLine(line);
                     let record;
                     
-                    if (isV2Format) {
-                        // Formato v2 completo: ID, Fecha, HoraFin, FechaExcel, Maquina, OP, Colores, Turno, Actividad, Categoria, Tipo, InicioSeg, FinSeg, DuracionSeg, Timestamp, Notas
+                    if (isV3Format) {
+                        // Formato v3 optimizado (13 campos):
+                        // ID, FechaExcel, Maquina, OP, Colores, Turno, Actividad, Categoria, Tipo, InicioSeg, FinSeg, DuracionSeg, Notas
+                        const fechaExcelInt = parseInt(values[1]) || Math.floor(Utils.dateToExcel(new Date()));
+                        const dateObj = Utils.excelToDate(fechaExcelInt);
+                        const finSeg = parseFloat(values[10]) || 0;
+                        
+                        record = {
+                            id: values[0] || Utils.generateId(),
+                            fechaExcel: fechaExcelInt,
+                            maquina: values[2] || '',
+                            op: values[3] || '',
+                            colores: parseInt(values[4]) || 1,
+                            turno: values[5] || 'T1',
+                            name: values[6] || '',
+                            cat: values[7] || '',
+                            tipo: (values[8] || 'INT').toUpperCase(),
+                            inicioSeg: parseFloat(values[9]) || 0,
+                            finSeg: finSeg,
+                            duracion: parseFloat(values[11]) || 0,
+                            notas: values[12] || '',
+                            // Campos legacy recalculados
+                            duration: parseFloat(values[11]) || 0,
+                            endTime: Utils.secondsToHMS(finSeg),
+                            timestamp: dateObj.getTime(),
+                            fecha: dateObj.toISOString().split('T')[0]
+                        };
+                    } else if (isV2Format) {
+                        // Formato v2 completo (16 campos):
+                        // ID, Fecha, HoraFin, FechaExcel, Maquina, OP, Colores, Turno, Actividad, Categoria, Tipo, InicioSeg, FinSeg, DuracionSeg, Timestamp, Notas
                         record = {
                             id: values[0] || Utils.generateId(),
                             fecha: values[1] || '',
@@ -1263,13 +1318,14 @@ const CSV = {
                         };
                         record.duration = record.duracion;
                     } else if (isNewFormat) {
-                        // Formato nuevo (sin ID): FechaExcel, Maquina, OP, Colores, Turno, Actividad, Categoria, Tipo, InicioSeg, FinSeg, DuracionSeg
+                        // Formato sin ID: FechaExcel, Maquina, OP, Colores, Turno, Actividad, Categoria, Tipo, InicioSeg, FinSeg, DuracionSeg
                         const fechaExcel = parseFloat(values[0]) || Utils.dateToExcel(new Date());
                         const dateObj = Utils.excelToDate(fechaExcel);
+                        const finSeg = parseFloat(values[9]) || 0;
                         
                         record = {
                             id: Utils.generateId(),
-                            fechaExcel: fechaExcel,
+                            fechaExcel: Math.floor(fechaExcel),
                             maquina: values[1] || '',
                             op: values[2] || '',
                             colores: parseInt(values[3]) || 1,
@@ -1278,10 +1334,10 @@ const CSV = {
                             cat: values[6] || '',
                             tipo: (values[7] || 'INT').toUpperCase(),
                             inicioSeg: parseFloat(values[8]) || 0,
-                            finSeg: parseFloat(values[9]) || 0,
+                            finSeg: finSeg,
                             duracion: parseFloat(values[10]) || 0,
                             duration: parseFloat(values[10]) || 0,
-                            endTime: Utils.secondsToHMS(parseFloat(values[9]) || 0),
+                            endTime: Utils.secondsToHMS(finSeg),
                             timestamp: dateObj.getTime(),
                             fecha: dateObj.toISOString().split('T')[0],
                             notas: ''
@@ -1316,13 +1372,23 @@ const CSV = {
                     }
                 }
                 
-                // Verificar checksum si existe
+                // Verificar checksum si existe (para v3 y v2)
                 let checksumValid = true;
-                if (checksumOriginal && isV2Format) {
-                    const rowsForChecksum = parsedData.map(r => [
-                        r.id, r.fecha, r.endTime, r.fechaExcel, r.maquina, r.op, r.colores, r.turno,
-                        r.name, r.cat, r.tipo, r.inicioSeg, r.finSeg, r.duracion, r.timestamp, r.notas || ''
-                    ]);
+                if (checksumOriginal) {
+                    let rowsForChecksum;
+                    if (isV3Format) {
+                        // Checksum v3: solo 13 campos
+                        rowsForChecksum = parsedData.map(r => [
+                            r.id, Math.floor(r.fechaExcel), r.maquina, r.op, r.colores, r.turno,
+                            r.name, r.cat, r.tipo, r.inicioSeg, r.finSeg, r.duracion, r.notas || ''
+                        ]);
+                    } else {
+                        // Checksum v2: 16 campos
+                        rowsForChecksum = parsedData.map(r => [
+                            r.id, r.fecha, r.endTime, r.fechaExcel, r.maquina, r.op, r.colores, r.turno,
+                            r.name, r.cat, r.tipo, r.inicioSeg, r.finSeg, r.duracion, r.timestamp, r.notas || ''
+                        ]);
+                    }
                     const calculatedChecksum = CSVIntegrity.calculateChecksum(rowsForChecksum);
                     checksumValid = calculatedChecksum === checksumOriginal;
                     
