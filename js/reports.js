@@ -56,12 +56,13 @@ const Reports = {
         const checkboxes = [
             'incluirEncabezado', 'incluirResumen', 'incluirGraficoBarras',
             'incluirGraficoPastel', 'incluirGantt', 'incluirBoxPlot',
-            'incluirTablaDetalle', 'incluirSixSigma', 'incluirRecomendaciones'
+            'incluirTablaDetalle', 'incluirSixSigma', 'incluirRecomendaciones',
+            'incluirComparativoOP', 'incluirComparativoMaquina', 'incluirComparativoTurno', 'incluirPareto'
         ];
         
         checkboxes.forEach(id => {
             const el = document.getElementById(id);
-            if (el) el.checked = Reports.config[id];
+            if (el) el.checked = Reports.config[id] !== false; // Default true si no está definido
         });
         
         const tituloEl = document.getElementById('reportTitulo');
@@ -76,7 +77,8 @@ const Reports = {
         const checkboxes = [
             'incluirEncabezado', 'incluirResumen', 'incluirGraficoBarras',
             'incluirGraficoPastel', 'incluirGantt', 'incluirBoxPlot',
-            'incluirTablaDetalle', 'incluirSixSigma', 'incluirRecomendaciones'
+            'incluirTablaDetalle', 'incluirSixSigma', 'incluirRecomendaciones',
+            'incluirComparativoOP', 'incluirComparativoMaquina', 'incluirComparativoTurno', 'incluirPareto'
         ];
         
         checkboxes.forEach(id => {

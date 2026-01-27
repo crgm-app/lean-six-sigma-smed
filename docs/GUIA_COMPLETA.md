@@ -1,7 +1,7 @@
 # 📘 SMED Analyzer Pro - Guía Completa de Desarrollo
 
-**Versión:** 2.0  
-**Fecha:** 26 de Enero de 2026  
+**Versión:** 2.2  
+**Fecha:** 27 de Enero de 2026  
 **Autor:** Desarrollo Lean Manufacturing  
 **Dominio:** https://smed.crgm.app  
 
@@ -138,6 +138,230 @@ Desarrollar una aplicación web HTML5 autónoma que combine las mejores caracter
     actividad: "Cambio de molde",
     tiempoMinutos: 15.5,
     observaciones: "Sin novedad"
+}
+```
+
+### 2.3 Análisis Detallado del Código Implementado (v2.2)
+
+A continuación se documenta la estructura y funciones principales de cada archivo JavaScript del proyecto:
+
+#### 📁 app.js - Lógica Principal (1,200+ líneas)
+
+**Estado Global:**
+```javascript
+const state = {
+    registros: [],           // Historial de actividades cerradas
+    activeTimers: {},        // Timers activos por categoría {catName: {start, btnName}}
+    freeTimers: [],          // Cronómetros libres [{id, start, nombre}]
+    buttons: [],             // Botones configurables [{name, cat}]
+    maquinaActual: 'i4',     // Máquina seleccionada
+    opActual: '',            // Orden de Producción activa
+    coloresOP: '',           // Colores de la OP
+    turnoManual: null        // Override de turno automático
+};
+```
+
+**Sistema de Turnos (Ciclo 3 semanas):**
+```javascript
+function calcularTurnoActual() {
+    // Ciclo: Semana 1 → T1, Semana 2 → T2, Semana 3 → T3
+    const semanaDelAño = Math.ceil((hoy - inicioAño) / (7 * 24 * 60 * 60 * 1000));
+    const posicionCiclo = semanaDelAño % 3;
+    // T1: 06:00-14:00, T2: 14:00-22:00, T3: 22:00-06:00
+}
+```
+
+**Máquinas Disponibles:**
+```javascript
+const MAQUINAS_DISPONIBLES = ['i4', 'i5', 'i6', 'i8', 'i10', 'i11', 'i12', 'i13', 'i14', 'i15', 'i16', 'i17'];
+```
+
+**Funciones Principales:**
+| Función | Descripción |
+|---------|-------------|
+| `initApp()` | Inicializa la aplicación, carga datos de LocalStorage |
+| `handleBtnClick(name, cat)` | Maneja clic en botones SMED (inicia/cierra timer) |
+| `addFreeTimer()` | Agrega cronómetro libre sin categoría asignada |
+| `finalizeFreeTimer(id)` | Finaliza cronómetro libre y permite asignar categoría |
+| `exportCSV()` | Exporta registros a CSV con 15 campos |
+| `importCSV(file)` | Importa CSV y crea botones automáticamente |
+| `saveToLocalStorage()` | Persiste estado en navegador |
+| `loadFromLocalStorage()` | Carga estado guardado |
+
+**Formato CSV v2 (15 campos):**
+```
+ID,Fecha,HoraFin,FechaExcel,Maquina,OP,Colores,Turno,Actividad,Categoria,Tipo,InicioSeg,FinSeg,DuracionSeg,Timestamp
+```
+
+---
+
+#### 📁 charts.js - Análisis Multi-Perspectiva (800+ líneas)
+
+**Vistas de Análisis:**
+```javascript
+const VISTAS = ['general', 'financiera', 'gerencial', 'operacional', 'estadistica'];
+```
+
+**Configuración Financiera Editable:**
+```javascript
+const CONFIG_FINANCIERA = {
+    costoHora: 150,          // Q/hora
+    metaEficiencia: 85,      // %
+    horasPorTurno: 8,
+    cambiosPorTurno: 4       // Meta de cambios
+};
+```
+
+**Funciones de Análisis Comparativo:**
+| Función | Descripción |
+|---------|-------------|
+| `agruparPorOP(registros)` | Agrupa datos por Orden de Producción |
+| `agruparPorMaquina(registros)` | Agrupa datos por máquina (i4-i17) |
+| `agruparPorTurno(registros)` | Agrupa datos por turno (T1/T2/T3) |
+| `agruparPorTipoSMED(registros)` | Agrupa por tipo (INT/EXT/NVA) |
+| `calcularMetricasGrupo(grupo)` | Calcula métricas para un grupo |
+| `identificarMejorPeor(grupos)` | Identifica mejor y peor performer |
+
+**Gráficos SVG:**
+```javascript
+function renderBarChart(containerId, data) { /* SVG barras horizontales */ }
+function renderPieChart(containerId, data) { /* SVG gráfico circular */ }
+function renderBoxPlot(containerId, data) { /* SVG diagrama de caja */ }
+function renderGaussianCurve(containerId, data) { /* SVG curva normal */ }
+```
+
+---
+
+#### 📁 statistics.js - Estadísticas Six Sigma (600+ líneas)
+
+**Módulo de Interpretación Estadística:**
+```javascript
+const StatsInterpretation = {
+    interpretarCV(cv) {
+        // CV < 10%: Muy consistente
+        // CV 10-20%: Consistente
+        // CV 20-30%: Moderada variabilidad
+        // CV > 30%: Alta variabilidad
+    },
+    interpretarCp(cp) {
+        // Cp > 1.67: Excelente
+        // Cp 1.33-1.67: Bueno
+        // Cp 1.0-1.33: Marginal
+        // Cp < 1.0: Inadecuado
+    },
+    interpretarCpk(cpk) { /* Similar a Cp */ },
+    generarResumenEjecutivo(stats) { /* Análisis completo */ }
+};
+```
+
+**Fórmulas Implementadas:**
+```javascript
+function calcularEstadisticas(datos) {
+    const n = datos.length;
+    const media = datos.reduce((a, b) => a + b, 0) / n;
+    const varianza = datos.reduce((sum, x) => sum + Math.pow(x - media, 2), 0) / n;
+    const desviacion = Math.sqrt(varianza);
+    const cv = (desviacion / media) * 100;
+    
+    // Six Sigma
+    const USL = media + (3 * desviacion); // Límite superior
+    const LSL = media - (3 * desviacion); // Límite inferior
+    const Cp = (USL - LSL) / (6 * desviacion);
+    const Cpk = Math.min((USL - media) / (3 * desviacion), (media - LSL) / (3 * desviacion));
+    
+    return { media, desviacion, cv, Cp, Cpk, min, max, rango, q1, q2, q3 };
+}
+```
+
+**Análisis por Categoría:**
+```javascript
+function analizarPorCategoria(registros) {
+    // Agrupa por categoría
+    // Calcula stats por cada una
+    // Identifica tipo dominante (INT/EXT/NVA)
+    // Genera interpretación
+}
+```
+
+---
+
+#### 📁 gantt.js - Diagrama de Gantt Comparativo (500+ líneas)
+
+**Vistas Comparativas del Gantt:**
+```javascript
+const GANTT_VIEWS = {
+    timeline: 'Vista timeline tradicional',
+    byOP: 'Comparativo por Orden de Producción',
+    byMaquina: 'Comparativo por Máquina',
+    byTurno: 'Comparativo por Turno',
+    byTipo: 'Comparativo por Tipo SMED'
+};
+```
+
+**Funciones de Renderizado:**
+| Función | Descripción |
+|---------|-------------|
+| `renderGantt(registros)` | Vista timeline tradicional |
+| `renderByOP(registros)` | Barras apiladas por OP |
+| `renderByMaquina(registros)` | Barras apiladas por máquina |
+| `renderByTurno(registros)` | Barras apiladas por turno |
+| `renderByTipo(registros)` | Distribución INT/EXT/NVA |
+
+**Estructura de Barra Apilada:**
+```javascript
+function renderStackedBar(grupo, tiempoTotal) {
+    // Calcula proporciones INT/EXT/NVA
+    // Renderiza 3 segmentos de color:
+    // - Verde (#10b981): Externo
+    // - Naranja (#f97316): Interno  
+    // - Rojo (#ef4444): NVA
+}
+```
+
+---
+
+#### 📁 reports.js - Generador de Informes (400+ líneas)
+
+**Tipos de Informe:**
+```javascript
+const REPORT_TYPES = {
+    resumen: 'Resumen Ejecutivo',
+    detallado: 'Análisis Detallado',
+    comparativo: 'Comparativo Multi-Dimensional',
+    pareto: 'Análisis Pareto 80/20'
+};
+```
+
+**Funciones de Generación:**
+| Función | Descripción |
+|---------|-------------|
+| `generarInformeHTML(registros, tipo)` | Genera HTML completo |
+| `generarInformePDF(registros, tipo)` | Genera PDF (usando html2pdf) |
+| `generarTablaComparativa(dimension)` | Tabla comparativa automática |
+| `generarAnalisisPareto(registros)` | Identifica 80/20 de impacto |
+
+**Análisis Pareto:**
+```javascript
+function generarAnalisisPareto(registros) {
+    // 1. Ordena actividades por tiempo total (descendente)
+    // 2. Calcula porcentaje acumulado
+    // 3. Identifica actividades que causan 80% del tiempo
+    // 4. Genera recomendaciones de priorización
+}
+```
+
+**Estructura del Informe Comparativo:**
+```javascript
+{
+    encabezado: { titulo, fecha, periodo, maquina, turno },
+    metricas: { tiempoTotal, eficiencia, costoMudas },
+    comparativas: {
+        porOP: [...],
+        porMaquina: [...],
+        porTurno: [...]
+    },
+    pareto: { topActividades: [...], porcentajeAcumulado: 80 },
+    recomendaciones: [...]
 }
 ```
 

@@ -2,8 +2,8 @@
 
 **Herramienta de Análisis de Tiempos de Cambio de Formato**  
 **Metodología: Lean Manufacturing + Six Sigma**  
-**Versión:** 2.0  
-**Fecha:** 26 de Enero de 2026  
+**Versión:** 2.2  
+**Fecha:** 27 de Enero de 2026  
 **Dominio:** https://smed.crgm.app  
 
 ---
@@ -180,6 +180,14 @@
 │  📥 CSV v2 - 15 campos completos                           │
 │  📋 ANÁLISIS POR CATEGORÍA - CV, promedio, rango           │
 │  🎯 RESUMEN EJECUTIVO - Mejor eficiencia, más consistente  │
+│                                                             │
+│  === VERSIÓN 2.2 (27 Enero 2026) ===                       │
+│  📊 GANTT COMPARATIVO - Por OP, Máquina, Turno, Tipo       │
+│  📄 INFORMES CON COMPARATIVAS - Tablas multi-dimensionales │
+│  📈 ANÁLISIS PARETO 80/20 - Identificar impacto principal  │
+│  🏆 MEJOR/PEOR PERFORMER - Identificación automática       │
+│  📧 SOPORTE - soporte@crgm.app integrado                   │
+│  🔄 BOTONES AUTO CSV - Creación automática al importar     │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -584,11 +592,20 @@ Q4: Opciones de salida / inversión
 
 ## 14. 💡 PRÓXIMOS PASOS
 
+### ✅ Completados (Enero 2026)
+
+- [x] Completar desarrollo de SMED Analyzer Pro v1.0
+- [x] Desarrollo versión 2.0 (Turnos, Máquinas, OP, Informes, Google Drive)
+- [x] Desarrollo versión 2.1 (Comparativos, Filtros, Interpretación Estadística)
+- [x] Desarrollo versión 2.2 (Gantt Comparativo, Pareto, Mejores/Peores)
+- [x] Documentación técnica completa (GUIA_COMPLETA.md)
+- [x] Business Model Canvas actualizado
+
 ### Inmediatos (Semana 1-2)
 
-- [ ] Completar desarrollo de SMED Analyzer Pro v1.0
-- [ ] Crear landing page
-- [ ] Configurar analytics
+- [ ] Crear landing page en https://smed.crgm.app
+- [ ] Configurar analytics (Google Analytics / Plausible)
+- [ ] Deploy de la aplicación en producción
 
 ### Corto plazo (Mes 1-3)
 
