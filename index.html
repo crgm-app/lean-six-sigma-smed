@@ -411,6 +411,32 @@
                 <button class="action-btn" onclick="AnalysisDetallado.renderDetallado('categoriaDetallado')" style="background: #8b5cf6;">
                     🔍 Cargar Análisis Detallado
                 </button>
+                
+                <!-- ============================================== -->
+                <!-- COMPARADOR MULTIDIMENSIONAL INTERACTIVO -->
+                <!-- ============================================== -->
+                <h2 class="mt-10">🔬 Comparador Multi-Dimensional Interactivo</h2>
+                <p style="color: #888; font-size: 0.9em; margin-bottom: 15px;">
+                    Selecciona múltiples máquinas, OPs o turnos para comparar lado a lado con los mismos filtros aplicados.
+                </p>
+                
+                <div style="background: linear-gradient(135deg, #1a1a2e, #0f0f1a); padding: 20px; border-radius: 12px; border: 1px solid #333;">
+                    <!-- Selector de elementos -->
+                    <div id="multiDimSelector"></div>
+                    
+                    <!-- Gráficos de comparación -->
+                    <div id="multiDimChart" style="margin-top: 20px;"></div>
+                </div>
+                
+                <script>
+                    // Inicializar comparador al cargar
+                    setTimeout(() => {
+                        if (typeof MultiDimComparator !== 'undefined') {
+                            MultiDimComparator.renderSelector('multiDimSelector');
+                            MultiDimComparator.renderComparison('multiDimChart');
+                        }
+                    }, 500);
+                </script>
             </div>
         </section>
 
@@ -732,6 +758,32 @@
                 <button class="action-btn" onclick="StatsInterpretation.renderPanel('statsInterpretationPanel')" style="margin-top: 15px; background: #6366f1;">
                     🔍 Generar Interpretación Detallada
                 </button>
+                
+                <!-- ============================================== -->
+                <!-- COMPARADOR ESTADÍSTICO MULTI-DIMENSIONAL -->
+                <!-- ============================================== -->
+                <h2 class="mt-10">🔬 Comparador Estadístico Multi-Dimensional</h2>
+                <p style="color: #888; font-size: 0.9em; margin-bottom: 15px;">
+                    Selecciona múltiples máquinas, OPs o turnos para comparar sus estadísticas lado a lado con Box Plots y métricas Six Sigma.
+                </p>
+                
+                <div style="background: linear-gradient(135deg, #1a1a2e, #0f0f1a); padding: 20px; border-radius: 12px; border: 1px solid #333;">
+                    <!-- Selector de elementos -->
+                    <div id="statsMultiSelector"></div>
+                    
+                    <!-- Gráficos de comparación -->
+                    <div id="statsMultiChart" style="margin-top: 20px;"></div>
+                </div>
+                
+                <script>
+                    // Inicializar comparador estadístico al cargar
+                    setTimeout(() => {
+                        if (typeof StatsMultiComparator !== 'undefined') {
+                            StatsMultiComparator.renderSelector('statsMultiSelector');
+                            StatsMultiComparator.renderComparison('statsMultiChart');
+                        }
+                    }, 600);
+                </script>
             </div>
         </section>
 
@@ -845,6 +897,47 @@
                         <strong>📋 Google Docs:</strong> Exporta HTML y súbelo a Google Drive, luego "Abrir con Google Docs"
                     </div>
                 </div>
+                
+                <!-- ============================================== -->
+                <!-- CONFIGURACIONES GUARDADAS DE EXPORTACIÓN -->
+                <!-- ============================================== -->
+                <div style="background: linear-gradient(135deg, #1a1a2e, #0f0f1a); padding: 20px; border-radius: 12px; border: 1px solid #00ff9d; margin-top: 20px;">
+                    <h3 style="margin-top: 0; color: #00ff9d;">📂 Configuraciones Guardadas</h3>
+                    <p style="color: #888; font-size: 0.9em; margin-bottom: 15px;">
+                        Guarda tus configuraciones de filtros y opciones para reutilizarlas en futuras exportaciones.
+                        Incluye los comparadores multidimensionales seleccionados.
+                    </p>
+                    
+                    <!-- Botones de acción -->
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+                        <button class="action-btn success" onclick="SavedExportConfigs.saveWithName()" style="padding: 10px 16px;">
+                            💾 Guardar Configuración Actual
+                        </button>
+                        <button class="action-btn" onclick="SavedExportConfigs.exportAll()" style="padding: 10px 16px;">
+                            📤 Backup de Configs
+                        </button>
+                        <label class="action-btn" style="padding: 10px 16px; cursor: pointer;">
+                            📥 Importar Configs
+                            <input type="file" accept=".json" style="display:none" onchange="SavedExportConfigs.importFromFile(this.files[0]); this.value='';">
+                        </label>
+                    </div>
+                    
+                    <!-- Lista de configuraciones guardadas -->
+                    <div id="savedConfigsList">
+                        <div style="text-align: center; padding: 20px; color: #666;">
+                            <p>📂 No hay configuraciones guardadas</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <script>
+                    // Cargar lista de configuraciones guardadas al cargar
+                    setTimeout(() => {
+                        if (typeof SavedExportConfigs !== 'undefined') {
+                            SavedExportConfigs.renderList('savedConfigsList');
+                        }
+                    }, 400);
+                </script>
             </div>
         </section>
 

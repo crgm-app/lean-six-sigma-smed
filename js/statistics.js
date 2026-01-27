@@ -1022,8 +1022,411 @@ const StatsComparative = {
     }
 };
 
+// =====================================================
+// COMPARADOR ESTADÍSTICO MULTI-DIMENSIONAL
+// =====================================================
+
+const StatsMultiComparator = {
+    // Estado del comparador
+    state: {
+        dimension: 'maquina',
+        selected: [],
+        showBoxPlot: true,
+        showDistribution: true
+    },
+    
+    // Obtener elementos disponibles
+    getAvailableItems: (dimension = null) => {
+        const dim = dimension || StatsMultiComparator.state.dimension;
+        const registros = typeof Filtros !== 'undefined' ? Filtros.getFiltered('stats') : AppState.registros;
+        
+        const items = {};
+        registros.forEach(r => {
+            let key;
+            switch(dim) {
+                case 'maquina': key = r.maquina || ''; break;
+                case 'op': key = r.op || ''; break;
+                case 'turno': key = r.turno || ''; break;
+                default: key = r.maquina || '';
+            }
+            if (key) {
+                if (!items[key]) {
+                    items[key] = { name: key, count: 0, tiempos: [] };
+                }
+                items[key].count++;
+                items[key].tiempos.push(r.duration || r.duracion || 0);
+            }
+        });
+        
+        return Object.values(items)
+            .filter(i => i.count >= 2) // Mínimo 2 datos para estadísticas
+            .sort((a, b) => b.count - a.count);
+    },
+    
+    // Toggle selección
+    toggleItem: (item) => {
+        const idx = StatsMultiComparator.state.selected.indexOf(item);
+        if (idx === -1) {
+            if (StatsMultiComparator.state.selected.length < 6) {
+                StatsMultiComparator.state.selected.push(item);
+            } else {
+                alert('⚠️ Máximo 6 elementos para comparar');
+                return;
+            }
+        } else {
+            StatsMultiComparator.state.selected.splice(idx, 1);
+        }
+        StatsMultiComparator.renderSelector('statsMultiSelector');
+        StatsMultiComparator.renderComparison('statsMultiChart');
+    },
+    
+    // Cambiar dimensión
+    setDimension: (dimension) => {
+        StatsMultiComparator.state.dimension = dimension;
+        StatsMultiComparator.state.selected = [];
+        StatsMultiComparator.renderSelector('statsMultiSelector');
+        StatsMultiComparator.renderComparison('statsMultiChart');
+    },
+    
+    // Seleccionar todos
+    selectAll: () => {
+        const items = StatsMultiComparator.getAvailableItems();
+        StatsMultiComparator.state.selected = items.slice(0, 6).map(i => i.name);
+        StatsMultiComparator.renderSelector('statsMultiSelector');
+        StatsMultiComparator.renderComparison('statsMultiChart');
+    },
+    
+    // Limpiar
+    clearSelection: () => {
+        StatsMultiComparator.state.selected = [];
+        StatsMultiComparator.renderSelector('statsMultiSelector');
+        StatsMultiComparator.renderComparison('statsMultiChart');
+    },
+    
+    // Calcular estadísticas completas para un grupo de tiempos
+    calcularStats: (tiempos, nombre) => {
+        if (tiempos.length < 2) return null;
+        
+        const sorted = [...tiempos].sort((a, b) => a - b);
+        const n = sorted.length;
+        const sum = tiempos.reduce((a, b) => a + b, 0);
+        const mean = sum / n;
+        
+        // Cuartiles
+        const q1 = sorted[Math.floor(n * 0.25)];
+        const median = sorted[Math.floor(n * 0.5)];
+        const q3 = sorted[Math.floor(n * 0.75)];
+        
+        // Varianza y desviación
+        const variance = tiempos.reduce((acc, v) => acc + Math.pow(v - mean, 2), 0) / n;
+        const stdDev = Math.sqrt(variance);
+        const cv = mean > 0 ? (stdDev / mean * 100) : 0;
+        
+        // Six Sigma básico
+        const usl = mean * 1.2;
+        const lsl = mean * 0.8;
+        const cp = stdDev > 0 ? (usl - lsl) / (6 * stdDev) : 0;
+        const cpk = Math.min(
+            stdDev > 0 ? (usl - mean) / (3 * stdDev) : 0,
+            stdDev > 0 ? (mean - lsl) / (3 * stdDev) : 0
+        );
+        
+        return {
+            nombre,
+            n,
+            min: sorted[0],
+            max: sorted[n - 1],
+            range: sorted[n - 1] - sorted[0],
+            q1,
+            median,
+            q3,
+            iqr: q3 - q1,
+            mean: Utils.round2(mean),
+            stdDev: Utils.round2(stdDev),
+            cv: Utils.round2(cv),
+            cp: Utils.round2(cp),
+            cpk: Utils.round2(cpk),
+            tiempos: sorted
+        };
+    },
+    
+    // Renderizar selector
+    renderSelector: (containerId) => {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        
+        const items = StatsMultiComparator.getAvailableItems();
+        const selected = StatsMultiComparator.state.selected;
+        const dim = StatsMultiComparator.state.dimension;
+        
+        const dimLabels = {
+            maquina: { icon: '🏭', label: 'Máquinas', color: '#00d4ff' },
+            op: { icon: '📋', label: 'OPs', color: '#00ff9d' },
+            turno: { icon: '⏰', label: 'Turnos', color: '#f59e0b' }
+        };
+        const dimInfo = dimLabels[dim] || dimLabels.maquina;
+        
+        let html = `
+            <div style="margin-bottom: 15px;">
+                <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                    <button class="action-btn ${dim === 'maquina' ? 'primary' : ''}" onclick="StatsMultiComparator.setDimension('maquina')" style="padding: 6px 12px;">
+                        🏭 Máquinas
+                    </button>
+                    <button class="action-btn ${dim === 'op' ? 'primary' : ''}" onclick="StatsMultiComparator.setDimension('op')" style="padding: 6px 12px;">
+                        📋 OPs
+                    </button>
+                    <button class="action-btn ${dim === 'turno' ? 'primary' : ''}" onclick="StatsMultiComparator.setDimension('turno')" style="padding: 6px 12px;">
+                        ⏰ Turnos
+                    </button>
+                </div>
+                
+                <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                    <button class="action-btn" onclick="StatsMultiComparator.selectAll()" style="padding: 4px 10px; font-size: 0.8em;">✓ Todos</button>
+                    <button class="action-btn" onclick="StatsMultiComparator.clearSelection()" style="padding: 4px 10px; font-size: 0.8em;">✗ Limpiar</button>
+                    <span style="color: #888; font-size: 0.85em; align-self: center;">Seleccionados: ${selected.length}/6 (mín. 2 registros c/u)</span>
+                </div>
+            </div>
+            
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+        `;
+        
+        items.forEach(item => {
+            const isSelected = selected.includes(item.name);
+            const bgColor = isSelected ? dimInfo.color : '#1a1a2e';
+            const textColor = isSelected ? '#000' : '#fff';
+            
+            html += `
+                <div onclick="StatsMultiComparator.toggleItem('${item.name}')" 
+                     style="cursor: pointer; padding: 8px 14px; border-radius: 20px; 
+                            background: ${bgColor}; color: ${textColor}; 
+                            border: 2px solid ${isSelected ? dimInfo.color : '#333'};
+                            transition: all 0.2s; font-size: 0.9em;">
+                    ${isSelected ? '✓' : ''} <strong>${item.name}</strong>
+                    <span style="font-size: 0.75em; opacity: 0.7;">(${item.count})</span>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        
+        if (items.length === 0) {
+            html = `<div class="no-data-msg">No hay ${dimInfo.label.toLowerCase()} con suficientes datos (mín. 2)</div>`;
+        }
+        
+        container.innerHTML = html;
+    },
+    
+    // Renderizar comparación estadística
+    renderComparison: (containerId) => {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        
+        const selected = StatsMultiComparator.state.selected;
+        const dim = StatsMultiComparator.state.dimension;
+        
+        if (selected.length === 0) {
+            container.innerHTML = `
+                <div class="no-data-msg" style="padding: 40px;">
+                    👆 Selecciona elementos arriba para comparar estadísticamente
+                </div>
+            `;
+            return;
+        }
+        
+        const registros = typeof Filtros !== 'undefined' ? Filtros.getFiltered('stats') : AppState.registros;
+        const statsData = [];
+        
+        selected.forEach(itemName => {
+            let itemData;
+            switch(dim) {
+                case 'maquina': itemData = registros.filter(r => r.maquina === itemName); break;
+                case 'op': itemData = registros.filter(r => r.op === itemName); break;
+                case 'turno': itemData = registros.filter(r => r.turno === itemName); break;
+                default: itemData = registros.filter(r => r.maquina === itemName);
+            }
+            
+            const tiempos = itemData.map(r => r.duration || r.duracion || 0);
+            const stats = StatsMultiComparator.calcularStats(tiempos, itemName);
+            if (stats) statsData.push(stats);
+        });
+        
+        if (statsData.length === 0) {
+            container.innerHTML = `<div class="no-data-msg">No hay suficientes datos para los elementos seleccionados</div>`;
+            return;
+        }
+        
+        const dimLabels = {
+            maquina: { icon: '🏭', label: 'Máquinas', color: '#00d4ff' },
+            op: { icon: '📋', label: 'OPs', color: '#00ff9d' },
+            turno: { icon: '⏰', label: 'Turnos', color: '#f59e0b' }
+        };
+        const dimInfo = dimLabels[dim] || dimLabels.maquina;
+        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+        
+        // Encontrar escalas globales para box plots
+        const allMins = statsData.map(s => s.min);
+        const allMaxs = statsData.map(s => s.max);
+        const globalMin = Math.min(...allMins);
+        const globalMax = Math.max(...allMaxs);
+        const globalRange = globalMax - globalMin || 1;
+        
+        let html = `
+            <h4 style="margin: 0 0 15px 0; color: ${dimInfo.color};">${dimInfo.icon} Comparativa Estadística de ${statsData.length} ${dimInfo.label}</h4>
+            
+            <!-- Box Plots Comparativos -->
+            <div style="background: #1a1a2e; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <h5 style="margin: 0 0 15px 0; color: #fff;">📦 Box Plots Comparativos</h5>
+        `;
+        
+        // Box plots lado a lado
+        statsData.forEach((s, i) => {
+            const color = colors[i % colors.length];
+            const getPct = (val) => ((val - globalMin) / globalRange) * 85 + 5;
+            
+            const pMin = getPct(s.min);
+            const pQ1 = getPct(s.q1);
+            const pMed = getPct(s.median);
+            const pQ3 = getPct(s.q3);
+            const pMax = getPct(s.max);
+            
+            html += `
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                    <div style="width: 80px; color: ${color}; font-weight: bold; font-size: 0.9em; text-align: right;">${s.nombre}</div>
+                    <div style="flex: 1; position: relative; height: 30px; background: #0a0a0a; border-radius: 4px;">
+                        <!-- Whisker izquierdo -->
+                        <div style="position: absolute; left: ${pMin}%; top: 50%; width: 2px; height: 16px; background: ${color}; transform: translateY(-50%);"></div>
+                        <!-- Línea min-Q1 -->
+                        <div style="position: absolute; left: ${pMin}%; top: 50%; width: ${pQ1 - pMin}%; height: 2px; background: ${color}; transform: translateY(-50%);"></div>
+                        <!-- Caja Q1-Q3 -->
+                        <div style="position: absolute; left: ${pQ1}%; top: 50%; width: ${pQ3 - pQ1}%; height: 20px; background: ${color}33; border: 2px solid ${color}; transform: translateY(-50%); border-radius: 3px;"></div>
+                        <!-- Mediana -->
+                        <div style="position: absolute; left: ${pMed}%; top: 50%; width: 3px; height: 24px; background: ${color}; transform: translateY(-50%);"></div>
+                        <!-- Línea Q3-Max -->
+                        <div style="position: absolute; left: ${pQ3}%; top: 50%; width: ${pMax - pQ3}%; height: 2px; background: ${color}; transform: translateY(-50%);"></div>
+                        <!-- Whisker derecho -->
+                        <div style="position: absolute; left: ${pMax}%; top: 50%; width: 2px; height: 16px; background: ${color}; transform: translateY(-50%);"></div>
+                    </div>
+                    <div style="width: 60px; text-align: left; font-size: 0.8em; color: #888;">
+                        μ=${s.mean}s
+                    </div>
+                </div>
+            `;
+        });
+        
+        // Escala
+        html += `
+                <div style="display: flex; justify-content: space-between; margin-left: 95px; margin-right: 75px; font-size: 0.7em; color: #666;">
+                    <span>${globalMin.toFixed(0)}s</span>
+                    <span>${((globalMin + globalMax) / 2).toFixed(0)}s</span>
+                    <span>${globalMax.toFixed(0)}s</span>
+                </div>
+            </div>
+        `;
+        
+        // Tabla comparativa detallada
+        html += `
+            <h5 style="margin: 20px 0 10px 0; color: #fff;">📊 Tabla Estadística Comparativa</h5>
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.82em;">
+                    <thead>
+                        <tr style="background: #1a1a2e;">
+                            <th style="padding: 8px; text-align: left; color: ${dimInfo.color};">${dimInfo.label.slice(0,-1)}</th>
+                            <th style="padding: 8px; text-align: center;">N</th>
+                            <th style="padding: 8px; text-align: center;">Media (μ)</th>
+                            <th style="padding: 8px; text-align: center;">Mediana</th>
+                            <th style="padding: 8px; text-align: center;">σ</th>
+                            <th style="padding: 8px; text-align: center;">CV%</th>
+                            <th style="padding: 8px; text-align: center;">Min</th>
+                            <th style="padding: 8px; text-align: center;">Max</th>
+                            <th style="padding: 8px; text-align: center;">Cpk</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        statsData.forEach((s, i) => {
+            const cvColor = s.cv < 20 ? '#10b981' : s.cv < 40 ? '#f59e0b' : '#ef4444';
+            const cpkColor = s.cpk >= 1.33 ? '#10b981' : s.cpk >= 1.0 ? '#f59e0b' : '#ef4444';
+            
+            html += `
+                <tr style="background: ${i % 2 === 0 ? '#0a0a0a' : '#121212'};">
+                    <td style="padding: 8px; color: ${colors[i % colors.length]}; font-weight: bold;">${s.nombre}</td>
+                    <td style="padding: 8px; text-align: center;">${s.n}</td>
+                    <td style="padding: 8px; text-align: center; color: #00d4ff;">${s.mean}s</td>
+                    <td style="padding: 8px; text-align: center;">${s.median.toFixed(1)}s</td>
+                    <td style="padding: 8px; text-align: center;">${s.stdDev}s</td>
+                    <td style="padding: 8px; text-align: center; color: ${cvColor}; font-weight: bold;">${s.cv}%</td>
+                    <td style="padding: 8px; text-align: center; color: #888;">${s.min.toFixed(1)}s</td>
+                    <td style="padding: 8px; text-align: center; color: #888;">${s.max.toFixed(1)}s</td>
+                    <td style="padding: 8px; text-align: center; color: ${cpkColor}; font-weight: bold;">${s.cpk}</td>
+                </tr>
+            `;
+        });
+        
+        html += '</tbody></table></div>';
+        
+        // Rankings
+        const menorMedia = statsData.reduce((a, b) => a.mean < b.mean ? a : b);
+        const menorCV = statsData.reduce((a, b) => a.cv < b.cv ? a : b);
+        const mejorCpk = statsData.reduce((a, b) => a.cpk > b.cpk ? a : b);
+        
+        html += `
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px;">
+                <div style="background: #00d4ff22; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #00d4ff;">
+                    <div style="color: #888; font-size: 0.8em;">⚡ Más Rápido (menor μ)</div>
+                    <div style="color: #00d4ff; font-weight: bold; font-size: 1.1em;">${menorMedia.nombre}</div>
+                    <div style="color: #00d4ff;">${menorMedia.mean}s promedio</div>
+                </div>
+                <div style="background: #10b98122; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #10b981;">
+                    <div style="color: #888; font-size: 0.8em;">🎯 Más Consistente (menor CV)</div>
+                    <div style="color: #10b981; font-weight: bold; font-size: 1.1em;">${menorCV.nombre}</div>
+                    <div style="color: #10b981;">CV: ${menorCV.cv}%</div>
+                </div>
+                <div style="background: #8b5cf622; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #8b5cf6;">
+                    <div style="color: #888; font-size: 0.8em;">📐 Mejor Capacidad (Cpk)</div>
+                    <div style="color: #8b5cf6; font-weight: bold; font-size: 1.1em;">${mejorCpk.nombre}</div>
+                    <div style="color: #8b5cf6;">Cpk: ${mejorCpk.cpk}</div>
+                </div>
+            </div>
+        `;
+        
+        container.innerHTML = html;
+    },
+    
+    // Obtener datos para exportación
+    getExportData: () => {
+        const selected = StatsMultiComparator.state.selected;
+        const dim = StatsMultiComparator.state.dimension;
+        const registros = typeof Filtros !== 'undefined' ? Filtros.getFiltered('stats') : AppState.registros;
+        
+        const data = [];
+        selected.forEach(itemName => {
+            let itemData;
+            switch(dim) {
+                case 'maquina': itemData = registros.filter(r => r.maquina === itemName); break;
+                case 'op': itemData = registros.filter(r => r.op === itemName); break;
+                case 'turno': itemData = registros.filter(r => r.turno === itemName); break;
+                default: itemData = registros.filter(r => r.maquina === itemName);
+            }
+            
+            const tiempos = itemData.map(r => r.duration || r.duracion || 0);
+            const stats = StatsMultiComparator.calcularStats(tiempos, itemName);
+            if (stats) data.push(stats);
+        });
+        
+        return {
+            dimension: dim,
+            filters: { ...AppState.filtros },
+            selected,
+            data,
+            timestamp: Date.now()
+        };
+    }
+};
+
 // Exponer globalmente
 window.Statistics = Statistics;
 window.StatsInterpretation = StatsInterpretation;
 window.Pareto = Pareto;
 window.StatsComparative = StatsComparative;
+window.StatsMultiComparator = StatsMultiComparator;

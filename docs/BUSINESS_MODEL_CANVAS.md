@@ -2,9 +2,10 @@
 
 **Herramienta de Análisis de Tiempos de Cambio de Formato**  
 **Metodología: Lean Manufacturing + Six Sigma**  
-**Versión:** 2.2  
+**Versión:** 2.3  
 **Fecha:** 27 de Enero de 2026  
 **Dominio:** https://smed.crgm.app  
+**Soporte:** smed@crgm.app  
 
 ---
 
@@ -188,6 +189,18 @@
 │  🏆 MEJOR/PEOR PERFORMER - Identificación automática       │
 │  📧 SOPORTE - soporte@crgm.app integrado                   │
 │  🔄 BOTONES AUTO CSV - Creación automática al importar     │
+│                                                             │
+│  === VERSIÓN 2.3 (27 Enero 2026) ===                       │
+│  🎛️ MULTIDIMCOMPARATOR - Comparador interactivo (hasta 6)  │
+│  📐 STATSMULTICOMPARATOR - Box Plots comparativos          │
+│  💾 SAVEDEXPORTCONFIGS - Guardar/cargar configs de export  │
+│  ✏️ RECORD EDITOR - Editar registros individuales          │
+│  🔍 FILTROS CENTRALIZADOS - getFiltered(source) unificado  │
+│  📅 FILTROS PERÍODO - today, week, month, year, custom     │
+│  📊 MÓDULO PARETO - Análisis 80/20 independiente           │
+│  📈 STATSCOMPARATIVE - Comparativo por grupo               │
+│  🔄 BACKUP AUTOMÁTICO - Diario + restaurar                 │
+│  📦 EXPORT/IMPORT CONFIGS - Backup JSON de configuraciones │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -598,8 +611,9 @@ Q4: Opciones de salida / inversión
 - [x] Desarrollo versión 2.0 (Turnos, Máquinas, OP, Informes, Google Drive)
 - [x] Desarrollo versión 2.1 (Comparativos, Filtros, Interpretación Estadística)
 - [x] Desarrollo versión 2.2 (Gantt Comparativo, Pareto, Mejores/Peores)
-- [x] Documentación técnica completa (GUIA_COMPLETA.md)
-- [x] Business Model Canvas actualizado
+- [x] Desarrollo versión 2.3 (MultiDimComparator, StatsMultiComparator, SavedExportConfigs, RecordEditor, Filtros centralizados, Backup automático)
+- [x] Documentación técnica completa (GUIA_COMPLETA.md v2.3)
+- [x] Business Model Canvas actualizado (v2.3)
 
 ### Inmediatos (Semana 1-2)
 

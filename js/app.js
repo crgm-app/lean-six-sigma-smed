@@ -648,34 +648,38 @@ window.addEventListener('beforeunload', () => {
 
 const Timer = {
     // Manejar click en botón de actividad
+    // Los timers se agrupan por CATEGORÍA + TIPO (ej: "Troquel_INT", "Troquel_EXT")
     handleButtonClick: (btnId) => {
         const btn = AppState.buttons.find(b => b.id === btnId);
         if (!btn) return;
         
         const now = Date.now();
-        const cat = btn.cat;
+        const tipo = btn.tipo || 'INT';
+        // Clave compuesta: categoría + tipo (ej: "Troquel_INT", "Montacargas_NVA")
+        const timerKey = `${btn.cat}_${tipo}`;
         
-        // Verificar si hay un timer activo en esta categoría
-        if (AppState.activeTimers[cat]) {
-            const prev = AppState.activeTimers[cat];
+        // Verificar si hay un timer activo en esta categoría+tipo
+        if (AppState.activeTimers[timerKey]) {
+            const prev = AppState.activeTimers[timerKey];
             
-            // Si es el mismo botón, no hacer nada (o podríamos detenerlo)
+            // Si es el mismo botón, detenerlo
             if (prev.btnId === btnId) {
-                // Detener este timer específico
-                Timer.stopTimer(cat);
+                Timer.stopTimer(timerKey);
                 return;
             }
             
-            // Cerrar el timer anterior
+            // Cerrar el timer anterior (mismo grupo categoría+tipo)
             const duration = (now - prev.start) / 1000;
             Timer.saveRecord(prev, duration);
         }
         
         // Iniciar nuevo timer
-        AppState.activeTimers[cat] = {
+        AppState.activeTimers[timerKey] = {
             btnId: btnId,
             btnName: btn.name,
-            cat: cat,
+            cat: btn.cat,
+            tipo: tipo,
+            timerKey: timerKey,
             start: now
         };
         
@@ -716,13 +720,12 @@ const Timer = {
         const now = new Date();
         const endSeconds = Utils.getDaySeconds(now);
         const startSeconds = Utils.round2(endSeconds - duration);
-        const btn = AppState.buttons.find(b => b.id === timer.btnId);
         
         const record = {
             id: Utils.generateId(),
             name: timer.btnName,
             cat: timer.cat,
-            tipo: btn?.tipo || 'INT',          // Tipo: INT, EXT, NVA
+            tipo: timer.tipo || 'INT',          // Tipo: INT, EXT, NVA (viene del timer)
             // OP (Orden de Producción) activa
             op: AppState.opActiva.numero || '',
             colores: AppState.opActiva.colores || 1,
@@ -737,7 +740,9 @@ const Timer = {
             duration: Utils.round2(duration),
             endTime: Utils.formatHMS(now),
             timestamp: Date.now(),
-            fecha: now.toISOString().split('T')[0]
+            fecha: now.toISOString().split('T')[0],
+            // Campo de notas
+            notas: ''
         };
         
         AppState.registros.unshift(record);
@@ -955,8 +960,135 @@ const ButtonManager = {
  * DuracionSeg = 300 (5 minutos)
  */
 
+// =====================================================
+// SISTEMA DE INTEGRIDAD CSV v2.0
+// Validación completa para exportación/importación
+// =====================================================
+
+const CSVIntegrity = {
+    // Versión del formato CSV
+    VERSION: '2.0',
+    
+    // Calcular checksum simple (hash básico)
+    calculateChecksum: (data) => {
+        let hash = 0;
+        const str = JSON.stringify(data);
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+        return Math.abs(hash).toString(16).toUpperCase().padStart(8, '0');
+    },
+    
+    // Validar registro individual
+    validateRecord: (record, rowIndex) => {
+        const errors = [];
+        const warnings = [];
+        
+        // Campos requeridos
+        if (!record.name || !record.name.trim()) {
+            errors.push(`Fila ${rowIndex}: Nombre de actividad es requerido`);
+        }
+        
+        const duracion = record.duracion || record.duration;
+        if (duracion === undefined || duracion === null || isNaN(duracion)) {
+            errors.push(`Fila ${rowIndex}: Duración inválida o faltante`);
+        } else if (duracion < 0) {
+            errors.push(`Fila ${rowIndex}: Duración no puede ser negativa`);
+        } else if (duracion === 0) {
+            warnings.push(`Fila ${rowIndex}: Duración es 0 segundos`);
+        }
+        
+        // Validar tipo SMED
+        const tiposValidos = ['INT', 'EXT', 'NVA'];
+        if (record.tipo && !tiposValidos.includes(record.tipo.toUpperCase())) {
+            warnings.push(`Fila ${rowIndex}: Tipo "${record.tipo}" no es válido (INT/EXT/NVA), se usará INT`);
+            record.tipo = 'INT';
+        }
+        
+        // Validar colores
+        if (record.colores !== undefined) {
+            const colores = parseInt(record.colores);
+            if (isNaN(colores) || colores < 1 || colores > 12) {
+                warnings.push(`Fila ${rowIndex}: Colores "${record.colores}" inválido, se usará 1`);
+                record.colores = 1;
+            }
+        }
+        
+        // Validar turno
+        const turnosValidos = ['T1', 'T2', 'T3'];
+        if (record.turno && !turnosValidos.includes(record.turno.toUpperCase())) {
+            warnings.push(`Fila ${rowIndex}: Turno "${record.turno}" no válido, se usará T1`);
+            record.turno = 'T1';
+        }
+        
+        // Validar fecha
+        if (record.fecha) {
+            const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+            if (!dateRegex.test(record.fecha)) {
+                warnings.push(`Fila ${rowIndex}: Formato de fecha inválido "${record.fecha}"`);
+            }
+        }
+        
+        return { errors, warnings, record };
+    },
+    
+    // Normalizar registro (unificar campos legacy)
+    normalizeRecord: (record) => {
+        const normalized = { ...record };
+        
+        // Normalizar duración (usar duracion como principal)
+        if (normalized.duration !== undefined && normalized.duracion === undefined) {
+            normalized.duracion = normalized.duration;
+        } else if (normalized.duracion !== undefined) {
+            normalized.duration = normalized.duracion;
+        }
+        
+        // Asegurar valores por defecto
+        normalized.tipo = (normalized.tipo || 'INT').toUpperCase();
+        normalized.turno = (normalized.turno || 'T1').toUpperCase();
+        normalized.colores = parseInt(normalized.colores) || 1;
+        normalized.cat = normalized.cat || Utils.extractCategory(normalized.name);
+        normalized.notas = normalized.notas || '';
+        
+        // Generar ID si no existe
+        if (!normalized.id) {
+            normalized.id = Utils.generateId();
+        }
+        
+        // Calcular fechaExcel si falta
+        if (!normalized.fechaExcel) {
+            if (normalized.timestamp) {
+                normalized.fechaExcel = Utils.dateToExcel(new Date(normalized.timestamp));
+            } else if (normalized.fecha) {
+                normalized.fechaExcel = Utils.dateToExcel(new Date(normalized.fecha + 'T12:00:00'));
+            } else {
+                normalized.fechaExcel = Utils.dateToExcel(new Date());
+            }
+        }
+        
+        // Calcular fecha legible si falta
+        if (!normalized.fecha && normalized.fechaExcel) {
+            const dateObj = Utils.excelToDate(normalized.fechaExcel);
+            normalized.fecha = dateObj.toISOString().split('T')[0];
+        }
+        
+        // Calcular timestamp si falta
+        if (!normalized.timestamp) {
+            if (normalized.fechaExcel) {
+                normalized.timestamp = Utils.excelToDate(normalized.fechaExcel).getTime();
+            } else {
+                normalized.timestamp = Date.now();
+            }
+        }
+        
+        return normalized;
+    }
+};
+
 const CSV = {
-    // Exportar con formato completo (TODOS los campos)
+    // Exportar con formato completo v2 (TODOS los campos + integridad)
     export: () => {
         if (AppState.registros.length === 0) {
             alert('No hay datos para exportar');
@@ -966,69 +1098,66 @@ const CSV = {
         // Pedir nombre de quien guarda el archivo
         const nombreUsuario = prompt('¿Quién guarda este archivo? (Tu nombre):', '');
         if (nombreUsuario === null) {
-            // Usuario canceló
             return;
         }
         
-        // Limpiar nombre para usarlo en el archivo (quitar caracteres especiales)
         const nombreLimpio = nombreUsuario.trim().replace(/[^a-zA-Z0-9]/g, '_') || 'Usuario';
+        const fechaExport = new Date().toISOString();
         
-        // Headers COMPLETOS - todos los campos
-        const headers = ['ID', 'Fecha', 'HoraFin', 'FechaExcel', 'Maquina', 'OP', 'Colores', 'Turno', 'Actividad', 'Categoria', 'Tipo', 'InicioSeg', 'FinSeg', 'DuracionSeg', 'Timestamp'];
+        // Headers v2 - incluye NOTAS y todos los campos necesarios
+        const headers = ['ID', 'Fecha', 'HoraFin', 'FechaExcel', 'Maquina', 'OP', 'Colores', 'Turno', 'Actividad', 'Categoria', 'Tipo', 'InicioSeg', 'FinSeg', 'DuracionSeg', 'Timestamp', 'Notas'];
         
         const rows = AppState.registros.map(r => {
-            // Calcular fechaExcel si no existe
-            let fechaExcel = r.fechaExcel;
-            if (!fechaExcel && r.timestamp) {
-                fechaExcel = Utils.dateToExcel(new Date(r.timestamp));
-            } else if (!fechaExcel && r.fecha) {
-                fechaExcel = Utils.dateToExcel(new Date(r.fecha + 'T12:00:00'));
-            } else if (!fechaExcel) {
-                fechaExcel = Utils.dateToExcel(new Date());
-            }
+            // Normalizar registro antes de exportar
+            const nr = CSVIntegrity.normalizeRecord(r);
             
             // Calcular tiempos en segundos si no existen
-            let finSeg = r.finSeg;
-            if (finSeg === undefined && r.endTime) {
-                const [h, m, s] = r.endTime.split(':').map(Number);
+            let finSeg = nr.finSeg;
+            if (finSeg === undefined && nr.endTime) {
+                const [h, m, s] = nr.endTime.split(':').map(Number);
                 finSeg = (h * 3600) + (m * 60) + (s || 0);
             } else if (finSeg === undefined) {
                 finSeg = 0;
             }
             
-            let inicioSeg = r.inicioSeg;
+            let inicioSeg = nr.inicioSeg;
             if (inicioSeg === undefined) {
-                inicioSeg = Utils.round2(finSeg - (r.duracion || r.duration || 0));
+                inicioSeg = Utils.round2(finSeg - (nr.duracion || 0));
                 if (inicioSeg < 0) inicioSeg += 86400;
             }
             
-            // FORMATO COMPLETO: ID, Fecha, HoraFin, FechaExcel, Maquina, OP, Colores, Turno, Actividad, Categoria, Tipo, InicioSeg, FinSeg, DuracionSeg, Timestamp
             return [
-                r.id || Utils.generateId(),
-                r.fecha || '',
-                r.endTime || '',
-                Utils.round2(fechaExcel),
-                r.maquina || '',
-                r.op || '',
-                r.colores || 1,
-                r.turno || 'T1',
-                r.name || '',
-                r.cat || '',
-                r.tipo || 'INT',
+                nr.id,
+                nr.fecha || '',
+                nr.endTime || '',
+                Utils.round2(nr.fechaExcel),
+                nr.maquina || '',
+                nr.op || '',
+                nr.colores || 1,
+                nr.turno || 'T1',
+                nr.name || '',
+                nr.cat || '',
+                nr.tipo || 'INT',
                 Utils.round2(inicioSeg),
                 Utils.round2(finSeg),
-                Utils.round2(r.duracion || r.duration || 0),
-                r.timestamp || Date.now()
+                Utils.round2(nr.duracion || nr.duration || 0),
+                nr.timestamp || Date.now(),
+                (nr.notas || '').replace(/[\r\n]+/g, ' ') // Notas sin saltos de línea
             ];
         });
         
-        // CSV con comillas en texto para proteger caracteres especiales
+        // Calcular checksum de integridad
+        const checksum = CSVIntegrity.calculateChecksum(rows);
+        
+        // Construir CSV con metadatos
         let csvContent = '\ufeff'; // BOM para UTF-8
+        // Línea de metadatos (comentario)
+        csvContent += `#SMED_CSV_V${CSVIntegrity.VERSION},${fechaExport},${nombreLimpio},${AppState.registros.length},${checksum}\n`;
         csvContent += headers.join(',') + '\n';
         csvContent += rows.map(row => 
             row.map((cell, i) => {
-                // ID, Fecha, HoraFin, Maquina, OP, Turno, Actividad, Categoria, Tipo entre comillas
-                if ([0, 1, 2, 4, 5, 7, 8, 9, 10].includes(i)) {
+                // Campos de texto entre comillas
+                if ([0, 1, 2, 4, 5, 7, 8, 9, 10, 15].includes(i)) {
                     return `"${String(cell).replace(/"/g, '""')}"`;
                 }
                 return cell;
@@ -1038,13 +1167,34 @@ const CSV = {
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        // Nombre del archivo incluye fecha y nombre de usuario
         link.download = `SMED_${new Date().toISOString().split('T')[0]}_${nombreLimpio}.csv`;
         link.click();
         URL.revokeObjectURL(link.href);
+        
+        console.log(`✅ CSV exportado: ${rows.length} registros, checksum: ${checksum}`);
     },
     
-    // Importar con formato numérico simple + CREAR BOTONES AUTOMÁTICAMENTE
+    // Parsear una línea CSV respetando comillas
+    parseCSVLine: (line) => {
+        const values = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let char of line) {
+            if (char === '"') {
+                inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+                values.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        values.push(current.trim());
+        return values;
+    },
+    
+    // Importar con validación completa y preview
     import: (file) => {
         if (!file) return;
         
@@ -1052,142 +1202,383 @@ const CSV = {
         reader.onload = (e) => {
             try {
                 const text = e.target.result;
-                const lines = text.split('\n').filter(line => line.trim());
+                let lines = text.split('\n').filter(line => line.trim());
                 
-                // Detectar si es formato nuevo o legacy
-                const header = lines[0].toLowerCase();
-                const isNewFormat = header.includes('fechaexcel') || header.includes('inicioseg');
+                // Detectar metadatos (línea que empieza con #)
+                let metadata = null;
+                let checksumOriginal = null;
+                if (lines[0].startsWith('#SMED_CSV_V')) {
+                    const metaLine = lines[0].substring(1);
+                    const metaParts = metaLine.split(',');
+                    metadata = {
+                        version: metaParts[0] || '',
+                        fecha: metaParts[1] || '',
+                        usuario: metaParts[2] || '',
+                        registros: parseInt(metaParts[3]) || 0,
+                        checksum: metaParts[4] || ''
+                    };
+                    checksumOriginal = metadata.checksum;
+                    lines = lines.slice(1); // Quitar línea de metadatos
+                }
                 
-                const data = lines.slice(1).map(line => {
-                    // Parsear CSV
-                    const values = [];
-                    let current = '';
-                    let inQuotes = false;
+                // Detectar formato por headers
+                const headerLine = lines[0].toLowerCase();
+                const isV2Format = headerLine.includes('notas') || headerLine.includes('id,fecha,horafin');
+                const isNewFormat = headerLine.includes('fechaexcel') || headerLine.includes('inicioseg');
+                
+                // Obtener headers
+                const headers = CSV.parseCSVLine(lines[0]);
+                
+                // Parsear datos
+                const allErrors = [];
+                const allWarnings = [];
+                const parsedData = [];
+                
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
                     
-                    for (let char of line) {
-                        if (char === '"') {
-                            inQuotes = !inQuotes;
-                        } else if (char === ',' && !inQuotes) {
-                            values.push(current.trim());
-                            current = '';
-                        } else {
-                            current += char;
-                        }
-                    }
-                    values.push(current.trim());
+                    const values = CSV.parseCSVLine(line);
+                    let record;
                     
-                    if (isNewFormat) {
-                        // Nuevo formato: FechaExcel, Maquina, OP, Colores, Turno, Actividad, Categoria, Tipo, InicioSeg, FinSeg, DuracionSeg
+                    if (isV2Format) {
+                        // Formato v2 completo: ID, Fecha, HoraFin, FechaExcel, Maquina, OP, Colores, Turno, Actividad, Categoria, Tipo, InicioSeg, FinSeg, DuracionSeg, Timestamp, Notas
+                        record = {
+                            id: values[0] || Utils.generateId(),
+                            fecha: values[1] || '',
+                            endTime: values[2] || '',
+                            fechaExcel: parseFloat(values[3]) || Utils.dateToExcel(new Date()),
+                            maquina: values[4] || '',
+                            op: values[5] || '',
+                            colores: parseInt(values[6]) || 1,
+                            turno: values[7] || 'T1',
+                            name: values[8] || '',
+                            cat: values[9] || '',
+                            tipo: (values[10] || 'INT').toUpperCase(),
+                            inicioSeg: parseFloat(values[11]) || 0,
+                            finSeg: parseFloat(values[12]) || 0,
+                            duracion: parseFloat(values[13]) || 0,
+                            timestamp: parseInt(values[14]) || Date.now(),
+                            notas: values[15] || ''
+                        };
+                        record.duration = record.duracion;
+                    } else if (isNewFormat) {
+                        // Formato nuevo (sin ID): FechaExcel, Maquina, OP, Colores, Turno, Actividad, Categoria, Tipo, InicioSeg, FinSeg, DuracionSeg
                         const fechaExcel = parseFloat(values[0]) || Utils.dateToExcel(new Date());
-                        const maquina = values[1] || '';
-                        const op = values[2] || '';
-                        const colores = parseInt(values[3]) || 1;
-                        const turno = values[4] || 'T1';
-                        const name = values[5] || 'Actividad';
-                        const cat = values[6] || 'General';
-                        const tipo = values[7] || 'INT';
-                        const inicioSeg = parseFloat(values[8]) || 0;
-                        const finSeg = parseFloat(values[9]) || 0;
-                        const duracion = parseFloat(values[10]) || 0;
-                        
-                        // Convertir fechaExcel a fecha legible para campos legacy
                         const dateObj = Utils.excelToDate(fechaExcel);
                         
-                        return {
+                        record = {
                             id: Utils.generateId(),
-                            name: name,
-                            cat: cat,
-                            tipo: tipo,
-                            maquina: maquina,
-                            op: op,
-                            colores: colores,
-                            turno: turno,
                             fechaExcel: fechaExcel,
-                            inicioSeg: Utils.round2(inicioSeg),
-                            finSeg: Utils.round2(finSeg),
-                            duracion: Utils.round2(duracion),
-                            // Campos legacy
-                            duration: Utils.round2(duracion),
-                            endTime: Utils.secondsToHMS(finSeg),
+                            maquina: values[1] || '',
+                            op: values[2] || '',
+                            colores: parseInt(values[3]) || 1,
+                            turno: values[4] || 'T1',
+                            name: values[5] || '',
+                            cat: values[6] || '',
+                            tipo: (values[7] || 'INT').toUpperCase(),
+                            inicioSeg: parseFloat(values[8]) || 0,
+                            finSeg: parseFloat(values[9]) || 0,
+                            duracion: parseFloat(values[10]) || 0,
+                            duration: parseFloat(values[10]) || 0,
+                            endTime: Utils.secondsToHMS(parseFloat(values[9]) || 0),
                             timestamp: dateObj.getTime(),
-                            fecha: dateObj.toISOString().split('T')[0]
+                            fecha: dateObj.toISOString().split('T')[0],
+                            notas: ''
                         };
                     } else {
-                        // Formato legacy: ID, Fecha, Actividad, Categoría, Duración, HoraFin, Timestamp
-                        return {
+                        // Formato legacy
+                        record = {
                             id: values[0] || Utils.generateId(),
                             fecha: values[1] || new Date().toISOString().split('T')[0],
-                            name: values[2] || 'Actividad',
-                            cat: values[3] || 'General',
-                            duration: parseFloat(values[4]) || 0,
+                            name: values[2] || '',
+                            cat: values[3] || '',
                             duracion: parseFloat(values[4]) || 0,
+                            duration: parseFloat(values[4]) || 0,
                             endTime: values[5] || '00:00:00',
                             timestamp: parseInt(values[6]) || Date.now(),
-                            tipo: 'INT'
+                            tipo: 'INT',
+                            notas: ''
                         };
                     }
-                }).filter(r => r.name && (r.duracion > 0 || r.duration > 0));
-                
-                AppState.registros = data;
-                
-                // ====== CREAR BOTONES AUTOMÁTICAMENTE desde datos importados ======
-                const existingBtnNames = new Set(AppState.buttons.map(b => b.name.toLowerCase()));
-                const newButtonsCreated = [];
-                
-                data.forEach(r => {
-                    const btnName = r.name;
-                    if (btnName && !existingBtnNames.has(btnName.toLowerCase())) {
-                        existingBtnNames.add(btnName.toLowerCase());
-                        
-                        // Crear nuevo botón
-                        AppState.buttons.push({
-                            id: Utils.generateId(),
-                            name: btnName,
-                            cat: r.cat || Utils.extractCategory(btnName),
-                            tipo: r.tipo || 'INT',
-                            color: null
-                        });
-                        newButtonsCreated.push(btnName);
+                    
+                    // Validar registro
+                    const validation = CSVIntegrity.validateRecord(record, i + 1);
+                    allErrors.push(...validation.errors);
+                    allWarnings.push(...validation.warnings);
+                    
+                    // Normalizar registro
+                    const normalized = CSVIntegrity.normalizeRecord(validation.record);
+                    
+                    // Solo agregar si tiene nombre y duración válida
+                    if (normalized.name && (normalized.duracion > 0 || normalized.duration > 0)) {
+                        parsedData.push(normalized);
                     }
-                });
+                }
                 
-                // Agregar máquinas nuevas encontradas
-                const maquinasNuevas = [];
-                data.forEach(r => {
-                    if (r.maquina && !AppState.config.maquinas.includes(r.maquina)) {
-                        AppState.config.maquinas.push(r.maquina);
-                        maquinasNuevas.push(r.maquina);
+                // Verificar checksum si existe
+                let checksumValid = true;
+                if (checksumOriginal && isV2Format) {
+                    const rowsForChecksum = parsedData.map(r => [
+                        r.id, r.fecha, r.endTime, r.fechaExcel, r.maquina, r.op, r.colores, r.turno,
+                        r.name, r.cat, r.tipo, r.inicioSeg, r.finSeg, r.duracion, r.timestamp, r.notas || ''
+                    ]);
+                    const calculatedChecksum = CSVIntegrity.calculateChecksum(rowsForChecksum);
+                    checksumValid = calculatedChecksum === checksumOriginal;
+                    
+                    if (!checksumValid) {
+                        allWarnings.push('⚠️ El checksum no coincide. El archivo pudo haber sido modificado externamente.');
                     }
-                });
-                
-                // Ordenar máquinas
-                AppState.config.maquinas.sort((a, b) => {
-                    const numA = parseInt(a.replace(/\D/g, '')) || 0;
-                    const numB = parseInt(b.replace(/\D/g, '')) || 0;
-                    return numA - numB;
-                });
-                
-                Storage.save();
-                UI.renderAll();
-                MaquinaManager.updateSelectors();
-                
-                // Resumen de importación
-                let mensaje = `✅ ${data.length} registros importados`;
-                if (newButtonsCreated.length > 0) {
-                    mensaje += `\n\n📊 ${newButtonsCreated.length} botones nuevos creados:\n• ${newButtonsCreated.slice(0,5).join('\n• ')}${newButtonsCreated.length > 5 ? `\n• ... y ${newButtonsCreated.length - 5} más` : ''}`;
                 }
-                if (maquinasNuevas.length > 0) {
-                    mensaje += `\n\n🏭 ${maquinasNuevas.length} máquinas nuevas: ${maquinasNuevas.join(', ')}`;
+                
+                // Si hay errores críticos, mostrar y abortar
+                if (allErrors.length > 0) {
+                    const errorMsg = `❌ ERRORES DE VALIDACIÓN (${allErrors.length}):\n\n${allErrors.slice(0, 10).join('\n')}${allErrors.length > 10 ? `\n\n... y ${allErrors.length - 10} errores más` : ''}`;
+                    alert(errorMsg);
+                    console.error('Errores de importación:', allErrors);
+                    return;
                 }
-                alert(mensaje);
+                
+                // Mostrar preview con opción de continuar
+                CSV.showImportPreview(parsedData, allWarnings, metadata, checksumValid);
+                
             } catch (error) {
                 console.error('Error importando CSV:', error);
-                alert('Error al importar el archivo. Verifique el formato CSV.');
+                alert('❌ Error al importar el archivo.\n\nDetalles: ' + error.message);
             }
         };
         reader.readAsText(file);
-    }
+    },
+    
+    // Mostrar modal de preview antes de importar
+    showImportPreview: (data, warnings, metadata, checksumValid) => {
+        // Crear modal de preview
+        let modal = document.getElementById('csvImportPreviewModal');
+        if (modal) modal.remove();
+        
+        modal = document.createElement('div');
+        modal.id = 'csvImportPreviewModal';
+        
+        // Calcular estadísticas del preview
+        const totalDuracion = data.reduce((sum, r) => sum + (r.duracion || 0), 0);
+        const tiposCount = { INT: 0, EXT: 0, NVA: 0 };
+        const categoriasSet = new Set();
+        const maquinasSet = new Set();
+        const opsSet = new Set();
+        
+        data.forEach(r => {
+            tiposCount[r.tipo] = (tiposCount[r.tipo] || 0) + 1;
+            categoriasSet.add(r.cat);
+            if (r.maquina) maquinasSet.add(r.maquina);
+            if (r.op) opsSet.add(r.op);
+        });
+        
+        const metaInfo = metadata ? `
+            <div style="background: #0f0f1a; padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 0.85em;">
+                <strong>📄 Metadatos del archivo:</strong><br>
+                Versión: ${metadata.version} | Exportado: ${new Date(metadata.fecha).toLocaleString()} | Por: ${metadata.usuario}
+                ${!checksumValid ? '<br><span style="color: #f59e0b;">⚠️ Checksum modificado</span>' : '<br><span style="color: #10b981;">✓ Checksum válido</span>'}
+            </div>
+        ` : '';
+        
+        const warningsHtml = warnings.length > 0 ? `
+            <div style="background: #f59e0b22; padding: 10px; border-radius: 6px; margin-bottom: 15px; border-left: 3px solid #f59e0b;">
+                <strong style="color: #f59e0b;">⚠️ Advertencias (${warnings.length}):</strong>
+                <ul style="margin: 5px 0 0 0; padding-left: 20px; font-size: 0.85em; color: #ccc;">
+                    ${warnings.slice(0, 5).map(w => `<li>${w}</li>`).join('')}
+                    ${warnings.length > 5 ? `<li>... y ${warnings.length - 5} más</li>` : ''}
+                </ul>
+            </div>
+        ` : '';
+        
+        modal.innerHTML = `
+            <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 20px;">
+                <div style="background: #1a1a2e; padding: 25px; border-radius: 12px; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; border: 2px solid #00d4ff;">
+                    <h3 style="margin: 0 0 20px 0; color: #00d4ff;">📥 Preview de Importación</h3>
+                    
+                    ${metaInfo}
+                    ${warningsHtml}
+                    
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px;">
+                        <div style="background: #0a0a0a; padding: 12px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 1.8em; color: #00d4ff; font-weight: bold;">${data.length}</div>
+                            <div style="font-size: 0.8em; color: #888;">Registros</div>
+                        </div>
+                        <div style="background: #0a0a0a; padding: 12px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 1.8em; color: #00ff9d; font-weight: bold;">${Utils.formatDuration(totalDuracion)}</div>
+                            <div style="font-size: 0.8em; color: #888;">Tiempo Total</div>
+                        </div>
+                        <div style="background: #0a0a0a; padding: 12px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 1.8em; color: #8b5cf6; font-weight: bold;">${categoriasSet.size}</div>
+                            <div style="font-size: 0.8em; color: #888;">Categorías</div>
+                        </div>
+                        <div style="background: #0a0a0a; padding: 12px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 1.8em; color: #f59e0b; font-weight: bold;">${opsSet.size}</div>
+                            <div style="font-size: 0.8em; color: #888;">OPs</div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                        <div>
+                            <h5 style="margin: 0 0 8px 0; color: #888;">Distribución por Tipo:</h5>
+                            <div style="display: flex; gap: 10px;">
+                                <span style="background: #f9731622; color: #f97316; padding: 5px 10px; border-radius: 15px;">🟠 INT: ${tiposCount.INT || 0}</span>
+                                <span style="background: #10b98122; color: #10b981; padding: 5px 10px; border-radius: 15px;">🟢 EXT: ${tiposCount.EXT || 0}</span>
+                                <span style="background: #ef444422; color: #ef4444; padding: 5px 10px; border-radius: 15px;">🔴 NVA: ${tiposCount.NVA || 0}</span>
+                            </div>
+                        </div>
+                        <div>
+                            <h5 style="margin: 0 0 8px 0; color: #888;">Máquinas encontradas:</h5>
+                            <div style="color: #00d4ff; font-size: 0.9em;">${maquinasSet.size > 0 ? [...maquinasSet].join(', ') : 'Ninguna'}</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <h5 style="margin: 0 0 8px 0; color: #888;">Muestra de datos (primeros 5):</h5>
+                        <div style="max-height: 200px; overflow-y: auto; background: #0a0a0a; border-radius: 6px;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.8em;">
+                                <thead>
+                                    <tr style="background: #1a1a2e; position: sticky; top: 0;">
+                                        <th style="padding: 8px; text-align: left;">Actividad</th>
+                                        <th style="padding: 8px; text-align: left;">Cat</th>
+                                        <th style="padding: 8px; text-align: center;">Tipo</th>
+                                        <th style="padding: 8px; text-align: right;">Duración</th>
+                                        <th style="padding: 8px; text-align: left;">Fecha</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.slice(0, 5).map(r => `
+                                        <tr style="border-bottom: 1px solid #333;">
+                                            <td style="padding: 6px 8px; color: #fff;">${r.name}</td>
+                                            <td style="padding: 6px 8px; color: #888;">${r.cat}</td>
+                                            <td style="padding: 6px 8px; text-align: center; color: ${r.tipo === 'NVA' ? '#ef4444' : r.tipo === 'EXT' ? '#10b981' : '#f97316'};">${r.tipo}</td>
+                                            <td style="padding: 6px 8px; text-align: right; color: #00d4ff;">${(r.duracion || 0).toFixed(1)}s</td>
+                                            <td style="padding: 6px 8px; color: #666;">${r.fecha || '-'}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div style="background: #1e40af22; padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #3b82f6;">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="importReplaceData" checked style="width: 18px; height: 18px;">
+                            <span style="color: #fff;">Reemplazar datos existentes (${AppState.registros.length} registros actuales)</span>
+                        </label>
+                        <p style="margin: 8px 0 0 28px; font-size: 0.8em; color: #888;">Si desmarca, los datos se agregarán a los existentes.</p>
+                    </div>
+                    
+                    <div style="display: flex; gap: 15px; justify-content: flex-end;">
+                        <button onclick="CSV.cancelImport()" style="padding: 12px 25px; background: #666; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1em;">
+                            ✕ Cancelar
+                        </button>
+                        <button onclick="CSV.confirmImport()" style="padding: 12px 25px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1em; font-weight: bold;">
+                            ✓ Importar ${data.length} registros
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Guardar datos temporalmente para confirmar
+        CSV._pendingImport = data;
+    },
+    
+    // Cancelar importación
+    cancelImport: () => {
+        const modal = document.getElementById('csvImportPreviewModal');
+        if (modal) modal.remove();
+        CSV._pendingImport = null;
+    },
+    
+    // Confirmar e importar datos
+    confirmImport: () => {
+        const data = CSV._pendingImport;
+        if (!data || data.length === 0) {
+            alert('No hay datos para importar');
+            return;
+        }
+        
+        const replaceData = document.getElementById('importReplaceData')?.checked ?? true;
+        
+        // Crear backup antes de importar
+        Storage.createBackup();
+        console.log('📦 Backup creado antes de importar');
+        
+        // Importar datos
+        if (replaceData) {
+            AppState.registros = data;
+        } else {
+            // Agregar al inicio (más recientes primero)
+            AppState.registros = [...data, ...AppState.registros];
+        }
+        
+        // Crear botones automáticamente desde datos importados
+        const existingBtnNames = new Set(AppState.buttons.map(b => b.name.toLowerCase()));
+        const newButtonsCreated = [];
+        
+        data.forEach(r => {
+            const btnName = r.name;
+            if (btnName && !existingBtnNames.has(btnName.toLowerCase())) {
+                existingBtnNames.add(btnName.toLowerCase());
+                AppState.buttons.push({
+                    id: Utils.generateId(),
+                    name: btnName,
+                    cat: r.cat || Utils.extractCategory(btnName),
+                    tipo: r.tipo || 'INT',
+                    color: null
+                });
+                newButtonsCreated.push(btnName);
+            }
+        });
+        
+        // Agregar máquinas nuevas
+        const maquinasNuevas = [];
+        data.forEach(r => {
+            if (r.maquina && !AppState.config.maquinas.includes(r.maquina)) {
+                AppState.config.maquinas.push(r.maquina);
+                maquinasNuevas.push(r.maquina);
+            }
+        });
+        
+        // Ordenar máquinas
+        AppState.config.maquinas.sort((a, b) => {
+            const numA = parseInt(a.replace(/\D/g, '')) || 0;
+            const numB = parseInt(b.replace(/\D/g, '')) || 0;
+            return numA - numB;
+        });
+        
+        // Guardar y actualizar UI
+        Storage.save();
+        UI.renderAll();
+        MaquinaManager.updateSelectors();
+        Filtros.updateAllFilters();
+        
+        // Cerrar modal
+        CSV.cancelImport();
+        
+        // Mostrar resumen
+        let mensaje = `✅ ${data.length} registros importados correctamente`;
+        if (newButtonsCreated.length > 0) {
+            mensaje += `\n\n🔘 ${newButtonsCreated.length} botones nuevos creados`;
+        }
+        if (maquinasNuevas.length > 0) {
+            mensaje += `\n\n🏭 ${maquinasNuevas.length} máquinas nuevas: ${maquinasNuevas.join(', ')}`;
+        }
+        
+        alert(mensaje);
+        console.log(`✅ Importación completada: ${data.length} registros, ${newButtonsCreated.length} botones, ${maquinasNuevas.length} máquinas`);
+    },
+    
+    // Datos pendientes de importar
+    _pendingImport: null
 };
+
+// Exponer CSVIntegrity globalmente
+window.CSVIntegrity = CSVIntegrity;
 
 // =====================================================
 // INTERFAZ DE USUARIO (UI)
@@ -1248,6 +1639,7 @@ const UI = {
     },
     
     // Grid de botones SMED - muestra OP activa en cada botón
+    // Los botones verifican si están activos usando la clave compuesta cat_tipo
     renderButtons: () => {
         const container = document.getElementById('buttonsGrid');
         if (!container) return;
@@ -1257,13 +1649,17 @@ const UI = {
         const turnoActivo = AppState.opActiva.turno || 'T1';
         
         container.innerHTML = AppState.buttons.map(btn => {
-            const isActive = AppState.activeTimers[btn.cat] && 
-                           AppState.activeTimers[btn.cat].btnId === btn.id;
-            const elapsed = isActive ? Timer.getElapsedTime(btn.cat) : 0;
+            // Clave compuesta: categoría + tipo (ej: "Troquel_INT", "Montacargas_NVA")
+            const timerKey = `${btn.cat}_${btn.tipo || 'INT'}`;
+            const isActive = AppState.activeTimers[timerKey] && 
+                           AppState.activeTimers[timerKey].btnId === btn.id;
+            const elapsed = isActive ? Timer.getElapsedTime(timerKey) : 0;
             
             return `
                 <button class="smed-btn ${isActive ? 'is-running' : ''}" 
                         data-cat="${btn.cat}"
+                        data-tipo="${btn.tipo || 'INT'}"
+                        data-timer-key="${timerKey}"
                         onclick="Timer.handleButtonClick('${btn.id}')">
                     <span class="btn-name">${isActive ? '▶ ' : ''}${btn.name}</span>
                     <span class="btn-cat">${btn.cat}</span>
@@ -1341,11 +1737,12 @@ const UI = {
         container.innerHTML = filtered.slice(0, 100).map(record => {
             const tipoColor = record.tipo === 'NVA' ? '#ef4444' : record.tipo === 'EXT' ? '#10b981' : '#f97316';
             const tipoIcon = record.tipo === 'NVA' ? '🔴' : record.tipo === 'EXT' ? '🟢' : '🟠';
+            const hasNotas = record.notas && record.notas.trim().length > 0;
             
             return `
             <div class="history-item" data-record-id="${record.id}">
                 <div class="item-info">
-                    <span class="item-name">${tipoIcon} ${record.name}</span>
+                    <span class="item-name">${tipoIcon} ${record.name}${hasNotas ? ' <span title="Tiene notas" style="opacity:0.7;">📝</span>' : ''}</span>
                     <span class="item-cat">${record.cat}${record.op ? ` • <span style="color:#00ff9d;">OP:${record.op}</span>` : ''}${record.turno ? ` [${record.turno}]` : ''}${record.maquina ? ` <span style="color:#00d4ff;">${record.maquina}</span>` : ''}</span>
                     <span class="item-time">${record.fecha || ''} ${record.endTime || ''}${record.colores > 1 ? ` • ${record.colores}col` : ''}</span>
                 </div>
@@ -1669,7 +2066,8 @@ const FreeTimers = {
             duration: Utils.round2(duration),
             endTime: Utils.formatHMS(now),
             timestamp: Date.now(),
-            fecha: now.toISOString().split('T')[0]
+            fecha: now.toISOString().split('T')[0],
+            notas: ''
         };
         
         AppState.registros.unshift(record);
@@ -1943,6 +2341,11 @@ const RecordEditor = {
                            style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #444; background: #0a0a0a; color: #fff;">
                 </div>
             </div>
+            <div>
+                <label style="font-size: 11px; color: #888;">📝 Notas / Observaciones:</label>
+                <textarea id="edit_notas" rows="3" placeholder="Comentarios, observaciones, causas de demora..."
+                          style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #444; background: #0a0a0a; color: #fff; resize: vertical; font-family: inherit;">${record.notas || ''}</textarea>
+            </div>
         `;
         
         modal.style.display = 'block';
@@ -1977,6 +2380,7 @@ const RecordEditor = {
         const newTurno = document.getElementById('edit_turno')?.value;
         const newColores = parseInt(document.getElementById('edit_colores')?.value) || 1;
         const newFecha = document.getElementById('edit_fecha')?.value;
+        const newNotas = document.getElementById('edit_notas')?.value.trim();
         
         // Validar
         if (!newName) {
@@ -1994,6 +2398,7 @@ const RecordEditor = {
         record.op = newOP || '';
         record.turno = newTurno || 'T1';
         record.colores = newColores;
+        record.notas = newNotas || '';
         
         if (newFecha) {
             record.fecha = newFecha;

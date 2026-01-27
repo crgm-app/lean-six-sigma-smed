@@ -727,8 +727,431 @@ const AnalysisDetallado = {
     }
 };
 
+// =====================================================
+// COMPARADOR MULTI-DIMENSIONAL INTERACTIVO
+// =====================================================
+
+const MultiDimComparator = {
+    // Estado del comparador
+    state: {
+        dimension: 'maquina', // maquina, op, turno
+        selected: [],         // Elementos seleccionados para comparar
+        baseFilters: {},      // Filtros base aplicados
+        chartType: 'bar'      // bar, line, radar
+    },
+    
+    // Obtener elementos disponibles para una dimensión
+    getAvailableItems: (dimension = null) => {
+        const dim = dimension || MultiDimComparator.state.dimension;
+        const registros = typeof Filtros !== 'undefined' ? Filtros.getFiltered('analysis') : AppState.registros;
+        
+        // Agrupar por dimensión
+        const items = {};
+        registros.forEach(r => {
+            let key;
+            switch(dim) {
+                case 'maquina': key = r.maquina || ''; break;
+                case 'op': key = r.op || ''; break;
+                case 'turno': key = r.turno || ''; break;
+                default: key = r.maquina || '';
+            }
+            if (key) {
+                if (!items[key]) {
+                    items[key] = { name: key, count: 0, tiempoTotal: 0 };
+                }
+                items[key].count++;
+                items[key].tiempoTotal += (r.duration || r.duracion || 0);
+            }
+        });
+        
+        return Object.values(items).sort((a, b) => b.count - a.count);
+    },
+    
+    // Toggle selección de un elemento
+    toggleItem: (item) => {
+        const idx = MultiDimComparator.state.selected.indexOf(item);
+        if (idx === -1) {
+            if (MultiDimComparator.state.selected.length < 6) { // Max 6 para comparar
+                MultiDimComparator.state.selected.push(item);
+            } else {
+                alert('⚠️ Máximo 6 elementos para comparar');
+                return;
+            }
+        } else {
+            MultiDimComparator.state.selected.splice(idx, 1);
+        }
+        MultiDimComparator.renderSelector('multiDimSelector');
+        MultiDimComparator.renderComparison('multiDimChart');
+    },
+    
+    // Cambiar dimensión
+    setDimension: (dimension) => {
+        MultiDimComparator.state.dimension = dimension;
+        MultiDimComparator.state.selected = [];
+        MultiDimComparator.renderSelector('multiDimSelector');
+        MultiDimComparator.renderComparison('multiDimChart');
+    },
+    
+    // Seleccionar todos
+    selectAll: () => {
+        const items = MultiDimComparator.getAvailableItems();
+        MultiDimComparator.state.selected = items.slice(0, 6).map(i => i.name);
+        MultiDimComparator.renderSelector('multiDimSelector');
+        MultiDimComparator.renderComparison('multiDimChart');
+    },
+    
+    // Limpiar selección
+    clearSelection: () => {
+        MultiDimComparator.state.selected = [];
+        MultiDimComparator.renderSelector('multiDimSelector');
+        MultiDimComparator.renderComparison('multiDimChart');
+    },
+    
+    // Guardar filtros base actuales
+    saveBaseFilters: () => {
+        MultiDimComparator.state.baseFilters = {
+            ...AppState.filtros,
+            timestamp: Date.now()
+        };
+    },
+    
+    // Renderizar selector de elementos
+    renderSelector: (containerId) => {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        
+        const items = MultiDimComparator.getAvailableItems();
+        const selected = MultiDimComparator.state.selected;
+        const dim = MultiDimComparator.state.dimension;
+        
+        const dimLabels = {
+            maquina: { icon: '🏭', label: 'Máquinas', color: '#00d4ff' },
+            op: { icon: '📋', label: 'OPs', color: '#00ff9d' },
+            turno: { icon: '⏰', label: 'Turnos', color: '#f59e0b' }
+        };
+        const dimInfo = dimLabels[dim] || dimLabels.maquina;
+        
+        // Filtros activos info
+        const f = AppState.filtros;
+        const filtrosActivos = [];
+        if (f.turno && f.turno !== 'ALL' && dim !== 'turno') filtrosActivos.push(`Turno: ${f.turno}`);
+        if (f.maquina && f.maquina !== 'ALL' && dim !== 'maquina') filtrosActivos.push(`Máquina: ${f.maquina}`);
+        if (f.op && f.op !== 'ALL' && dim !== 'op') filtrosActivos.push(`OP: ${f.op}`);
+        if (f.periodo && f.periodo !== 'all') filtrosActivos.push(`Período: ${f.periodo}`);
+        
+        let html = `
+            <div style="margin-bottom: 15px;">
+                <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                    <button class="action-btn ${dim === 'maquina' ? 'primary' : ''}" onclick="MultiDimComparator.setDimension('maquina')" style="padding: 6px 12px;">
+                        🏭 Máquinas
+                    </button>
+                    <button class="action-btn ${dim === 'op' ? 'primary' : ''}" onclick="MultiDimComparator.setDimension('op')" style="padding: 6px 12px;">
+                        📋 OPs
+                    </button>
+                    <button class="action-btn ${dim === 'turno' ? 'primary' : ''}" onclick="MultiDimComparator.setDimension('turno')" style="padding: 6px 12px;">
+                        ⏰ Turnos
+                    </button>
+                </div>
+                
+                ${filtrosActivos.length > 0 ? `
+                <div style="background: #0f0f1a; padding: 8px 12px; border-radius: 6px; font-size: 0.85em; margin-bottom: 10px; border-left: 3px solid #8b5cf6;">
+                    <strong style="color: #8b5cf6;">🔍 Filtros activos:</strong> 
+                    <span style="color: #aaa;">${filtrosActivos.join(' | ')}</span>
+                </div>` : ''}
+                
+                <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                    <button class="action-btn" onclick="MultiDimComparator.selectAll()" style="padding: 4px 10px; font-size: 0.8em;">✓ Todos</button>
+                    <button class="action-btn" onclick="MultiDimComparator.clearSelection()" style="padding: 4px 10px; font-size: 0.8em;">✗ Limpiar</button>
+                    <span style="color: #888; font-size: 0.85em; align-self: center;">Seleccionados: ${selected.length}/6</span>
+                </div>
+            </div>
+            
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+        `;
+        
+        items.forEach(item => {
+            const isSelected = selected.includes(item.name);
+            const bgColor = isSelected ? dimInfo.color : '#1a1a2e';
+            const textColor = isSelected ? '#000' : '#fff';
+            
+            html += `
+                <div onclick="MultiDimComparator.toggleItem('${item.name}')" 
+                     style="cursor: pointer; padding: 8px 14px; border-radius: 20px; 
+                            background: ${bgColor}; color: ${textColor}; 
+                            border: 2px solid ${isSelected ? dimInfo.color : '#333'};
+                            transition: all 0.2s; font-size: 0.9em; display: flex; align-items: center; gap: 6px;"
+                     onmouseover="this.style.borderColor='${dimInfo.color}'"
+                     onmouseout="this.style.borderColor='${isSelected ? dimInfo.color : '#333'}'">
+                    ${isSelected ? '✓' : ''} <strong>${item.name}</strong>
+                    <span style="font-size: 0.75em; opacity: 0.7;">(${item.count})</span>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        
+        if (items.length === 0) {
+            html = `<div class="no-data-msg">No hay ${dimInfo.label.toLowerCase()} disponibles con los filtros actuales</div>`;
+        }
+        
+        container.innerHTML = html;
+    },
+    
+    // Renderizar gráficos comparativos
+    renderComparison: (containerId) => {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        
+        const selected = MultiDimComparator.state.selected;
+        const dim = MultiDimComparator.state.dimension;
+        
+        if (selected.length === 0) {
+            container.innerHTML = `
+                <div class="no-data-msg" style="padding: 40px;">
+                    👆 Selecciona elementos arriba para comparar
+                </div>
+            `;
+            return;
+        }
+        
+        // Obtener datos para cada elemento seleccionado
+        const registros = typeof Filtros !== 'undefined' ? Filtros.getFiltered('analysis') : AppState.registros;
+        const comparisonData = [];
+        
+        selected.forEach(itemName => {
+            let itemData;
+            switch(dim) {
+                case 'maquina': 
+                    itemData = registros.filter(r => r.maquina === itemName); 
+                    break;
+                case 'op': 
+                    itemData = registros.filter(r => r.op === itemName); 
+                    break;
+                case 'turno': 
+                    itemData = registros.filter(r => r.turno === itemName); 
+                    break;
+                default:
+                    itemData = registros.filter(r => r.maquina === itemName);
+            }
+            
+            const tiempoTotal = itemData.reduce((sum, r) => sum + (r.duration || r.duracion || 0), 0);
+            const tiempoINT = itemData.filter(r => r.tipo === 'INT').reduce((sum, r) => sum + (r.duration || r.duracion || 0), 0);
+            const tiempoEXT = itemData.filter(r => r.tipo === 'EXT').reduce((sum, r) => sum + (r.duration || r.duracion || 0), 0);
+            const tiempoNVA = itemData.filter(r => r.tipo === 'NVA').reduce((sum, r) => sum + (r.duration || r.duracion || 0), 0);
+            
+            const promedio = itemData.length > 0 ? tiempoTotal / itemData.length : 0;
+            const eficiencia = tiempoTotal > 0 ? ((tiempoTotal - tiempoNVA) / tiempoTotal * 100) : 0;
+            
+            // CV
+            const tiempos = itemData.map(r => r.duration || r.duracion || 0);
+            const mean = promedio;
+            const variance = tiempos.length > 1 ? tiempos.reduce((sum, t) => sum + Math.pow(t - mean, 2), 0) / tiempos.length : 0;
+            const cv = mean > 0 ? (Math.sqrt(variance) / mean * 100) : 0;
+            
+            comparisonData.push({
+                name: itemName,
+                count: itemData.length,
+                tiempoTotal,
+                tiempoINT,
+                tiempoEXT,
+                tiempoNVA,
+                promedio,
+                eficiencia,
+                cv,
+                ratioIntExt: tiempoEXT > 0 ? tiempoINT / tiempoEXT : 0
+            });
+        });
+        
+        // Encontrar máximos para escalado
+        const maxTiempo = Math.max(...comparisonData.map(d => d.tiempoTotal), 1);
+        const maxProm = Math.max(...comparisonData.map(d => d.promedio), 1);
+        
+        const dimLabels = {
+            maquina: { icon: '🏭', label: 'Máquinas', color: '#00d4ff' },
+            op: { icon: '📋', label: 'OPs', color: '#00ff9d' },
+            turno: { icon: '⏰', label: 'Turnos', color: '#f59e0b' }
+        };
+        const dimInfo = dimLabels[dim] || dimLabels.maquina;
+        
+        let html = `
+            <h4 style="margin: 0 0 15px 0; color: ${dimInfo.color};">${dimInfo.icon} Comparativa de ${selected.length} ${dimInfo.label}</h4>
+            
+            <!-- Gráficos de barras lado a lado -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+        `;
+        
+        // Gráfico de barras para cada elemento
+        comparisonData.forEach((d, i) => {
+            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+            const barColor = colors[i % colors.length];
+            const efColor = d.eficiencia >= 90 ? '#10b981' : d.eficiencia >= 70 ? '#f59e0b' : '#ef4444';
+            const cvColor = d.cv < 20 ? '#10b981' : d.cv < 40 ? '#f59e0b' : '#ef4444';
+            
+            html += `
+                <div style="background: #1a1a2e; padding: 15px; border-radius: 8px; border-top: 4px solid ${barColor};">
+                    <div style="font-weight: bold; color: ${barColor}; margin-bottom: 10px; font-size: 1.1em;">${d.name}</div>
+                    
+                    <div style="font-size: 0.85em; color: #888; margin-bottom: 8px;">${d.count} registros</div>
+                    
+                    <!-- Barra de tiempo total -->
+                    <div style="margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.8em; color: #666; margin-bottom: 3px;">
+                            <span>Tiempo Total</span>
+                            <span style="color: #fff;">${Utils.formatDuration(d.tiempoTotal)}</span>
+                        </div>
+                        <div style="height: 20px; background: #333; border-radius: 4px; overflow: hidden;">
+                            <div style="height: 100%; width: ${(d.tiempoTotal / maxTiempo * 100)}%; 
+                                        background: linear-gradient(90deg, #f97316 ${d.tiempoINT/d.tiempoTotal*100}%, 
+                                                                          #10b981 ${d.tiempoINT/d.tiempoTotal*100}% ${(d.tiempoINT+d.tiempoEXT)/d.tiempoTotal*100}%, 
+                                                                          #ef4444 ${(d.tiempoINT+d.tiempoEXT)/d.tiempoTotal*100}%);"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Métricas clave -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85em;">
+                        <div style="background: #0a0a0a; padding: 8px; border-radius: 4px; text-align: center;">
+                            <div style="color: #666; font-size: 0.8em;">Promedio</div>
+                            <div style="color: #00d4ff; font-weight: bold;">${Utils.formatDuration(d.promedio)}</div>
+                        </div>
+                        <div style="background: #0a0a0a; padding: 8px; border-radius: 4px; text-align: center;">
+                            <div style="color: #666; font-size: 0.8em;">Eficiencia</div>
+                            <div style="color: ${efColor}; font-weight: bold;">${d.eficiencia.toFixed(1)}%</div>
+                        </div>
+                        <div style="background: #0a0a0a; padding: 8px; border-radius: 4px; text-align: center;">
+                            <div style="color: #666; font-size: 0.8em;">CV</div>
+                            <div style="color: ${cvColor}; font-weight: bold;">${d.cv.toFixed(1)}%</div>
+                        </div>
+                        <div style="background: #0a0a0a; padding: 8px; border-radius: 4px; text-align: center;">
+                            <div style="color: #666; font-size: 0.8em;">INT/EXT</div>
+                            <div style="color: ${d.ratioIntExt > 1 ? '#f97316' : '#10b981'}; font-weight: bold;">${d.ratioIntExt.toFixed(2)}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        
+        // Tabla resumen comparativa
+        html += `
+            <h4 style="margin: 20px 0 10px 0; color: #fff;">📊 Tabla Comparativa</h4>
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.85em;">
+                    <thead>
+                        <tr style="background: #1a1a2e;">
+                            <th style="padding: 10px; text-align: left; color: ${dimInfo.color};">${dimInfo.label.slice(0,-1)}</th>
+                            <th style="padding: 10px; text-align: center;">Registros</th>
+                            <th style="padding: 10px; text-align: center;">Total</th>
+                            <th style="padding: 10px; text-align: center;">Promedio</th>
+                            <th style="padding: 10px; text-align: center;">Efic.%</th>
+                            <th style="padding: 10px; text-align: center;">CV%</th>
+                            <th style="padding: 10px; text-align: center;">INT</th>
+                            <th style="padding: 10px; text-align: center;">EXT</th>
+                            <th style="padding: 10px; text-align: center;">NVA</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        comparisonData.forEach((d, i) => {
+            const efColor = d.eficiencia >= 90 ? '#10b981' : d.eficiencia >= 70 ? '#f59e0b' : '#ef4444';
+            const cvColor = d.cv < 20 ? '#10b981' : d.cv < 40 ? '#f59e0b' : '#ef4444';
+            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+            
+            html += `
+                <tr style="background: ${i % 2 === 0 ? '#0a0a0a' : '#121212'}; border-bottom: 1px solid #333;">
+                    <td style="padding: 8px; color: ${colors[i % colors.length]}; font-weight: bold;">${d.name}</td>
+                    <td style="padding: 8px; text-align: center;">${d.count}</td>
+                    <td style="padding: 8px; text-align: center; color: #00d4ff;">${Utils.formatDuration(d.tiempoTotal)}</td>
+                    <td style="padding: 8px; text-align: center;">${Utils.formatDuration(d.promedio)}</td>
+                    <td style="padding: 8px; text-align: center; color: ${efColor}; font-weight: bold;">${d.eficiencia.toFixed(1)}%</td>
+                    <td style="padding: 8px; text-align: center; color: ${cvColor};">${d.cv.toFixed(1)}%</td>
+                    <td style="padding: 8px; text-align: center; color: #f97316;">${Utils.formatDuration(d.tiempoINT)}</td>
+                    <td style="padding: 8px; text-align: center; color: #10b981;">${Utils.formatDuration(d.tiempoEXT)}</td>
+                    <td style="padding: 8px; text-align: center; color: #ef4444;">${Utils.formatDuration(d.tiempoNVA)}</td>
+                </tr>
+            `;
+        });
+        
+        html += '</tbody></table></div>';
+        
+        // Rankings
+        const mejorEficiencia = comparisonData.reduce((a, b) => a.eficiencia > b.eficiencia ? a : b);
+        const menorTiempo = comparisonData.reduce((a, b) => a.promedio < b.promedio ? a : b);
+        const masConsistente = comparisonData.reduce((a, b) => a.cv < b.cv ? a : b);
+        
+        html += `
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px;">
+                <div style="background: #10b98122; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #10b981;">
+                    <div style="color: #888; font-size: 0.8em;">🏆 Mejor Eficiencia</div>
+                    <div style="color: #10b981; font-weight: bold; font-size: 1.1em;">${mejorEficiencia.name}</div>
+                    <div style="color: #10b981;">${mejorEficiencia.eficiencia.toFixed(1)}%</div>
+                </div>
+                <div style="background: #00d4ff22; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #00d4ff;">
+                    <div style="color: #888; font-size: 0.8em;">⚡ Más Rápido</div>
+                    <div style="color: #00d4ff; font-weight: bold; font-size: 1.1em;">${menorTiempo.name}</div>
+                    <div style="color: #00d4ff;">${Utils.formatDuration(menorTiempo.promedio)} prom</div>
+                </div>
+                <div style="background: #8b5cf622; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #8b5cf6;">
+                    <div style="color: #888; font-size: 0.8em;">🎯 Más Consistente</div>
+                    <div style="color: #8b5cf6; font-weight: bold; font-size: 1.1em;">${masConsistente.name}</div>
+                    <div style="color: #8b5cf6;">CV: ${masConsistente.cv.toFixed(1)}%</div>
+                </div>
+            </div>
+        `;
+        
+        container.innerHTML = html;
+    },
+    
+    // Obtener datos actuales para exportación
+    getExportData: () => {
+        const selected = MultiDimComparator.state.selected;
+        const dim = MultiDimComparator.state.dimension;
+        const registros = typeof Filtros !== 'undefined' ? Filtros.getFiltered('analysis') : AppState.registros;
+        
+        const data = [];
+        selected.forEach(itemName => {
+            let itemData;
+            switch(dim) {
+                case 'maquina': itemData = registros.filter(r => r.maquina === itemName); break;
+                case 'op': itemData = registros.filter(r => r.op === itemName); break;
+                case 'turno': itemData = registros.filter(r => r.turno === itemName); break;
+                default: itemData = registros.filter(r => r.maquina === itemName);
+            }
+            
+            const tiempoTotal = itemData.reduce((sum, r) => sum + (r.duration || r.duracion || 0), 0);
+            const tiempoINT = itemData.filter(r => r.tipo === 'INT').reduce((sum, r) => sum + (r.duration || r.duracion || 0), 0);
+            const tiempoEXT = itemData.filter(r => r.tipo === 'EXT').reduce((sum, r) => sum + (r.duration || r.duracion || 0), 0);
+            const tiempoNVA = itemData.filter(r => r.tipo === 'NVA').reduce((sum, r) => sum + (r.duration || r.duracion || 0), 0);
+            const promedio = itemData.length > 0 ? tiempoTotal / itemData.length : 0;
+            const eficiencia = tiempoTotal > 0 ? ((tiempoTotal - tiempoNVA) / tiempoTotal * 100) : 0;
+            
+            data.push({
+                name: itemName,
+                dimension: dim,
+                count: itemData.length,
+                tiempoTotal,
+                tiempoINT,
+                tiempoEXT,
+                tiempoNVA,
+                promedio,
+                eficiencia
+            });
+        });
+        
+        return {
+            dimension: dim,
+            filters: { ...AppState.filtros },
+            selected,
+            data,
+            timestamp: Date.now()
+        };
+    }
+};
+
 // Exponer globalmente
 window.Analysis = Analysis;
 window.Charts = Charts;
 window.AnalysisComparativo = AnalysisComparativo;
 window.AnalysisDetallado = AnalysisDetallado;
+window.MultiDimComparator = MultiDimComparator;

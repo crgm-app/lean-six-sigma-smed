@@ -19,14 +19,21 @@ const Reports = {
         incluirTablaDetalle: true,
         incluirSixSigma: true,
         incluirRecomendaciones: true,
-        // Nuevas opciones de comparativas
+        // Opciones de comparativas
         incluirComparativoOP: true,
         incluirComparativoMaquina: true,
         incluirComparativoTurno: true,
         incluirPareto: true,
+        // NUEVAS: Comparadores Multidimensionales
+        incluirMultiDimAnalysis: true,
+        incluirMultiDimStats: true,
+        incluirMultiDimGantt: true,
         titulo: 'Informe de Análisis SMED',
         empresa: 'Planta Corrugadora'
     },
+    
+    // Configuraciones guardadas
+    savedConfigs: [],
     
     // Cargar configuración guardada
     loadConfig: () => {
@@ -818,5 +825,267 @@ const Reports = {
     }
 };
 
+// =====================================================
+// SISTEMA DE GUARDADO DE CONFIGURACIONES DE EXPORTACIÓN
+// =====================================================
+
+const SavedExportConfigs = {
+    // Clave de localStorage
+    STORAGE_KEY: 'smed_saved_export_configs',
+    
+    // Obtener todas las configuraciones guardadas
+    getAll: () => {
+        try {
+            const saved = localStorage.getItem(SavedExportConfigs.STORAGE_KEY);
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            console.error('Error cargando configuraciones guardadas:', e);
+            return [];
+        }
+    },
+    
+    // Guardar nueva configuración
+    save: (nombre = null) => {
+        const configs = SavedExportConfigs.getAll();
+        
+        // Leer configuración actual de UI
+        Reports.readConfigFromUI();
+        
+        // Crear objeto de configuración con filtros actuales
+        const newConfig = {
+            id: Date.now(),
+            nombre: nombre || `Config ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`,
+            fechaCreacion: new Date().toISOString(),
+            // Configuración del informe
+            reportConfig: { ...Reports.config },
+            // Filtros aplicados
+            filtros: { ...AppState.filtros },
+            // Comparadores multidimensionales seleccionados
+            multiDimAnalysis: typeof MultiDimComparator !== 'undefined' ? {
+                dimension: MultiDimComparator.state.dimension,
+                selected: [...MultiDimComparator.state.selected]
+            } : null,
+            multiDimStats: typeof StatsMultiComparator !== 'undefined' ? {
+                dimension: StatsMultiComparator.state.dimension,
+                selected: [...StatsMultiComparator.state.selected]
+            } : null,
+            // Metadata
+            registrosCount: AppState.registros.length,
+            descripcion: ''
+        };
+        
+        configs.unshift(newConfig); // Agregar al inicio
+        
+        // Limitar a 20 configuraciones
+        if (configs.length > 20) {
+            configs.pop();
+        }
+        
+        try {
+            localStorage.setItem(SavedExportConfigs.STORAGE_KEY, JSON.stringify(configs));
+            SavedExportConfigs.renderList('savedConfigsList');
+            return newConfig;
+        } catch (e) {
+            console.error('Error guardando configuración:', e);
+            alert('❌ Error al guardar la configuración');
+            return null;
+        }
+    },
+    
+    // Guardar con nombre personalizado (prompt)
+    saveWithName: () => {
+        const nombre = prompt('Nombre para esta configuración:', `Análisis ${new Date().toLocaleDateString()}`);
+        if (nombre) {
+            const saved = SavedExportConfigs.save(nombre);
+            if (saved) {
+                alert('✅ Configuración guardada: ' + nombre);
+            }
+        }
+    },
+    
+    // Cargar una configuración guardada
+    load: (configId) => {
+        const configs = SavedExportConfigs.getAll();
+        const config = configs.find(c => c.id === configId);
+        
+        if (!config) {
+            alert('❌ Configuración no encontrada');
+            return;
+        }
+        
+        // Restaurar configuración de informe
+        Reports.config = { ...Reports.config, ...config.reportConfig };
+        Reports.updateUI();
+        
+        // Restaurar filtros
+        if (config.filtros) {
+            Object.assign(AppState.filtros, config.filtros);
+            
+            // Actualizar selectores de filtros en UI
+            const filterMappings = {
+                'analysisFilterMaquina': config.filtros.maquina,
+                'analysisFilterOP': config.filtros.op,
+                'analysisFilterTurno': config.filtros.turno,
+                'analysisFilterTipo': config.filtros.tipo,
+                'statsFilterMaquina': config.filtros.maquina,
+                'statsFilterOP': config.filtros.op,
+                'statsFilterTurno': config.filtros.turno,
+                'ganttFilterMaquina': config.filtros.maquina,
+                'ganttFilterOP': config.filtros.op,
+                'ganttFilterTurno': config.filtros.turno
+            };
+            
+            Object.entries(filterMappings).forEach(([id, value]) => {
+                const el = document.getElementById(id);
+                if (el && value) el.value = value;
+            });
+        }
+        
+        // Restaurar comparadores multidimensionales
+        if (config.multiDimAnalysis && typeof MultiDimComparator !== 'undefined') {
+            MultiDimComparator.state.dimension = config.multiDimAnalysis.dimension;
+            MultiDimComparator.state.selected = config.multiDimAnalysis.selected || [];
+            MultiDimComparator.renderSelector('multiDimSelector');
+            MultiDimComparator.renderComparison('multiDimChart');
+        }
+        
+        if (config.multiDimStats && typeof StatsMultiComparator !== 'undefined') {
+            StatsMultiComparator.state.dimension = config.multiDimStats.dimension;
+            StatsMultiComparator.state.selected = config.multiDimStats.selected || [];
+            StatsMultiComparator.renderSelector('statsMultiSelector');
+            StatsMultiComparator.renderComparison('statsMultiChart');
+        }
+        
+        alert(`✅ Configuración cargada: ${config.nombre}\n\n📋 Filtros restaurados:\nMáquina: ${config.filtros.maquina || 'Todas'}\nOP: ${config.filtros.op || 'Todas'}\nTurno: ${config.filtros.turno || 'Todos'}\nPeríodo: ${config.filtros.periodo || 'Todo'}`);
+    },
+    
+    // Eliminar una configuración
+    delete: (configId) => {
+        if (!confirm('¿Eliminar esta configuración guardada?')) return;
+        
+        let configs = SavedExportConfigs.getAll();
+        configs = configs.filter(c => c.id !== configId);
+        
+        try {
+            localStorage.setItem(SavedExportConfigs.STORAGE_KEY, JSON.stringify(configs));
+            SavedExportConfigs.renderList('savedConfigsList');
+            alert('✅ Configuración eliminada');
+        } catch (e) {
+            console.error('Error eliminando configuración:', e);
+        }
+    },
+    
+    // Exportar directamente usando una configuración guardada
+    exportWithConfig: (configId) => {
+        SavedExportConfigs.load(configId);
+        setTimeout(() => {
+            Reports.preview();
+        }, 300);
+    },
+    
+    // Renderizar lista de configuraciones guardadas
+    renderList: (containerId) => {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        
+        const configs = SavedExportConfigs.getAll();
+        
+        if (configs.length === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 20px; color: #666;">
+                    <p>📂 No hay configuraciones guardadas</p>
+                    <p style="font-size: 0.85em;">Guarda una configuración para reutilizar los mismos filtros y opciones en futuras exportaciones.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        let html = `
+            <div style="max-height: 300px; overflow-y: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.85em;">
+                    <thead>
+                        <tr style="background: #1a1a2e; position: sticky; top: 0;">
+                            <th style="padding: 8px; text-align: left; color: #00ff9d;">Nombre</th>
+                            <th style="padding: 8px; text-align: center; color: #888;">Fecha</th>
+                            <th style="padding: 8px; text-align: center; color: #888;">Filtros</th>
+                            <th style="padding: 8px; text-align: center; color: #888;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        configs.forEach((c, i) => {
+            const fecha = new Date(c.fechaCreacion).toLocaleDateString();
+            const filtrosResumen = [];
+            if (c.filtros.maquina && c.filtros.maquina !== 'ALL') filtrosResumen.push(`🏭${c.filtros.maquina}`);
+            if (c.filtros.op && c.filtros.op !== 'ALL') filtrosResumen.push(`📋${c.filtros.op.slice(-4)}`);
+            if (c.filtros.turno && c.filtros.turno !== 'ALL') filtrosResumen.push(`⏰${c.filtros.turno}`);
+            if (c.filtros.periodo && c.filtros.periodo !== 'all') filtrosResumen.push(`📅${c.filtros.periodo}`);
+            
+            // Indicadores de comparadores guardados
+            const multiDimIndicators = [];
+            if (c.multiDimAnalysis && c.multiDimAnalysis.selected.length > 0) {
+                multiDimIndicators.push(`📊${c.multiDimAnalysis.selected.length}`);
+            }
+            if (c.multiDimStats && c.multiDimStats.selected.length > 0) {
+                multiDimIndicators.push(`📐${c.multiDimStats.selected.length}`);
+            }
+            
+            html += `
+                <tr style="background: ${i % 2 === 0 ? '#0a0a0a' : '#121212'}; border-bottom: 1px solid #333;">
+                    <td style="padding: 8px;">
+                        <strong style="color: #00ff9d;">${c.nombre}</strong>
+                        ${multiDimIndicators.length > 0 ? `<br><span style="font-size: 0.75em; color: #8b5cf6;">Comparadores: ${multiDimIndicators.join(' ')}</span>` : ''}
+                    </td>
+                    <td style="padding: 8px; text-align: center; color: #666; font-size: 0.8em;">${fecha}</td>
+                    <td style="padding: 8px; text-align: center; font-size: 0.75em; color: #888;">
+                        ${filtrosResumen.length > 0 ? filtrosResumen.join(' ') : 'Sin filtros'}
+                    </td>
+                    <td style="padding: 8px; text-align: center;">
+                        <button onclick="SavedExportConfigs.load(${c.id})" class="action-btn" style="padding: 4px 8px; font-size: 0.75em; margin: 2px;">📂 Cargar</button>
+                        <button onclick="SavedExportConfigs.exportWithConfig(${c.id})" class="action-btn success" style="padding: 4px 8px; font-size: 0.75em; margin: 2px;">📄 Exportar</button>
+                        <button onclick="SavedExportConfigs.delete(${c.id})" class="action-btn danger" style="padding: 4px 8px; font-size: 0.75em; margin: 2px;">🗑️</button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+    },
+    
+    // Exportar todas las configuraciones (backup)
+    exportAll: () => {
+        const configs = SavedExportConfigs.getAll();
+        const blob = new Blob([JSON.stringify(configs, null, 2)], { type: 'application/json' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `smed_export_configs_backup_${new Date().toISOString().split('T')[0]}.json`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+    },
+    
+    // Importar configuraciones desde archivo
+    importFromFile: (file) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const imported = JSON.parse(e.target.result);
+                if (Array.isArray(imported)) {
+                    const existing = SavedExportConfigs.getAll();
+                    const merged = [...imported, ...existing].slice(0, 20);
+                    localStorage.setItem(SavedExportConfigs.STORAGE_KEY, JSON.stringify(merged));
+                    SavedExportConfigs.renderList('savedConfigsList');
+                    alert(`✅ ${imported.length} configuraciones importadas`);
+                }
+            } catch (err) {
+                alert('❌ Error al importar archivo');
+            }
+        };
+        reader.readAsText(file);
+    }
+};
+
 // Exponer globalmente
 window.Reports = Reports;
+window.SavedExportConfigs = SavedExportConfigs;

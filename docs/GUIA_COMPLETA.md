@@ -1,9 +1,10 @@
 # 📘 SMED Analyzer Pro - Guía Completa de Desarrollo
 
-**Versión:** 2.2  
+**Versión:** 2.3  
 **Fecha:** 27 de Enero de 2026  
 **Autor:** Desarrollo Lean Manufacturing  
 **Dominio:** https://smed.crgm.app  
+**Soporte:** smed@crgm.app  
 
 ---
 
@@ -81,6 +82,19 @@ Desarrollar una aplicación web HTML5 autónoma que combine las mejores caracter
 | **🏆 Métricas de Mejor/Peor** | Identificación automática del mejor y peor performer por dimensión |
 | **📧 Correo de Soporte** | soporte@crgm.app añadido en la aplicación |
 | **🔄 Botones Auto desde CSV** | Al importar CSV, los botones se crean automáticamente según las actividades |
+
+### 🆕 Novedades Versión 2.3 (27 Enero 2026)
+
+| Módulo | Descripción |
+|--------|-------------|
+| **🎛️ MultiDimComparator** | Comparador interactivo multi-dimensional con selección de hasta 6 elementos, gráficos con barras degradadas INT/EXT/NVA, tabla comparativa con rankings |
+| **📐 StatsMultiComparator** | Comparador estadístico multi-dimensional con Box Plots comparativos visuales, cálculo completo (media, mediana, σ, CV, Cp, Cpk) por grupo |
+| **💾 SavedExportConfigs** | Sistema para guardar/cargar configuraciones de exportación incluyendo filtros y comparadores seleccionados, exportar/importar backup JSON |
+| **✏️ RecordEditor** | Editor modal para registros individuales - cambiar nombre, categoría, tipo, duración, máquina, OP, turno, colores, fecha |
+| **🔍 Filtros Centralizados** | Módulo `Filtros` con función `getFiltered(source)` usada por todos los módulos, filtros por período (today, week, month, year, custom) |
+| **📊 Pareto Module** | Módulo independiente para análisis 80/20 con visualización de barras y resumen de "pocos vitales" |
+| **📈 StatsComparative** | Comparativo estadístico por grupo con identificación de mejor/peor/más consistente |
+| **🔄 Backup Automático** | Backup diario automático en LocalStorage + opción de restaurar |
 
 ---
 
@@ -363,6 +377,213 @@ function generarAnalisisPareto(registros) {
     pareto: { topActividades: [...], porcentajeAcumulado: 80 },
     recomendaciones: [...]
 }
+```
+
+---
+
+### 2.4 Módulos Nuevos v2.3 - Documentación Detallada
+
+#### 📁 MultiDimComparator (charts.js) - Comparador Interactivo Multi-Dimensional
+
+```javascript
+const MultiDimComparator = {
+    // Estado del comparador
+    state: {
+        dimension: 'maquina', // maquina, op, turno
+        selected: [],         // Elementos seleccionados (máx 6)
+        baseFilters: {},      // Filtros base aplicados
+        chartType: 'bar'      // bar, line, radar
+    }
+};
+```
+
+**Funciones Principales:**
+| Función | Descripción |
+|---------|-------------|
+| `getAvailableItems(dimension)` | Obtiene elementos disponibles para una dimensión |
+| `toggleItem(item)` | Agrega/quita elemento de la selección (máx 6) |
+| `setDimension(dimension)` | Cambia la dimensión activa (maquina/op/turno) |
+| `selectAll()` | Selecciona los primeros 6 elementos |
+| `clearSelection()` | Limpia la selección actual |
+| `renderSelector(containerId)` | Renderiza UI de selección con chips |
+| `renderComparison(containerId)` | Renderiza gráficos y tabla comparativa |
+| `getExportData()` | Obtiene datos para exportación |
+
+**Métricas Calculadas por Elemento:**
+- Tiempo total, Tiempo INT, Tiempo EXT, Tiempo NVA
+- Promedio, Eficiencia, CV%
+- Ratio INT/EXT, Rankings (Mejor Eficiencia, Más Rápido, Más Consistente)
+
+---
+
+#### 📁 StatsMultiComparator (statistics.js) - Comparador Estadístico con Box Plots
+
+```javascript
+const StatsMultiComparator = {
+    state: {
+        dimension: 'maquina',
+        selected: [],
+        showBoxPlot: true,
+        showDistribution: true
+    }
+};
+```
+
+**Funciones Principales:**
+| Función | Descripción |
+|---------|-------------|
+| `getAvailableItems(dimension)` | Obtiene elementos con mínimo 2 registros |
+| `calcularStats(tiempos, nombre)` | Calcula estadísticas completas para un grupo |
+| `renderSelector(containerId)` | Renderiza selector de elementos |
+| `renderComparison(containerId)` | Renderiza Box Plots comparativos + tabla |
+| `getExportData()` | Obtiene datos estadísticos para exportación |
+
+**Estadísticas Calculadas:**
+```javascript
+{
+    nombre, n, min, max, range,
+    q1, median, q3, iqr,
+    mean, stdDev, cv,
+    cp, cpk, tiempos[]
+}
+```
+
+**Visualización Box Plot Comparativo:**
+- Escala global compartida para todos los elementos
+- Colores distintos por elemento
+- Whiskers, cajas Q1-Q3, línea de mediana
+- Rankings: Más Rápido, Más Consistente, Mejor Capacidad
+
+---
+
+#### 📁 SavedExportConfigs (reports.js) - Sistema de Configuraciones Guardadas
+
+```javascript
+const SavedExportConfigs = {
+    STORAGE_KEY: 'smed_saved_export_configs'
+};
+```
+
+**Estructura de Configuración Guardada:**
+```javascript
+{
+    id: timestamp,
+    nombre: 'Config 27/01/2026 10:30:00',
+    fechaCreacion: ISO_string,
+    reportConfig: { ...Reports.config },
+    filtros: { ...AppState.filtros },
+    multiDimAnalysis: { dimension, selected[] },
+    multiDimStats: { dimension, selected[] },
+    registrosCount: number,
+    descripcion: ''
+}
+```
+
+**Funciones Principales:**
+| Función | Descripción |
+|---------|-------------|
+| `getAll()` | Obtiene todas las configuraciones guardadas |
+| `save(nombre)` | Guarda configuración actual con filtros y comparadores |
+| `saveWithName()` | Muestra prompt para nombrar la configuración |
+| `load(configId)` | Carga una configuración guardada |
+| `delete(configId)` | Elimina una configuración |
+| `exportWithConfig(configId)` | Carga y exporta directamente |
+| `renderList(containerId)` | Renderiza lista de configs guardadas |
+| `exportAll()` | Exporta backup de todas las configs (JSON) |
+| `importFromFile(file)` | Importa configs desde archivo JSON |
+
+---
+
+#### 📁 RecordEditor (app.js) - Editor de Registros Individuales
+
+**Funciones:**
+| Función | Descripción |
+|---------|-------------|
+| `RecordEditor.open(id)` | Abre modal para editar un registro |
+| `RecordEditor.close()` | Cierra el modal |
+| `RecordEditor.save()` | Guarda los cambios del registro |
+
+**Campos Editables:**
+- Nombre de actividad
+- Categoría
+- Tipo SMED (INT/EXT/NVA)
+- Duración (segundos)
+- Máquina
+- OP (Orden de Producción)
+- Turno (T1/T2/T3)
+- Colores (1-8)
+- Fecha
+
+---
+
+#### 📁 Filtros (app.js) - Sistema de Filtrado Centralizado
+
+```javascript
+const Filtros = {
+    getFiltered: (source = 'history') => {
+        // Aplica todos los filtros activos
+        // source: 'history', 'gantt', 'stats', 'analysis'
+    },
+    updateAllFilters: () => { /* Actualiza selectores dinámicos */ },
+    updateOPFilter: (selectId) => { /* Actualiza filtro de OP */ },
+    updateCategoryFilter: (selectId) => { /* Actualiza filtro de categoría */ },
+    setPeriodo: (periodo) => { /* Aplica filtro de período */ },
+    setCustomRange: (desde, hasta) => { /* Aplica rango personalizado */ }
+};
+```
+
+**Períodos Disponibles:**
+- `today` - Solo registros de hoy
+- `week` - Semana actual
+- `month` - Mes actual
+- `year` - Año actual
+- `all` - Todos los registros
+- `custom` - Rango personalizado (fechaDesde, fechaHasta)
+
+---
+
+#### 📁 Pareto (statistics.js) - Análisis 80/20
+
+```javascript
+const Pareto = {
+    calculate: (groupBy = 'cat') => {
+        // Agrupa y ordena por tiempo descendente
+        // Calcula porcentaje acumulado
+        // Identifica punto 80%
+    },
+    getResumen: (data) => { /* Genera interpretación */ },
+    render: (containerId, groupBy) => { /* Renderiza tabla + barras */ }
+};
+```
+
+**Estructura de Resultado:**
+```javascript
+{
+    items: [{
+        name, tiempo, count,
+        porcentaje, acumulado,
+        esVital: boolean // <= 80%
+    }],
+    total: number
+}
+```
+
+---
+
+#### 📁 StatsComparative (statistics.js) - Comparativo por Grupo
+
+```javascript
+const StatsComparative = {
+    calculateByGroup: (groupBy = 'op') => {
+        // Agrupa registros por dimensión
+        // Calcula estadísticas por cada grupo
+        // Ordena por promedio
+    },
+    render: (containerId, groupBy) => {
+        // Renderiza tabla comparativa
+        // Identifica mejor, peor, más consistente
+    }
+};
 ```
 
 ---
@@ -930,6 +1151,20 @@ ROI = (Ahorros - Inversión) / Inversión × 100%
 [x] Identificación de mejor/peor performer por dimensión
 [x] Botones en UI para vistas comparativas del Gantt
 [x] Documentación actualizada con novedades v2.2
+
+=== VERSIÓN 2.3 (27 Enero 2026) ===
+[x] MultiDimComparator - Comparador interactivo multi-dimensional (charts.js)
+[x] StatsMultiComparator - Comparador estadístico con Box Plots comparativos (statistics.js)
+[x] SavedExportConfigs - Sistema guardar/cargar configuraciones de exportación (reports.js)
+[x] RecordEditor - Editor modal de registros individuales (app.js)
+[x] Módulo Filtros centralizado con getFiltered(source) (app.js)
+[x] Filtros por período (today, week, month, year, all, custom)
+[x] Módulo Pareto independiente para análisis 80/20 (statistics.js)
+[x] StatsComparative - Comparativo estadístico por grupo (statistics.js)
+[x] Backup automático diario en LocalStorage
+[x] Restaurar backup desde configuración
+[x] Exportar/Importar configuraciones guardadas (JSON)
+[x] Documentación completa de módulos v2.3
 ```
 
 ## Anexo B: Cómo Abrir la Aplicación
