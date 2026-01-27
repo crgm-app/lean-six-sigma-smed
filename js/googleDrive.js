@@ -161,11 +161,13 @@ const GoogleDrive = {
     onSignIn: async () => {
         try {
             GoogleDrive.updateUI();
-            document.getElementById('googleDriveStatus').innerHTML = '<span style="color:#f59e0b;">⏳ Conectando...</span>';
+            const statusEl = document.getElementById('googleDriveStatus');
+            if (statusEl) statusEl.innerHTML = '<span style="color:#f59e0b;">⏳ Conectando...</span>';
             
             // Obtener info del usuario
             const userInfo = await GoogleDrive.fetchUserInfo();
-            GoogleDrive.userEmail = userInfo.email;
+            GoogleDrive.userEmail = userInfo?.email || 'Usuario';
+            console.log('👤 Usuario obtenido:', GoogleDrive.userEmail);
             
             // Buscar o usar carpeta existente (propia o compartida)
             GoogleDrive.folderId = await GoogleDrive.findOrCreateFolder();
