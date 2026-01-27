@@ -71,6 +71,17 @@ Desarrollar una aplicación web HTML5 autónoma que combine las mejores caracter
 | **📋 Análisis Detallado por Categoría** | Estadísticas CV, promedio, rango, tipo dominante por cada categoría |
 | **🎯 Resumen Ejecutivo Estadístico** | Nivel de desempeño, interpretación de variabilidad con fórmulas, análisis de capacidad Cp/Cpk |
 
+### 🆕 Novedades Versión 2.2 (26 Enero 2026 - 11:30PM)
+
+| Módulo | Descripción |
+|--------|-------------|
+| **📊 Gantt Comparativo Multi-Dimensional** | Vista Gantt con comparativo por OP, Máquina, Turno, Tipo - barras apiladas con distribución INT/EXT/NVA |
+| **📄 Informes con Comparativas** | Exportar PDF/HTML con tablas comparativas por OP, Máquina, Turno + análisis Pareto |
+| **📈 Análisis Pareto en Informes** | Identificación automática del 80/20 - actividades que causan mayor impacto |
+| **🏆 Métricas de Mejor/Peor** | Identificación automática del mejor y peor performer por dimensión |
+| **📧 Correo de Soporte** | soporte@crgm.app añadido en la aplicación |
+| **🔄 Botones Auto desde CSV** | Al importar CSV, los botones se crean automáticamente según las actividades |
+
 ---
 
 ## 2. Análisis de Códigos Fuente
@@ -685,6 +696,16 @@ ROI = (Ahorros - Inversión) / Inversión × 100%
 [x] Resumen ejecutivo en estadísticas
 [x] Métricas de mejor eficiencia y más consistente por grupo
 [ ] Cross-browser testing (pendiente usuario)
+
+=== VERSIÓN 2.2 (26 Enero 2026 - 11:30PM) ===
+[x] Gantt Comparativo Multi-Dimensional (renderByOP, renderByMaquina, renderByTurno, renderByTipo)
+[x] Vista Gantt con barras apiladas INT/EXT/NVA
+[x] Informes con Comparativas por OP, Máquina, Turno
+[x] Análisis Pareto (80/20) en informes exportados
+[x] Funciones auxiliares: agruparPorDimension, generarTablaComparativa, generarAnalisisPareto
+[x] Identificación de mejor/peor performer por dimensión
+[x] Botones en UI para vistas comparativas del Gantt
+[x] Documentación actualizada con novedades v2.2
 ```
 
 ## Anexo B: Cómo Abrir la Aplicación

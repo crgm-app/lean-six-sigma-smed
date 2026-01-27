@@ -274,6 +274,170 @@ const Gantt = {
         }
     },
     
+    // =====================================================
+    // ANÁLISIS COMPARATIVO MULTI-DIMENSIONAL
+    // =====================================================
+    
+    // Renderizar Gantt comparativo por dimensión
+    renderComparativo: (dimension = 'op') => {
+        const container = document.getElementById('ganttTimeline');
+        if (!container) return;
+        
+        // Obtener registros filtrados
+        const registros = Gantt.getFilteredData();
+        
+        if (registros.length === 0) {
+            container.innerHTML = '<div class="no-data-msg">No hay actividades para comparar</div>';
+            return;
+        }
+        
+        // Agrupar por dimensión seleccionada
+        const grupos = {};
+        registros.forEach(r => {
+            let key;
+            switch(dimension) {
+                case 'maquina': key = r.maquina || 'Sin Máquina'; break;
+                case 'turno': key = r.turno || 'Sin Turno'; break;
+                case 'tipo': key = r.tipo || 'INT'; break;
+                default: key = r.op || 'Sin OP';
+            }
+            
+            if (!grupos[key]) {
+                grupos[key] = {
+                    registros: [],
+                    tiempoTotal: 0,
+                    tiempoINT: 0,
+                    tiempoEXT: 0,
+                    tiempoNVA: 0
+                };
+            }
+            grupos[key].registros.push(r);
+            grupos[key].tiempoTotal += (r.duration || r.duracion || 0);
+            
+            const tipo = r.tipo || 'INT';
+            if (tipo === 'INT') grupos[key].tiempoINT += (r.duration || r.duracion || 0);
+            else if (tipo === 'EXT') grupos[key].tiempoEXT += (r.duration || r.duracion || 0);
+            else grupos[key].tiempoNVA += (r.duration || r.duracion || 0);
+        });
+        
+        // Calcular métricas adicionales
+        Object.values(grupos).forEach(g => {
+            g.eficiencia = g.tiempoTotal > 0 ? ((g.tiempoTotal - g.tiempoNVA) / g.tiempoTotal * 100) : 0;
+            g.ratioIntExt = g.tiempoEXT > 0 ? (g.tiempoINT / g.tiempoEXT) : 0;
+        });
+        
+        // Ordenar por tiempo total (mayor a menor)
+        const sorted = Object.entries(grupos)
+            .sort((a, b) => b[1].tiempoTotal - a[1].tiempoTotal);
+        
+        const maxTiempo = sorted[0] ? sorted[0][1].tiempoTotal : 1;
+        
+        // Colores por dimensión
+        const dimensionConfig = {
+            op: { label: '📋 OP', color: '#00ff9d' },
+            maquina: { label: '🏭 Máquina', color: '#00d4ff' },
+            turno: { label: '⏰ Turno', color: '#f59e0b' },
+            tipo: { label: '🏷️ Tipo', color: '#8b5cf6' }
+        };
+        const config = dimensionConfig[dimension] || dimensionConfig.op;
+        
+        // Generar HTML del Gantt comparativo
+        let html = `
+            <div style="margin-bottom: 15px; padding: 10px; background: #0f0f1a; border-radius: 8px;">
+                <strong style="color: ${config.color};">${config.label}</strong>
+                <span style="color: #888; margin-left: 10px;">${sorted.length} grupos | ${registros.length} registros</span>
+            </div>
+        `;
+        
+        sorted.slice(0, 15).forEach(([key, data]) => {
+            const pct = (data.tiempoTotal / maxTiempo) * 100;
+            const pctINT = data.tiempoTotal > 0 ? (data.tiempoINT / data.tiempoTotal * 100) : 0;
+            const pctEXT = data.tiempoTotal > 0 ? (data.tiempoEXT / data.tiempoTotal * 100) : 0;
+            const pctNVA = data.tiempoTotal > 0 ? (data.tiempoNVA / data.tiempoTotal * 100) : 0;
+            
+            const efColor = data.eficiencia >= 90 ? '#10b981' : data.eficiencia >= 70 ? '#f59e0b' : '#ef4444';
+            
+            html += `
+                <div class="gantt-row" style="margin-bottom: 8px;">
+                    <div class="gantt-label" style="color: ${config.color}; font-weight: bold;" 
+                         title="${key}: ${data.registros.length} registros">${key}</div>
+                    <div class="gantt-bar-container" style="position: relative;">
+                        <!-- Barra de fondo -->
+                        <div style="position: absolute; left: 0; width: ${pct}%; height: 100%; 
+                                    background: linear-gradient(to right, 
+                                        ${TIPO_COLORS.INT} ${pctINT}%, 
+                                        ${TIPO_COLORS.EXT} ${pctINT}% ${pctINT + pctEXT}%, 
+                                        ${TIPO_COLORS.NVA} ${pctINT + pctEXT}%);
+                                    border-radius: 4px; opacity: 0.85;"
+                             title="INT: ${data.tiempoINT.toFixed(1)}s | EXT: ${data.tiempoEXT.toFixed(1)}s | NVA: ${data.tiempoNVA.toFixed(1)}s">
+                        </div>
+                        <!-- Info de eficiencia -->
+                        <span style="position: relative; z-index: 1; color: #fff; font-size: 0.75em; padding-left: 5px;">
+                            Efic: <strong style="color: ${efColor};">${data.eficiencia.toFixed(0)}%</strong>
+                        </span>
+                    </div>
+                    <div class="gantt-total" style="min-width: 80px;">
+                        ${Utils.formatDuration(data.tiempoTotal)}
+                    </div>
+                </div>
+            `;
+        });
+        
+        // Agregar resumen comparativo
+        const mejorEficiencia = sorted.reduce((a, b) => a[1].eficiencia > b[1].eficiencia ? a : b);
+        const peorEficiencia = sorted.reduce((a, b) => a[1].eficiencia < b[1].eficiencia ? a : b);
+        
+        html += `
+            <div style="margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div style="background: #10b98122; padding: 10px; border-radius: 8px; border-left: 3px solid #10b981;">
+                    <span style="color: #888; font-size: 0.8em;">🏆 Mejor Eficiencia</span><br>
+                    <strong style="color: #10b981;">${mejorEficiencia[0]}</strong>: ${mejorEficiencia[1].eficiencia.toFixed(1)}%
+                </div>
+                <div style="background: #ef444422; padding: 10px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                    <span style="color: #888; font-size: 0.8em;">⚠️ Menor Eficiencia</span><br>
+                    <strong style="color: #ef4444;">${peorEficiencia[0]}</strong>: ${peorEficiencia[1].eficiencia.toFixed(1)}%
+                </div>
+            </div>
+        `;
+        
+        // Leyenda de colores
+        html += `
+            <div style="margin-top: 15px; display: flex; gap: 15px; font-size: 0.8em; color: #888;">
+                <span><span style="display: inline-block; width: 12px; height: 12px; background: ${TIPO_COLORS.INT}; border-radius: 2px;"></span> Interna (INT)</span>
+                <span><span style="display: inline-block; width: 12px; height: 12px; background: ${TIPO_COLORS.EXT}; border-radius: 2px;"></span> Externa (EXT)</span>
+                <span><span style="display: inline-block; width: 12px; height: 12px; background: ${TIPO_COLORS.NVA}; border-radius: 2px;"></span> Muda (NVA)</span>
+            </div>
+        `;
+        
+        container.innerHTML = html;
+        
+        // Actualizar resumen general
+        const totalDuration = registros.reduce((sum, r) => sum + (r.duration || r.duracion || 0), 0);
+        const tiempoVA = Gantt.calcularTiempoVA(registros);
+        const tiempoNVA = totalDuration - tiempoVA;
+        Gantt.updateSummary(totalDuration, tiempoVA, tiempoNVA, registros);
+    },
+    
+    // Renderizar comparativo por OP
+    renderByOP: () => {
+        Gantt.renderComparativo('op');
+    },
+    
+    // Renderizar comparativo por Máquina
+    renderByMaquina: () => {
+        Gantt.renderComparativo('maquina');
+    },
+    
+    // Renderizar comparativo por Turno
+    renderByTurno: () => {
+        Gantt.renderComparativo('turno');
+    },
+    
+    // Renderizar comparativo por Tipo SMED
+    renderByTipo: () => {
+        Gantt.renderComparativo('tipo');
+    },
+    
     // Renderizar vista agrupada por categoría - CON FILTROS Y COLORES POR TIPO
     renderByCategory: () => {
         const container = document.getElementById('ganttTimeline');

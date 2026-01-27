@@ -536,6 +536,27 @@
                     <button class="action-btn" onclick="Gantt.render()">📊 Vista Secuencial</button>
                     <button class="action-btn" onclick="Gantt.renderByCategory()">📈 Vista por Categoría</button>
                 </div>
+                
+                <!-- Análisis Comparativo Multi-Dimensional para Gantt -->
+                <h2 class="mt-10">📊 Vista Comparativa Multi-Dimensional</h2>
+                <p style="color: #888; font-size: 0.9em; margin-bottom: 15px;">
+                    Compara el desempeño agrupando por OP, Máquina o Turno. Los colores muestran la distribución INT/EXT/NVA.
+                </p>
+                
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+                    <button class="action-btn" onclick="Gantt.renderByOP()" style="background: #00ff9d; color: #000;">
+                        📋 Comparar por OP
+                    </button>
+                    <button class="action-btn" onclick="Gantt.renderByMaquina()" style="background: #00d4ff; color: #000;">
+                        🏭 Comparar por Máquina
+                    </button>
+                    <button class="action-btn" onclick="Gantt.renderByTurno()" style="background: #f59e0b; color: #000;">
+                        ⏰ Comparar por Turno
+                    </button>
+                    <button class="action-btn" onclick="Gantt.renderByTipo()" style="background: #8b5cf6;">
+                        🏷️ Comparar por Tipo
+                    </button>
+                </div>
             </div>
         </section>
 

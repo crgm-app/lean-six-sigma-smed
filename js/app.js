@@ -27,6 +27,17 @@ const categoryColors = {};
 
 const COSTO_HORA_DEFAULT = 500; // GTQ por hora
 
+// =====================================================
+// INFORMACIÓN DE SOPORTE
+// =====================================================
+const SOPORTE = {
+    email: 'smed@crgm.app',
+    dominio: 'https://smed.crgm.app',
+    version: '2.1',
+    fecha: '26 Enero 2026'
+};
+window.SOPORTE = SOPORTE;
+
 // Lista de máquinas por defecto
 const MAQUINAS_DEFAULT = ['i4', 'i5', 'i6', 'i8', 'i10', 'i11', 'i12', 'i13', 'i14', 'i15', 'i16', 'i17'];
 
@@ -1033,7 +1044,7 @@ const CSV = {
         URL.revokeObjectURL(link.href);
     },
     
-    // Importar con formato numérico simple
+    // Importar con formato numérico simple + CREAR BOTONES AUTOMÁTICAMENTE
     import: (file) => {
         if (!file) return;
         
@@ -1118,9 +1129,57 @@ const CSV = {
                 }).filter(r => r.name && (r.duracion > 0 || r.duration > 0));
                 
                 AppState.registros = data;
+                
+                // ====== CREAR BOTONES AUTOMÁTICAMENTE desde datos importados ======
+                const existingBtnNames = new Set(AppState.buttons.map(b => b.name.toLowerCase()));
+                const newButtonsCreated = [];
+                
+                data.forEach(r => {
+                    const btnName = r.name;
+                    if (btnName && !existingBtnNames.has(btnName.toLowerCase())) {
+                        existingBtnNames.add(btnName.toLowerCase());
+                        
+                        // Crear nuevo botón
+                        AppState.buttons.push({
+                            id: Utils.generateId(),
+                            name: btnName,
+                            cat: r.cat || Utils.extractCategory(btnName),
+                            tipo: r.tipo || 'INT',
+                            color: null
+                        });
+                        newButtonsCreated.push(btnName);
+                    }
+                });
+                
+                // Agregar máquinas nuevas encontradas
+                const maquinasNuevas = [];
+                data.forEach(r => {
+                    if (r.maquina && !AppState.config.maquinas.includes(r.maquina)) {
+                        AppState.config.maquinas.push(r.maquina);
+                        maquinasNuevas.push(r.maquina);
+                    }
+                });
+                
+                // Ordenar máquinas
+                AppState.config.maquinas.sort((a, b) => {
+                    const numA = parseInt(a.replace(/\D/g, '')) || 0;
+                    const numB = parseInt(b.replace(/\D/g, '')) || 0;
+                    return numA - numB;
+                });
+                
                 Storage.save();
                 UI.renderAll();
-                alert(`${data.length} registros importados correctamente`);
+                MaquinaManager.updateSelectors();
+                
+                // Resumen de importación
+                let mensaje = `✅ ${data.length} registros importados`;
+                if (newButtonsCreated.length > 0) {
+                    mensaje += `\n\n📊 ${newButtonsCreated.length} botones nuevos creados:\n• ${newButtonsCreated.slice(0,5).join('\n• ')}${newButtonsCreated.length > 5 ? `\n• ... y ${newButtonsCreated.length - 5} más` : ''}`;
+                }
+                if (maquinasNuevas.length > 0) {
+                    mensaje += `\n\n🏭 ${maquinasNuevas.length} máquinas nuevas: ${maquinasNuevas.join(', ')}`;
+                }
+                alert(mensaje);
             } catch (error) {
                 console.error('Error importando CSV:', error);
                 alert('Error al importar el archivo. Verifique el formato CSV.');

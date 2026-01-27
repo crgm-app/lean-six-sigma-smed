@@ -749,6 +749,281 @@ const StatsInterpretation = {
     }
 };
 
+// =====================================================
+// ANÁLISIS PARETO (80/20)
+// =====================================================
+
+const Pareto = {
+    // Calcular análisis Pareto por categoría, actividad, tipo, etc.
+    calculate: (groupBy = 'cat') => {
+        const registros = typeof Filtros !== 'undefined' ? Filtros.getFiltered('stats') : AppState.registros;
+        
+        if (registros.length === 0) return { items: [], total: 0 };
+        
+        // Agrupar por el campo indicado
+        const grupos = {};
+        registros.forEach(r => {
+            const key = r[groupBy] || 'Sin clasificar';
+            if (!grupos[key]) {
+                grupos[key] = { tiempo: 0, count: 0 };
+            }
+            grupos[key].tiempo += (r.duracion || r.duration || 0);
+            grupos[key].count += 1;
+        });
+        
+        // Convertir a array y ordenar de mayor a menor
+        const items = Object.entries(grupos)
+            .map(([name, data]) => ({
+                name,
+                tiempo: Utils.round2(data.tiempo),
+                count: data.count
+            }))
+            .sort((a, b) => b.tiempo - a.tiempo);
+        
+        // Calcular total
+        const total = items.reduce((sum, item) => sum + item.tiempo, 0);
+        
+        // Calcular porcentaje y acumulado
+        let acumulado = 0;
+        items.forEach(item => {
+            item.porcentaje = Utils.round2((item.tiempo / total) * 100);
+            acumulado += item.porcentaje;
+            item.acumulado = Utils.round2(acumulado);
+            item.esVital = item.acumulado <= 80; // Pocos vitales (80%)
+        });
+        
+        return { items, total };
+    },
+    
+    // Obtener resumen 80/20
+    getResumen: (data) => {
+        if (!data || data.items.length === 0) return null;
+        
+        const vitales = data.items.filter(i => i.esVital);
+        const triviales = data.items.filter(i => !i.esVital);
+        
+        const tiempoVitales = vitales.reduce((sum, i) => sum + i.tiempo, 0);
+        const pctVitales = Utils.round2((tiempoVitales / data.total) * 100);
+        
+        return {
+            totalItems: data.items.length,
+            vitales: {
+                count: vitales.length,
+                pct: Utils.round2((vitales.length / data.items.length) * 100),
+                tiempo: Utils.round2(tiempoVitales),
+                tiempoPct: pctVitales
+            },
+            triviales: {
+                count: triviales.length,
+                pct: Utils.round2((triviales.length / data.items.length) * 100),
+                tiempo: Utils.round2(data.total - tiempoVitales),
+                tiempoPct: Utils.round2(100 - pctVitales)
+            },
+            interpretacion: `${vitales.length} de ${data.items.length} categorías (${Utils.round2((vitales.length / data.items.length) * 100)}%) ` +
+                           `representan el ${pctVitales}% del tiempo total. ` +
+                           `Enfoca tus mejoras en: ${vitales.map(v => v.name).join(', ')}.`
+        };
+    },
+    
+    // Renderizar Pareto en un contenedor
+    render: (containerId, groupBy = 'cat') => {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        
+        const data = Pareto.calculate(groupBy);
+        
+        if (data.items.length === 0) {
+            container.innerHTML = '<div class="no-data-msg">No hay datos para análisis Pareto</div>';
+            return;
+        }
+        
+        const resumen = Pareto.getResumen(data);
+        const maxTiempo = data.items[0].tiempo;
+        
+        container.innerHTML = `
+            <!-- Resumen 80/20 -->
+            <div style="background: linear-gradient(135deg, #f59e0b22, #1a1a2e); padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #f59e0b;">
+                <h4 style="margin: 0 0 10px 0; color: #f59e0b;">📊 Principio de Pareto (80/20)</h4>
+                <p style="margin: 0; color: #ccc;">${resumen.interpretacion}</p>
+            </div>
+            
+            <!-- Tabla Pareto -->
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.85em;">
+                    <thead>
+                        <tr style="background: #1a1a2e;">
+                            <th style="padding: 8px; text-align: left; color: #888;">#</th>
+                            <th style="padding: 8px; text-align: left; color: #888;">Categoría</th>
+                            <th style="padding: 8px; text-align: right; color: #888;">Tiempo</th>
+                            <th style="padding: 8px; text-align: right; color: #888;">%</th>
+                            <th style="padding: 8px; text-align: right; color: #888;">Acum.</th>
+                            <th style="padding: 8px; text-align: left; color: #888;">Barra</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.items.map((item, i) => `
+                            <tr style="background: ${item.esVital ? 'rgba(239,68,68,0.1)' : 'transparent'}; border-bottom: 1px solid #333;">
+                                <td style="padding: 8px; color: #666;">${i + 1}</td>
+                                <td style="padding: 8px; color: ${item.esVital ? '#fff' : '#888'}; font-weight: ${item.esVital ? 'bold' : 'normal'};">
+                                    ${item.esVital ? '🔥 ' : ''}${item.name}
+                                </td>
+                                <td style="padding: 8px; text-align: right; color: #00d4ff; font-family: monospace;">${Utils.formatDuration ? Utils.formatDuration(item.tiempo) : item.tiempo.toFixed(1) + 's'}</td>
+                                <td style="padding: 8px; text-align: right; color: ${item.esVital ? '#ef4444' : '#666'};">${item.porcentaje}%</td>
+                                <td style="padding: 8px; text-align: right; color: ${item.acumulado <= 80 ? '#f59e0b' : '#666'}; font-weight: ${item.acumulado <= 80 ? 'bold' : 'normal'};">${item.acumulado}%</td>
+                                <td style="padding: 8px; width: 150px;">
+                                    <div style="position: relative; height: 16px; background: #333; border-radius: 8px; overflow: hidden;">
+                                        <div style="position: absolute; height: 100%; width: ${(item.tiempo / maxTiempo) * 100}%; background: ${item.esVital ? 'linear-gradient(90deg, #ef4444, #f97316)' : '#3b82f6'}; border-radius: 8px;"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Explicación para tontos -->
+            <div style="background: #0a0a0a; padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px dashed #333;">
+                <h5 style="margin: 0 0 10px 0; color: #00d4ff;">💡 ¿Qué significa esto?</h5>
+                <p style="margin: 0; color: #888; font-size: 0.9em;">
+                    El <strong style="color: #f59e0b;">Principio de Pareto</strong> dice que el 80% de los problemas vienen del 20% de las causas.
+                    <br><br>
+                    🔥 Las filas marcadas en <span style="color: #ef4444;">rojo</span> son los <strong>"pocos vitales"</strong> donde debes enfocar tus mejoras.
+                    <br><br>
+                    Si mejoras solo estas ${resumen.vitales.count} categorías, impactarás el ${resumen.vitales.tiempoPct}% del tiempo total.
+                </p>
+            </div>
+        `;
+    }
+};
+
+// =====================================================
+// COMPARATIVO MULTI-DIMENSIONAL PARA ESTADÍSTICAS
+// =====================================================
+
+const StatsComparative = {
+    // Calcular stats por grupo
+    calculateByGroup: (groupBy = 'op') => {
+        const registros = typeof Filtros !== 'undefined' ? Filtros.getFiltered('stats') : AppState.registros;
+        
+        if (registros.length === 0) return [];
+        
+        // Agrupar
+        const grupos = {};
+        registros.forEach(r => {
+            let key = r[groupBy] || 'Sin clasificar';
+            if (groupBy === 'op' && key) key = key.padStart(8, '0');
+            if (!grupos[key]) grupos[key] = [];
+            grupos[key].push(r.duracion || r.duration || 0);
+        });
+        
+        // Calcular stats para cada grupo
+        return Object.entries(grupos)
+            .filter(([_, values]) => values.length >= 2)
+            .map(([name, values]) => {
+                const sorted = [...values].sort((a, b) => a - b);
+                const n = sorted.length;
+                const sum = values.reduce((a, b) => a + b, 0);
+                const mean = sum / n;
+                const variance = values.reduce((acc, v) => acc + Math.pow(v - mean, 2), 0) / n;
+                const stdDev = Math.sqrt(variance);
+                const cv = mean > 0 ? (stdDev / mean) * 100 : 0;
+                
+                return {
+                    name,
+                    n,
+                    total: Utils.round2(sum),
+                    mean: Utils.round2(mean),
+                    stdDev: Utils.round2(stdDev),
+                    cv: Utils.round2(cv),
+                    min: Utils.round2(sorted[0]),
+                    max: Utils.round2(sorted[n - 1])
+                };
+            })
+            .sort((a, b) => a.mean - b.mean); // Ordenar por promedio
+    },
+    
+    // Renderizar comparativo
+    render: (containerId, groupBy = 'op') => {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        
+        const data = StatsComparative.calculateByGroup(groupBy);
+        
+        if (data.length === 0) {
+            container.innerHTML = '<div class="no-data-msg">No hay suficientes datos para comparar (mínimo 2 por grupo)</div>';
+            return;
+        }
+        
+        const labels = {
+            'op': 'Orden de Producción',
+            'maquina': 'Máquina',
+            'turno': 'Turno',
+            'tipo': 'Tipo SMED'
+        };
+        
+        // Encontrar mejor y peor
+        const mejor = data[0]; // Menor promedio
+        const peor = data[data.length - 1]; // Mayor promedio
+        const masConsistente = [...data].sort((a, b) => a.cv - b.cv)[0]; // Menor CV
+        
+        container.innerHTML = `
+            <h4 style="margin: 0 0 15px 0; color: #00d4ff;">📊 Comparativo por ${labels[groupBy] || groupBy}</h4>
+            
+            <!-- Resumen -->
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
+                <div style="background: #10b981; padding: 10px; border-radius: 8px; text-align: center;">
+                    <div style="color: #fff; font-size: 0.8em;">🏆 Más Rápido</div>
+                    <div style="color: #fff; font-weight: bold;">${mejor.name}</div>
+                    <div style="color: #d1fae5;">${mejor.mean}s prom</div>
+                </div>
+                <div style="background: #3b82f6; padding: 10px; border-radius: 8px; text-align: center;">
+                    <div style="color: #fff; font-size: 0.8em;">🎯 Más Consistente</div>
+                    <div style="color: #fff; font-weight: bold;">${masConsistente.name}</div>
+                    <div style="color: #bfdbfe;">CV: ${masConsistente.cv}%</div>
+                </div>
+                <div style="background: #ef4444; padding: 10px; border-radius: 8px; text-align: center;">
+                    <div style="color: #fff; font-size: 0.8em;">⚠️ Más Lento</div>
+                    <div style="color: #fff; font-weight: bold;">${peor.name}</div>
+                    <div style="color: #fecaca;">${peor.mean}s prom</div>
+                </div>
+            </div>
+            
+            <!-- Tabla -->
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.85em;">
+                <thead>
+                    <tr style="background: #1a1a2e;">
+                        <th style="padding: 8px; text-align: left; color: #888;">${labels[groupBy] || groupBy}</th>
+                        <th style="padding: 8px; text-align: right; color: #888;">N</th>
+                        <th style="padding: 8px; text-align: right; color: #888;">Promedio</th>
+                        <th style="padding: 8px; text-align: right; color: #888;">σ</th>
+                        <th style="padding: 8px; text-align: right; color: #888;">CV%</th>
+                        <th style="padding: 8px; text-align: right; color: #888;">Rango</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.map(item => {
+                        const esMejor = item.name === mejor.name;
+                        const esPeor = item.name === peor.name;
+                        return `
+                        <tr style="background: ${esMejor ? 'rgba(16,185,129,0.1)' : esPeor ? 'rgba(239,68,68,0.1)' : 'transparent'}; border-bottom: 1px solid #333;">
+                            <td style="padding: 8px; color: ${esMejor ? '#10b981' : esPeor ? '#ef4444' : '#fff'}; font-weight: bold;">
+                                ${esMejor ? '🏆 ' : esPeor ? '⚠️ ' : ''}${item.name}
+                            </td>
+                            <td style="padding: 8px; text-align: right; color: #666;">${item.n}</td>
+                            <td style="padding: 8px; text-align: right; color: #00d4ff; font-family: monospace;">${item.mean}s</td>
+                            <td style="padding: 8px; text-align: right; color: #888;">${item.stdDev}s</td>
+                            <td style="padding: 8px; text-align: right; color: ${item.cv < 20 ? '#10b981' : item.cv < 30 ? '#f59e0b' : '#ef4444'};">${item.cv}%</td>
+                            <td style="padding: 8px; text-align: right; color: #666;">${item.min}-${item.max}s</td>
+                        </tr>
+                    `}).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+};
+
 // Exponer globalmente
 window.Statistics = Statistics;
 window.StatsInterpretation = StatsInterpretation;
+window.Pareto = Pareto;
+window.StatsComparative = StatsComparative;

@@ -19,6 +19,11 @@ const Reports = {
         incluirTablaDetalle: true,
         incluirSixSigma: true,
         incluirRecomendaciones: true,
+        // Nuevas opciones de comparativas
+        incluirComparativoOP: true,
+        incluirComparativoMaquina: true,
+        incluirComparativoTurno: true,
+        incluirPareto: true,
         titulo: 'Informe de Análisis SMED',
         empresa: 'Planta Corrugadora'
     },
@@ -518,6 +523,39 @@ const Reports = {
     </div>`;
         }
 
+        // =====================================================
+        // ANÁLISIS COMPARATIVO MULTI-DIMENSIONAL
+        // =====================================================
+        
+        // Comparativo por OP
+        if (config.incluirComparativoOP !== false && data.length > 0) {
+            const byOP = Reports.agruparPorDimension(data, 'op');
+            if (byOP.length > 1) {
+                html += Reports.generarTablaComparativa(byOP, 'OP', '📋', '#10b981');
+            }
+        }
+        
+        // Comparativo por Máquina
+        if (config.incluirComparativoMaquina !== false && data.length > 0) {
+            const byMaquina = Reports.agruparPorDimension(data, 'maquina');
+            if (byMaquina.length > 1) {
+                html += Reports.generarTablaComparativa(byMaquina, 'Máquina', '🏭', '#00d4ff');
+            }
+        }
+        
+        // Comparativo por Turno
+        if (config.incluirComparativoTurno !== false && data.length > 0) {
+            const byTurno = Reports.agruparPorDimension(data, 'turno');
+            if (byTurno.length > 1) {
+                html += Reports.generarTablaComparativa(byTurno, 'Turno', '⏰', '#f59e0b');
+            }
+        }
+        
+        // Análisis Pareto
+        if (config.incluirPareto !== false && data.length > 0) {
+            html += Reports.generarAnalisisPareto(data);
+        }
+
         // Recomendaciones
         if (config.incluirRecomendaciones && stats) {
             html += `
@@ -602,6 +640,179 @@ const Reports = {
         const previewWindow = window.open('', '_blank');
         previewWindow.document.write(html);
         previewWindow.document.close();
+    },
+    
+    // =====================================================
+    // FUNCIONES AUXILIARES PARA COMPARATIVAS
+    // =====================================================
+    
+    // Agrupar datos por dimensión (op, maquina, turno)
+    agruparPorDimension: (data, dimension) => {
+        const grupos = {};
+        
+        data.forEach(r => {
+            let key;
+            switch(dimension) {
+                case 'maquina': key = r.maquina || 'Sin Máquina'; break;
+                case 'turno': key = r.turno || 'Sin Turno'; break;
+                default: key = r.op || 'Sin OP';
+            }
+            
+            if (!grupos[key]) {
+                grupos[key] = {
+                    nombre: key,
+                    registros: [],
+                    tiempoTotal: 0,
+                    tiempoINT: 0,
+                    tiempoEXT: 0,
+                    tiempoNVA: 0
+                };
+            }
+            
+            const duracion = r.duration || r.duracion || 0;
+            grupos[key].registros.push(r);
+            grupos[key].tiempoTotal += duracion;
+            
+            if (r.tipo === 'INT') grupos[key].tiempoINT += duracion;
+            else if (r.tipo === 'EXT') grupos[key].tiempoEXT += duracion;
+            else grupos[key].tiempoNVA += duracion;
+        });
+        
+        // Calcular métricas adicionales
+        Object.values(grupos).forEach(g => {
+            g.eficiencia = g.tiempoTotal > 0 ? ((g.tiempoTotal - g.tiempoNVA) / g.tiempoTotal * 100) : 0;
+            g.promedio = g.registros.length > 0 ? g.tiempoTotal / g.registros.length : 0;
+            g.ratioIntExt = g.tiempoEXT > 0 ? g.tiempoINT / g.tiempoEXT : 0;
+            
+            // Calcular CV
+            const mean = g.promedio;
+            const tiempos = g.registros.map(r => r.duration || r.duracion || 0);
+            const variance = tiempos.reduce((sum, t) => sum + Math.pow(t - mean, 2), 0) / tiempos.length || 0;
+            g.cv = mean > 0 ? (Math.sqrt(variance) / mean * 100) : 0;
+        });
+        
+        return Object.values(grupos)
+            .filter(g => g.nombre !== 'Sin OP' && g.nombre !== 'Sin Máquina' && g.nombre !== 'Sin Turno')
+            .sort((a, b) => b.tiempoTotal - a.tiempoTotal);
+    },
+    
+    // Generar tabla comparativa HTML
+    generarTablaComparativa: (grupos, dimensionLabel, icono, color) => {
+        if (grupos.length === 0) return '';
+        
+        const mejorEficiencia = grupos.reduce((a, b) => a.eficiencia > b.eficiencia ? a : b);
+        const menorCV = grupos.reduce((a, b) => a.cv < b.cv ? a : b);
+        
+        return `
+    <div class="section">
+        <h2>${icono} Análisis Comparativo por ${dimensionLabel}</h2>
+        <table>
+            <tr>
+                <th style="background: ${color};">${dimensionLabel}</th>
+                <th>Registros</th>
+                <th>Tiempo Total</th>
+                <th>Promedio</th>
+                <th>Eficiencia</th>
+                <th>Ratio INT/EXT</th>
+                <th>CV%</th>
+            </tr>
+            ${grupos.slice(0, 10).map(g => {
+                const efColor = g.eficiencia >= 90 ? '#10b981' : g.eficiencia >= 70 ? '#f59e0b' : '#ef4444';
+                const cvColor = g.cv < 20 ? '#10b981' : g.cv < 40 ? '#f59e0b' : '#ef4444';
+                return `
+            <tr>
+                <td style="color: ${color}; font-weight: bold;">${g.nombre}</td>
+                <td>${g.registros.length}</td>
+                <td>${Utils.formatDuration(g.tiempoTotal)}</td>
+                <td>${Utils.formatDuration(g.promedio)}</td>
+                <td style="color: ${efColor}; font-weight: bold;">${g.eficiencia.toFixed(1)}%</td>
+                <td>${g.ratioIntExt.toFixed(2)}</td>
+                <td style="color: ${cvColor};">${g.cv.toFixed(1)}%</td>
+            </tr>`;
+            }).join('')}
+        </table>
+        <div class="kpi-grid" style="margin-top: 15px;">
+            <div class="kpi-card green">
+                <div class="kpi-label">🏆 Mejor Eficiencia</div>
+                <div class="kpi-value" style="font-size: 1.2em;">${mejorEficiencia.nombre}</div>
+                <div style="font-size: 0.9em; color: #10b981;">${mejorEficiencia.eficiencia.toFixed(1)}%</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">🎯 Más Consistente (menor CV)</div>
+                <div class="kpi-value" style="font-size: 1.2em;">${menorCV.nombre}</div>
+                <div style="font-size: 0.9em; color: #3b82f6;">${menorCV.cv.toFixed(1)}%</div>
+            </div>
+        </div>
+    </div>`;
+    },
+    
+    // Generar análisis Pareto (80/20)
+    generarAnalisisPareto: (data) => {
+        // Agrupar por actividad
+        const byActivity = {};
+        data.forEach(r => {
+            const name = r.name;
+            if (!byActivity[name]) {
+                byActivity[name] = { nombre: name, tiempoTotal: 0, count: 0, tipo: r.tipo };
+            }
+            byActivity[name].tiempoTotal += (r.duration || r.duracion || 0);
+            byActivity[name].count++;
+        });
+        
+        // Ordenar por tiempo total (mayor a menor)
+        const sorted = Object.values(byActivity).sort((a, b) => b.tiempoTotal - a.tiempoTotal);
+        const tiempoGlobal = sorted.reduce((sum, a) => sum + a.tiempoTotal, 0);
+        
+        // Calcular acumulado y encontrar el punto 80%
+        let acumulado = 0;
+        let punto80 = -1;
+        sorted.forEach((a, i) => {
+            acumulado += a.tiempoTotal;
+            a.pct = (a.tiempoTotal / tiempoGlobal * 100);
+            a.pctAcumulado = (acumulado / tiempoGlobal * 100);
+            if (a.pctAcumulado >= 80 && punto80 === -1) {
+                punto80 = i;
+            }
+        });
+        
+        const topActividades = sorted.slice(0, Math.max(punto80 + 1, 5));
+        const pctCubierto = topActividades.length > 0 ? topActividades[topActividades.length - 1].pctAcumulado : 0;
+        
+        return `
+    <div class="section">
+        <h2>📊 Análisis Pareto (Principio 80/20)</h2>
+        <p style="color: #666; margin-bottom: 15px;">
+            Las <strong style="color: #ef4444;">${topActividades.length}</strong> actividades principales representan 
+            <strong style="color: #ef4444;">${pctCubierto.toFixed(1)}%</strong> del tiempo total.
+            Enfocarse en estas actividades maximiza el impacto de las mejoras.
+        </p>
+        <table>
+            <tr>
+                <th>#</th>
+                <th>Actividad</th>
+                <th>Tipo</th>
+                <th>Tiempo</th>
+                <th>%</th>
+                <th>% Acumulado</th>
+                <th>Gráfico</th>
+            </tr>
+            ${topActividades.map((a, i) => `
+            <tr ${a.pctAcumulado <= 80 ? 'style="background: #fef3c7;"' : ''}>
+                <td>${i + 1}</td>
+                <td>${a.nombre}</td>
+                <td>${a.tipo === 'INT' ? '🟠 INT' : a.tipo === 'EXT' ? '🟢 EXT' : '🔴 NVA'}</td>
+                <td>${Utils.formatDuration(a.tiempoTotal)}</td>
+                <td>${a.pct.toFixed(1)}%</td>
+                <td style="font-weight: bold; ${a.pctAcumulado <= 80 ? 'color: #ef4444;' : ''}">${a.pctAcumulado.toFixed(1)}%</td>
+                <td><div style="background: ${a.pctAcumulado <= 80 ? '#ef4444' : '#3b82f6'}; height:16px; width:${a.pct}%;"></div></td>
+            </tr>`).join('')}
+        </table>
+        <div class="recomendacion" style="margin-top: 15px;">
+            <strong>💡 Recomendación Pareto:</strong> Concentrar los esfuerzos de mejora en las 
+            ${topActividades.length} actividades resaltadas en amarillo, ya que representan 
+            la mayor parte del tiempo de cambio.
+        </div>
+    </div>`;
     }
 };
 
