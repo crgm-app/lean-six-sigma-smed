@@ -171,6 +171,16 @@
 │  👥 TRABAJO EN EQUIPO - Compartir datos con colegas        │
 │  🔄 BACKUP AUTOMÁTICO - Cada 5 min a Google Drive          │
 │                                                             │
+│  === VERSIÓN 2.1 (Enero 2026 - Noche) ===                  │
+│  📊 COMPARATIVO MULTI-DIMENSIONAL - OP/Máquina/Turno/Tipo  │
+│  💰 CONFIG FINANCIERA - Costo/hora, Meta eficiencia        │
+│  📖 INTERPRETACIÓN PROFUNDA - Análisis explicativo         │
+│  🔘 16 BOTONES POR DEFECTO - Incluye "CAMBIO DE OP"        │
+│  🏷️ FILTROS DE TIPO SMED - INT/EXT/NVA en todo            │
+│  📥 CSV v2 - 15 campos completos                           │
+│  📋 ANÁLISIS POR CATEGORÍA - CV, promedio, rango           │
+│  🎯 RESUMEN EJECUTIVO - Mejor eficiencia, más consistente  │
+│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 

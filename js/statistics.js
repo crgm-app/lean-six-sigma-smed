@@ -444,5 +444,311 @@ const Statistics = {
     }
 };
 
+// =====================================================
+// INTERPRETACIÓN ESTADÍSTICA PROFUNDA
+// =====================================================
+
+const StatsInterpretation = {
+    // Generar interpretación completa de las estadísticas
+    generate: (stats, sixSigma) => {
+        if (!stats || stats.n < 2) return null;
+        
+        return {
+            resumen: StatsInterpretation.getResumen(stats, sixSigma),
+            variabilidad: StatsInterpretation.getVariabilidad(stats),
+            capacidad: StatsInterpretation.getCapacidad(sixSigma),
+            acciones: StatsInterpretation.getAcciones(stats, sixSigma),
+            ejemplo: StatsInterpretation.getEjemplo(stats)
+        };
+    },
+    
+    // Resumen ejecutivo
+    getResumen: (stats, sixSigma) => {
+        let nivel = 'crítico';
+        let color = '#ef4444';
+        
+        if (sixSigma.cpk >= 1.67) {
+            nivel = 'excelente';
+            color = '#10b981';
+        } else if (sixSigma.cpk >= 1.33) {
+            nivel = 'bueno';
+            color = '#22c55e';
+        } else if (sixSigma.cpk >= 1.0) {
+            nivel = 'aceptable';
+            color = '#f59e0b';
+        } else if (sixSigma.cpk >= 0.67) {
+            nivel = 'marginal';
+            color = '#f97316';
+        }
+        
+        return {
+            nivel,
+            color,
+            texto: `El proceso tiene un nivel de desempeño ${nivel.toUpperCase()}. ` +
+                   `Con ${stats.n} mediciones, el tiempo promedio es ${stats.mean}s ` +
+                   `con una variación de ±${stats.stdDev}s.`
+        };
+    },
+    
+    // Interpretación de variabilidad
+    getVariabilidad: (stats) => {
+        let categoria, descripcion, icono;
+        
+        if (stats.cv < 10) {
+            categoria = 'Muy Estable';
+            descripcion = 'Excelente consistencia. El proceso está muy controlado.';
+            icono = '🎯';
+        } else if (stats.cv < 20) {
+            categoria = 'Estable';
+            descripcion = 'Buena consistencia. Variaciones dentro de lo esperado.';
+            icono = '✅';
+        } else if (stats.cv < 30) {
+            categoria = 'Moderada';
+            descripcion = 'Variabilidad significativa. Requiere atención.';
+            icono = '⚠️';
+        } else {
+            categoria = 'Alta';
+            descripcion = 'Proceso inestable. Necesita intervención urgente.';
+            icono = '🔴';
+        }
+        
+        return {
+            categoria,
+            descripcion,
+            icono,
+            cv: stats.cv,
+            formula: `CV = (σ / μ) × 100 = (${stats.stdDev} / ${stats.mean}) × 100 = ${stats.cv}%`,
+            interpretacion: `El Coeficiente de Variación (CV) de ${stats.cv}% indica que las mediciones ` +
+                           `varían en promedio un ${stats.cv}% respecto a la media.`
+        };
+    },
+    
+    // Interpretación de capacidad
+    getCapacidad: (sixSigma) => {
+        const { cp, cpk, sigmaLevel, processClass } = sixSigma;
+        
+        let interpretacionCp = '';
+        let interpretacionCpk = '';
+        
+        // Interpretar Cp
+        if (cp >= 2.0) {
+            interpretacionCp = 'El proceso tiene potencial de clase mundial.';
+        } else if (cp >= 1.67) {
+            interpretacionCp = 'El proceso tiene muy buen potencial.';
+        } else if (cp >= 1.33) {
+            interpretacionCp = 'El proceso tiene buen potencial.';
+        } else if (cp >= 1.0) {
+            interpretacionCp = 'El proceso es apenas capaz.';
+        } else {
+            interpretacionCp = 'El proceso NO es capaz de cumplir especificaciones.';
+        }
+        
+        // Interpretar Cpk
+        if (cpk >= cp * 0.9) {
+            interpretacionCpk = 'El proceso está bien centrado.';
+        } else {
+            interpretacionCpk = 'El proceso está descentrado. La media debería acercarse al objetivo.';
+        }
+        
+        return {
+            cp,
+            cpk,
+            sigmaLevel,
+            processClass,
+            interpretacionCp,
+            interpretacionCpk,
+            formula: {
+                cp: 'Cp = (USL - LSL) / (6σ)',
+                cpk: 'Cpk = min[(USL - μ)/(3σ), (μ - LSL)/(3σ)]'
+            },
+            significado: `Cp mide el potencial del proceso si estuviera centrado. ` +
+                        `Cpk mide la capacidad real considerando el centrado actual.`
+        };
+    },
+    
+    // Acciones recomendadas
+    getAcciones: (stats, sixSigma) => {
+        const acciones = [];
+        
+        // Por variabilidad
+        if (stats.cv > 30) {
+            acciones.push({
+                prioridad: 'ALTA',
+                area: 'Variabilidad',
+                accion: 'Estandarizar el proceso con procedimientos escritos',
+                impacto: 'Reducir CV a menos de 20%'
+            });
+        }
+        
+        // Por capacidad
+        if (sixSigma.cpk < 1.0) {
+            acciones.push({
+                prioridad: 'ALTA',
+                area: 'Capacidad',
+                accion: 'Identificar y eliminar causas de variación especiales',
+                impacto: 'Elevar Cpk a 1.33 mínimo'
+            });
+        }
+        
+        // Por centrado
+        if (sixSigma.cpk < sixSigma.cp * 0.8) {
+            acciones.push({
+                prioridad: 'MEDIA',
+                area: 'Centrado',
+                accion: 'Ajustar el proceso para centrar la media en el objetivo',
+                impacto: 'Igualar Cpk con Cp'
+            });
+        }
+        
+        // Por rango
+        if (stats.range > stats.mean * 0.5) {
+            acciones.push({
+                prioridad: 'MEDIA',
+                area: 'Rango',
+                accion: 'Investigar los valores extremos (outliers)',
+                impacto: 'Reducir el rango de variación'
+            });
+        }
+        
+        // Si todo está bien
+        if (acciones.length === 0) {
+            acciones.push({
+                prioridad: 'BAJA',
+                area: 'Mantenimiento',
+                accion: 'Mantener las condiciones actuales y monitorear',
+                impacto: 'Preservar el nivel de desempeño'
+            });
+        }
+        
+        return acciones;
+    },
+    
+    // Ejemplo práctico
+    getEjemplo: (stats) => {
+        const tiempoObjetivo = Math.round(stats.mean * 0.8); // Meta: 20% menos
+        const tiempoIdeal = Math.round(stats.mean * 0.6);    // Ideal: 40% menos
+        
+        return {
+            titulo: 'Ejemplo: Actividad "Cambio de Troquel"',
+            actual: {
+                descripcion: 'Estado Actual',
+                tiempo: `${stats.mean}s (±${stats.stdDev}s)`,
+                significado: `Tarda en promedio ${stats.mean} segundos con variación de ±${stats.stdDev}s`
+            },
+            objetivo: {
+                descripcion: 'Objetivo SMED (Etapa 1-2)',
+                tiempo: `${tiempoObjetivo}s`,
+                significado: 'Separar internas/externas y convertir actividades'
+            },
+            ideal: {
+                descripcion: 'Meta Lean (Etapa 3)',
+                tiempo: `${tiempoIdeal}s`,
+                significado: 'Optimización total con operaciones paralelas'
+            },
+            comoLograrlo: [
+                'Documentar el proceso actual con video',
+                'Clasificar cada paso como INT, EXT o NVA',
+                'Mover actividades externas fuera del tiempo de paro',
+                'Usar fijaciones rápidas (quick clamps)',
+                'Implementar operaciones paralelas con 2+ personas',
+                'Eliminar ajustes mediante poka-yoke'
+            ]
+        };
+    },
+    
+    // Renderizar panel de interpretación
+    renderPanel: (containerId) => {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        
+        const stats = Statistics.data.stats;
+        const sixSigma = Statistics.data.sixSigma;
+        
+        if (!stats || !sixSigma || stats.n < 2) {
+            container.innerHTML = '<div class="no-data-msg">Se necesitan más datos para el análisis</div>';
+            return;
+        }
+        
+        const interp = StatsInterpretation.generate(stats, sixSigma);
+        
+        container.innerHTML = `
+            <!-- Resumen -->
+            <div style="background: linear-gradient(135deg, ${interp.resumen.color}22, #1a1a2e); padding: 15px; border-radius: 8px; border-left: 4px solid ${interp.resumen.color}; margin-bottom: 15px;">
+                <h4 style="margin: 0 0 10px 0; color: ${interp.resumen.color};">📊 Resumen: Nivel ${interp.resumen.nivel.toUpperCase()}</h4>
+                <p style="margin: 0; color: #ccc;">${interp.resumen.texto}</p>
+            </div>
+            
+            <!-- Variabilidad -->
+            <div style="background: #1a1a2e; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                <h4 style="margin: 0 0 10px 0; color: #00d4ff;">${interp.variabilidad.icono} Variabilidad: ${interp.variabilidad.categoria}</h4>
+                <p style="margin: 0 0 10px 0; color: #888;">${interp.variabilidad.descripcion}</p>
+                <div style="background: #0a0a0a; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 0.85em; color: #00ff9d;">
+                    ${interp.variabilidad.formula}
+                </div>
+                <p style="margin: 10px 0 0 0; color: #aaa; font-size: 0.9em;">${interp.variabilidad.interpretacion}</p>
+            </div>
+            
+            <!-- Capacidad -->
+            <div style="background: #1a1a2e; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                <h4 style="margin: 0 0 10px 0; color: #8b5cf6;">📐 Capacidad del Proceso</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                    <div style="background: #0a0a0a; padding: 10px; border-radius: 4px;">
+                        <span style="color: #888; font-size: 0.8em;">Cp (Potencial)</span>
+                        <div style="color: #00d4ff; font-size: 1.3em; font-weight: bold;">${interp.capacidad.cp}</div>
+                        <span style="color: #666; font-size: 0.75em;">${interp.capacidad.interpretacionCp}</span>
+                    </div>
+                    <div style="background: #0a0a0a; padding: 10px; border-radius: 4px;">
+                        <span style="color: #888; font-size: 0.8em;">Cpk (Real)</span>
+                        <div style="color: #00ff9d; font-size: 1.3em; font-weight: bold;">${interp.capacidad.cpk}</div>
+                        <span style="color: #666; font-size: 0.75em;">${interp.capacidad.interpretacionCpk}</span>
+                    </div>
+                </div>
+                <p style="margin: 0; color: #888; font-size: 0.85em;">${interp.capacidad.significado}</p>
+            </div>
+            
+            <!-- Acciones -->
+            <div style="background: #1a1a2e; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                <h4 style="margin: 0 0 10px 0; color: #f59e0b;">🎯 Acciones Recomendadas</h4>
+                ${interp.acciones.map(a => `
+                    <div style="display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; padding: 10px; background: #0a0a0a; border-radius: 4px; border-left: 3px solid ${a.prioridad === 'ALTA' ? '#ef4444' : a.prioridad === 'MEDIA' ? '#f59e0b' : '#10b981'};">
+                        <span style="background: ${a.prioridad === 'ALTA' ? '#ef4444' : a.prioridad === 'MEDIA' ? '#f59e0b' : '#10b981'}; color: #000; padding: 2px 8px; border-radius: 4px; font-size: 0.7em; font-weight: bold;">${a.prioridad}</span>
+                        <div style="flex: 1;">
+                            <div style="color: #fff; font-weight: bold;">${a.area}</div>
+                            <div style="color: #aaa; font-size: 0.9em;">${a.accion}</div>
+                            <div style="color: #00ff9d; font-size: 0.8em;">Impacto esperado: ${a.impacto}</div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            
+            <!-- Ejemplo -->
+            <div style="background: linear-gradient(135deg, #1e40af22, #1a1a2e); padding: 15px; border-radius: 8px; border: 1px solid #3b82f6;">
+                <h4 style="margin: 0 0 10px 0; color: #3b82f6;">💡 ${interp.ejemplo.titulo}</h4>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
+                    <div style="background: #0a0a0a; padding: 10px; border-radius: 4px; text-align: center;">
+                        <div style="color: #888; font-size: 0.8em;">${interp.ejemplo.actual.descripcion}</div>
+                        <div style="color: #ef4444; font-size: 1.2em; font-weight: bold;">${interp.ejemplo.actual.tiempo}</div>
+                    </div>
+                    <div style="background: #0a0a0a; padding: 10px; border-radius: 4px; text-align: center;">
+                        <div style="color: #888; font-size: 0.8em;">${interp.ejemplo.objetivo.descripcion}</div>
+                        <div style="color: #f59e0b; font-size: 1.2em; font-weight: bold;">${interp.ejemplo.objetivo.tiempo}</div>
+                    </div>
+                    <div style="background: #0a0a0a; padding: 10px; border-radius: 4px; text-align: center;">
+                        <div style="color: #888; font-size: 0.8em;">${interp.ejemplo.ideal.descripcion}</div>
+                        <div style="color: #10b981; font-size: 1.2em; font-weight: bold;">${interp.ejemplo.ideal.tiempo}</div>
+                    </div>
+                </div>
+                <div style="color: #aaa; font-size: 0.85em;">
+                    <strong style="color: #fff;">¿Cómo lograrlo?</strong>
+                    <ol style="margin: 10px 0 0 0; padding-left: 20px;">
+                        ${interp.ejemplo.comoLograrlo.map(paso => `<li style="margin-bottom: 5px;">${paso}</li>`).join('')}
+                    </ol>
+                </div>
+            </div>
+        `;
+    }
+};
+
 // Exponer globalmente
 window.Statistics = Statistics;
+window.StatsInterpretation = StatsInterpretation;

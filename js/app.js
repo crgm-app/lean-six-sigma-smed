@@ -553,14 +553,30 @@ const Storage = {
     },
     
     loadDefaultButtons: () => {
-        // Botones por defecto con tipo SMED
+        // Botones por defecto con tipo SMED - INCLUYE CAMBIO DE OP
         const defaultButtons = [
+            // BOTÓN ESPECIAL: Cambio de OP (mide tiempo total del cambio)
+            { name: 'CAMBIO DE OP', tipo: 'INT', special: true },
+            // Actividades de Troquel
             { name: 'Troquel Desmontar', tipo: 'INT' },
             { name: 'Troquel Montar', tipo: 'INT' },
+            { name: 'Troquel Ajustar', tipo: 'INT' },
+            // Actividades de Sello
             { name: 'Sello Desmontar', tipo: 'INT' },
             { name: 'Sello Montar', tipo: 'INT' },
+            { name: 'Sello Ajustar', tipo: 'INT' },
+            // Actividades de Tinta (pueden ser externas)
             { name: 'Tinta Desmontar', tipo: 'EXT' },
-            { name: 'Tinta Montar', tipo: 'EXT' }
+            { name: 'Tinta Montar', tipo: 'EXT' },
+            { name: 'Tinta Preparar', tipo: 'EXT' },
+            // Ajustes generales
+            { name: 'Ajuste Registro', tipo: 'INT' },
+            { name: 'Ajuste Presión', tipo: 'INT' },
+            // Mudas comunes
+            { name: 'Espera Material', tipo: 'NVA' },
+            { name: 'Espera Supervisor', tipo: 'NVA' },
+            { name: 'Búsqueda Herramienta', tipo: 'NVA' },
+            { name: 'Desplazamiento', tipo: 'NVA' }
         ];
         
         AppState.buttons = defaultButtons.map(btn => ({
@@ -929,7 +945,7 @@ const ButtonManager = {
  */
 
 const CSV = {
-    // Exportar con formato completo (incluye OP, Colores, Turno)
+    // Exportar con formato completo (TODOS los campos)
     export: () => {
         if (AppState.registros.length === 0) {
             alert('No hay datos para exportar');
@@ -946,8 +962,8 @@ const CSV = {
         // Limpiar nombre para usarlo en el archivo (quitar caracteres especiales)
         const nombreLimpio = nombreUsuario.trim().replace(/[^a-zA-Z0-9]/g, '_') || 'Usuario';
         
-        // Headers con OP, Colores, Turno, Maquina
-        const headers = ['FechaExcel', 'Maquina', 'OP', 'Colores', 'Turno', 'Actividad', 'Categoria', 'Tipo', 'InicioSeg', 'FinSeg', 'DuracionSeg'];
+        // Headers COMPLETOS - todos los campos
+        const headers = ['ID', 'Fecha', 'HoraFin', 'FechaExcel', 'Maquina', 'OP', 'Colores', 'Turno', 'Actividad', 'Categoria', 'Tipo', 'InicioSeg', 'FinSeg', 'DuracionSeg', 'Timestamp'];
         
         const rows = AppState.registros.map(r => {
             // Calcular fechaExcel si no existe
@@ -975,28 +991,33 @@ const CSV = {
                 if (inicioSeg < 0) inicioSeg += 86400;
             }
             
+            // FORMATO COMPLETO: ID, Fecha, HoraFin, FechaExcel, Maquina, OP, Colores, Turno, Actividad, Categoria, Tipo, InicioSeg, FinSeg, DuracionSeg, Timestamp
             return [
+                r.id || Utils.generateId(),
+                r.fecha || '',
+                r.endTime || '',
                 Utils.round2(fechaExcel),
                 r.maquina || '',
                 r.op || '',
                 r.colores || 1,
                 r.turno || 'T1',
-                r.name,
-                r.cat,
+                r.name || '',
+                r.cat || '',
                 r.tipo || 'INT',
                 Utils.round2(inicioSeg),
                 Utils.round2(finSeg),
-                Utils.round2(r.duracion || r.duration || 0)
+                Utils.round2(r.duracion || r.duration || 0),
+                r.timestamp || Date.now()
             ];
         });
         
-        // CSV con comillas en texto
-        let csvContent = '\ufeff';
+        // CSV con comillas en texto para proteger caracteres especiales
+        let csvContent = '\ufeff'; // BOM para UTF-8
         csvContent += headers.join(',') + '\n';
         csvContent += rows.map(row => 
             row.map((cell, i) => {
-                // OP, Turno, Actividad, Categoria, Tipo entre comillas
-                if (i === 1 || i === 3 || i === 4 || i === 5 || i === 6) {
+                // ID, Fecha, HoraFin, Maquina, OP, Turno, Actividad, Categoria, Tipo entre comillas
+                if ([0, 1, 2, 4, 5, 7, 8, 9, 10].includes(i)) {
                     return `"${String(cell).replace(/"/g, '""')}"`;
                 }
                 return cell;

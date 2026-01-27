@@ -86,12 +86,18 @@ const Reports = {
         if (empresaEl) Reports.config.empresa = empresaEl.value;
     },
     
-    // Obtener datos filtrados actuales
+    // Obtener datos filtrados actuales - USA FILTROS CENTRALIZADOS
     getFilteredData: () => {
+        // Usar el sistema de filtros centralizado si está disponible
+        if (typeof Filtros !== 'undefined' && Filtros.getFiltered) {
+            return Filtros.getFiltered('history');
+        }
+        
+        // Fallback manual si no está disponible Filtros
         let data = [...AppState.registros];
         const filtros = AppState.filtros;
         
-        // Aplicar filtros actuales
+        // Aplicar todos los filtros incluyendo TIPO
         if (filtros.maquina && filtros.maquina !== 'ALL') {
             data = data.filter(r => r.maquina === filtros.maquina);
         }
@@ -101,8 +107,59 @@ const Reports = {
         if (filtros.turno && filtros.turno !== 'ALL') {
             data = data.filter(r => r.turno === filtros.turno);
         }
+        if (filtros.colores && filtros.colores !== 'ALL') {
+            const numColores = parseInt(filtros.colores);
+            if (numColores >= 4) {
+                data = data.filter(r => (r.colores || 1) >= 4);
+            } else {
+                data = data.filter(r => (r.colores || 1) === numColores);
+            }
+        }
+        if (filtros.tipo && filtros.tipo !== 'ALL') {
+            data = data.filter(r => r.tipo === filtros.tipo);
+        }
         if (filtros.categoria && filtros.categoria !== 'ALL') {
             data = data.filter(r => r.cat === filtros.categoria);
+        }
+        
+        // Aplicar filtro de período
+        if (filtros.periodo && filtros.periodo !== 'all') {
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            
+            data = data.filter(r => {
+                let fechaReg;
+                if (r.fecha) {
+                    fechaReg = new Date(r.fecha + 'T00:00:00');
+                } else if (r.timestamp) {
+                    fechaReg = new Date(r.timestamp);
+                    fechaReg.setHours(0, 0, 0, 0);
+                } else {
+                    return true;
+                }
+                
+                switch (filtros.periodo) {
+                    case 'today':
+                        return fechaReg.getTime() === hoy.getTime();
+                    case 'week':
+                        const inicioSemana = new Date(hoy);
+                        inicioSemana.setDate(hoy.getDate() - hoy.getDay());
+                        return fechaReg >= inicioSemana;
+                    case 'month':
+                        return fechaReg.getMonth() === hoy.getMonth() && 
+                               fechaReg.getFullYear() === hoy.getFullYear();
+                    case 'year':
+                        return fechaReg.getFullYear() === hoy.getFullYear();
+                    case 'custom':
+                        const desde = filtros.fechaDesde ? new Date(filtros.fechaDesde + 'T00:00:00') : null;
+                        const hasta = filtros.fechaHasta ? new Date(filtros.fechaHasta + 'T23:59:59') : null;
+                        if (desde && fechaReg < desde) return false;
+                        if (hasta && fechaReg > hasta) return false;
+                        return true;
+                    default:
+                        return true;
+                }
+            });
         }
         
         return data;

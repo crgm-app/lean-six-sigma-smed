@@ -58,6 +58,19 @@ Desarrollar una aplicación web HTML5 autónoma que combine las mejores caracter
 | **⏱️ Cronómetros Libres** | Múltiples timers simultáneos con asignación posterior |
 | **📥 CSV Mejorado** | Incluye Máquina, OP, Colores, Turno |
 
+### 🆕 Novedades Versión 2.1 (26 Enero 2026 - Noche)
+
+| Módulo | Descripción |
+|--------|-------------|
+| **📊 Análisis Comparativo Multi-Dimensional** | Comparar por OP, Máquina, Turno, Tipo SMED con filtros cruzados |
+| **💰 Configuración Financiera** | Costo/hora, Meta eficiencia, Horas por turno, Cambios por turno (meta) |
+| **📖 Interpretación Estadística Profunda** | Módulo `StatsInterpretation` con análisis explicativo detallado |
+| **🔘 Botones por Defecto Expandidos** | 16 botones incluyendo "CAMBIO DE OP" (especial con ícono 🔄) |
+| **🏷️ Filtros de Tipo SMED** | Filtros INT/EXT/NVA en todas las pestañas (Análisis, Gantt, Stats, Historial) |
+| **📥 CSV Mejorado v2** | 15 campos: ID, Fecha, HoraFin, FechaExcel, Maquina, OP, Colores, Turno, Actividad, Categoria, Tipo, InicioSeg, FinSeg, DuracionSeg, Timestamp |
+| **📋 Análisis Detallado por Categoría** | Estadísticas CV, promedio, rango, tipo dominante por cada categoría |
+| **🎯 Resumen Ejecutivo Estadístico** | Nivel de desempeño, interpretación de variabilidad con fórmulas, análisis de capacidad Cp/Cpk |
+
 ---
 
 ## 2. Análisis de Códigos Fuente
@@ -658,6 +671,19 @@ ROI = (Ahorros - Inversión) / Inversión × 100%
 [x] Trabajo en equipo (compartir datos)
 [x] PWA (manifest.json, sw.js)
 [x] Backup automático en Drive (cada 5 min)
+
+=== VERSIÓN 2.1 (26 Enero 2026 - Noche) ===
+[x] Análisis Comparativo Multi-Dimensional (OP, Máquina, Turno, Tipo)
+[x] Filtros cruzados en comparativas
+[x] Configuración Financiera editable (Costo/hora, Meta eficiencia, etc.)
+[x] Interpretación Estadística Profunda (StatsInterpretation)
+[x] Botones por defecto expandidos (16 botones)
+[x] Botón especial "CAMBIO DE OP" con ícono 🔄
+[x] Filtros de Tipo SMED (INT/EXT/NVA) en todas las pestañas
+[x] CSV mejorado v2 con 15 campos completos
+[x] Análisis Detallado por Categoría (CV, promedio, rango)
+[x] Resumen ejecutivo en estadísticas
+[x] Métricas de mejor eficiencia y más consistente por grupo
 [ ] Cross-browser testing (pendiente usuario)
 ```
 

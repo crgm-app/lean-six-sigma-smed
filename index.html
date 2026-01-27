@@ -215,6 +215,46 @@
                     <input type="date" id="analysisDateTo" style="padding: 5px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #00d4ff; font-size: 0.85em;" onchange="Filtros.setCustomRange(document.getElementById('analysisDateFrom').value, this.value); Analysis.render();">
                 </div>
                 
+                <!-- Filtros Adicionales -->
+                <div class="form-row mb-15" style="flex-wrap: wrap; gap: 10px;">
+                    <div class="form-group" style="flex:1; min-width: 100px;">
+                        <label class="form-label">🏭 Máquina:</label>
+                        <select id="analysisFilterMaquina" class="form-select" onchange="Analysis.render()">
+                            <option value="ALL">Todas</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1; min-width: 110px;">
+                        <label class="form-label">📋 OP:</label>
+                        <select id="analysisFilterOP" class="form-select" onchange="Analysis.render()">
+                            <option value="ALL">Todas las OP</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1; min-width: 80px;">
+                        <label class="form-label">⏰ Turno:</label>
+                        <select id="analysisFilterTurno" class="form-select" onchange="Analysis.render()">
+                            <option value="ALL">Todos</option>
+                            <option value="T1">T1</option>
+                            <option value="T2">T2</option>
+                            <option value="T3">T3</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1; min-width: 80px;">
+                        <label class="form-label">🏷️ Tipo:</label>
+                        <select id="analysisFilterTipo" class="form-select" onchange="Analysis.render()">
+                            <option value="ALL">Todos</option>
+                            <option value="INT">🟠 INT</option>
+                            <option value="EXT">🟢 EXT</option>
+                            <option value="NVA">🔴 NVA</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1; min-width: 100px;">
+                        <label class="form-label">📁 Categoría:</label>
+                        <select id="analysisFilter" class="form-select" onchange="Analysis.render()">
+                            <option value="ALL">Todas</option>
+                        </select>
+                    </div>
+                </div>
+                
                 <!-- Selector de Vista -->
                 <div class="analysis-selector">
                     <select id="analysisView" class="form-select">
@@ -338,6 +378,39 @@
                         <svg id="pieChartSvg" viewBox="0 0 280 180" preserveAspectRatio="xMidYMid meet" style="width:100%; height:180px;"></svg>
                     </div>
                 </div>
+                
+                <!-- Análisis Comparativo MULTI-DIMENSIONAL -->
+                <h2 class="mt-10">📊 Análisis Comparativo Multi-Dimensional</h2>
+                <p style="color: #888; font-size: 0.9em; margin-bottom: 15px;">Compara el desempeño agrupando por diferentes dimensiones. Los filtros aplicados arriba afectan los resultados.</p>
+                
+                <!-- Selector de Dimensión -->
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+                    <button class="action-btn" onclick="AnalysisComparativo.renderTablaComparativa('comparativoTabla', 'op')" style="background: #10b981;">
+                        📋 Comparar por OP
+                    </button>
+                    <button class="action-btn" onclick="AnalysisComparativo.renderTablaComparativa('comparativoTabla', 'maquina')" style="background: #00d4ff; color: #000;">
+                        🏭 Comparar por Máquina
+                    </button>
+                    <button class="action-btn" onclick="AnalysisComparativo.renderTablaComparativa('comparativoTabla', 'turno')" style="background: #f59e0b; color: #000;">
+                        ⏰ Comparar por Turno
+                    </button>
+                    <button class="action-btn" onclick="AnalysisComparativo.renderTablaComparativa('comparativoTabla', 'tipo')" style="background: #8b5cf6;">
+                        🏷️ Comparar por Tipo
+                    </button>
+                </div>
+                
+                <!-- Tabla Comparativa -->
+                <div id="comparativoTabla" style="margin-bottom: 20px;">
+                    <div class="no-data-msg">Selecciona una dimensión para comparar</div>
+                </div>
+                
+                <!-- Análisis Detallado por Categoría -->
+                <h2 class="mt-10">📋 Análisis Detallado por Categoría</h2>
+                <p style="color: #888; font-size: 0.9em; margin-bottom: 15px;">Estadísticas detalladas de cada categoría con variabilidad y tendencias.</p>
+                <div id="categoriaDetallado"></div>
+                <button class="action-btn" onclick="AnalysisDetallado.renderDetallado('categoriaDetallado')" style="background: #8b5cf6;">
+                    🔍 Cargar Análisis Detallado
+                </button>
             </div>
         </section>
 
@@ -392,6 +465,15 @@
                             <option value="3">3</option>
                             <option value="4">4</option>
                             <option value="5">5+</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1; min-width: 80px;">
+                        <label class="form-label">🏷️ Tipo:</label>
+                        <select id="ganttFilterTipo" class="form-select" onchange="Gantt.render()">
+                            <option value="ALL">Todos</option>
+                            <option value="INT">🟠 INT</option>
+                            <option value="EXT">🟢 EXT</option>
+                            <option value="NVA">🔴 NVA</option>
                         </select>
                     </div>
                     <div class="form-group" style="flex:1; min-width: 100px;">
@@ -510,6 +592,15 @@
                             <option value="5">5+</option>
                         </select>
                     </div>
+                    <div class="form-group" style="flex:1; min-width: 80px;">
+                        <label class="form-label">🏷️ Tipo:</label>
+                        <select id="statsFilterTipo" class="form-select" onchange="Statistics.calculate()">
+                            <option value="ALL">Todos</option>
+                            <option value="INT">🟠 INT</option>
+                            <option value="EXT">🟢 EXT</option>
+                            <option value="NVA">🔴 NVA</option>
+                        </select>
+                    </div>
                     <div class="form-group" style="flex:1; min-width: 100px;">
                         <label class="form-label">📁 Categoría:</label>
                         <select id="statsFilter" class="form-select" onchange="Statistics.calculate()">
@@ -610,6 +701,16 @@
                         <strong>CV:</strong> &lt;15% = Estable, 15-30% = Moderado, &gt;30% = Inestable
                     </div>
                 </div>
+                
+                <!-- Panel de Interpretación Profunda -->
+                <h2 style="margin-top: 25px;">📖 Interpretación Detallada</h2>
+                <p style="color: #888; font-size: 0.9em; margin-bottom: 15px;">Análisis profundo con explicaciones de qué significan los números, por qué son así y cómo mejorarlos.</p>
+                <div id="statsInterpretationPanel">
+                    <div class="no-data-msg">Se necesitan datos para generar la interpretación</div>
+                </div>
+                <button class="action-btn" onclick="StatsInterpretation.renderPanel('statsInterpretationPanel')" style="margin-top: 15px; background: #6366f1;">
+                    🔍 Generar Interpretación Detallada
+                </button>
             </div>
         </section>
 
@@ -1007,6 +1108,64 @@
                 <!-- Lista de botones configurados -->
                 <h2>Botones Configurados</h2>
                 <div id="configButtonsList" style="max-height: 250px; overflow-y: auto;"></div>
+
+                <!-- Configuración Financiera -->
+                <h2 style="margin-top: 20px;">💰 Configuración Financiera</h2>
+                <div style="background: linear-gradient(135deg, #1a1a2e, #0f0f1a); padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #f59e0b;">
+                    <p style="color: #888; font-size: 0.85em; margin-top: 0;">Estos valores se usan para calcular costos y ahorros potenciales en los análisis.</p>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                        <div>
+                            <label style="font-size: 11px; color: #888; text-transform: uppercase;">Costo por Hora (Q/hora)</label>
+                            <input type="number" id="configCostoHora" step="1" min="0" value="500"
+                                   style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #00ff9d; font-size: 14px; font-weight: bold;"
+                                   onchange="AppState.config.costoHora = parseFloat(this.value) || 500; Storage.save();">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; color: #888; text-transform: uppercase;">Meta Eficiencia (%)</label>
+                            <input type="number" id="configMetaEficiencia" step="1" min="50" max="100" value="95"
+                                   style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #00d4ff; font-size: 14px; font-weight: bold;"
+                                   onchange="AppState.config.metaEficiencia = parseInt(this.value) || 95; Storage.save();">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; color: #888; text-transform: uppercase;">Horas por Turno</label>
+                            <input type="number" id="configHorasTurno" step="0.5" min="4" max="12" value="8"
+                                   style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #8b5cf6; font-size: 14px; font-weight: bold;"
+                                   onchange="AppState.config.horasTurno = parseFloat(this.value) || 8; Storage.save();">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; color: #888; text-transform: uppercase;">Cambios por Turno (meta)</label>
+                            <input type="number" id="configCambiosMeta" step="1" min="1" max="50" value="10"
+                                   style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #f59e0b; font-size: 14px; font-weight: bold;"
+                                   onchange="AppState.config.cambiosMeta = parseInt(this.value) || 10; Storage.save();">
+                        </div>
+                    </div>
+                    <div style="margin-top: 15px; padding: 10px; background: #0a0a0a; border-radius: 4px;">
+                        <strong style="color: #f59e0b;">📊 Cálculo Automático:</strong>
+                        <p style="margin: 5px 0 0 0; color: #aaa; font-size: 0.85em;">
+                            Costo por Segundo = Q<span id="calcCostoSeg">0.14</span> | 
+                            Tiempo objetivo por cambio = <span id="calcTiempoObjetivo">--</span>
+                        </p>
+                    </div>
+                </div>
+                <script>
+                    // Actualizar cálculos al cargar y al cambiar valores
+                    setTimeout(() => {
+                        if (AppState.config) {
+                            document.getElementById('configCostoHora').value = AppState.config.costoHora || 500;
+                            document.getElementById('configMetaEficiencia').value = AppState.config.metaEficiencia || 95;
+                            document.getElementById('configHorasTurno').value = AppState.config.horasTurno || 8;
+                            document.getElementById('configCambiosMeta').value = AppState.config.cambiosMeta || 10;
+                            
+                            const costoSeg = ((AppState.config.costoHora || 500) / 3600).toFixed(2);
+                            document.getElementById('calcCostoSeg').textContent = costoSeg;
+                            
+                            const horasTurno = AppState.config.horasTurno || 8;
+                            const cambiosMeta = AppState.config.cambiosMeta || 10;
+                            const tiempoObjetivo = Math.round((horasTurno * 3600) / cambiosMeta);
+                            document.getElementById('calcTiempoObjetivo').textContent = Utils.formatDuration(tiempoObjetivo);
+                        }
+                    }, 500);
+                </script>
 
                 <!-- Gestión de Máquinas -->
                 <h2 style="margin-top: 20px;">🏭 Gestión de Máquinas</h2>
