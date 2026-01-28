@@ -2,132 +2,194 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>SMED Full Data Dashboard - 9 Comparativas Multidimensionales</title>
+    <title>SMED crgm.app - Dashboard Full Estadística</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #eceff1; margin: 0; padding: 20px; font-size: 12px; color: #2c3e50; }
-        .container { max-width: 1600px; margin: auto; }
-        .turno-section { background: #37474f; color: white; padding: 20px; border-radius: 8px; margin: 50px 0 20px 0; text-align: center; font-size: 2em; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-top: 6px solid; overflow-x: auto; }
-        .border-INT { border-color: #0288d1; }
-        .border-EXT { border-color: #43a047; }
-        .border-NVA { border-color: #d32f2f; }
-        h2 { margin-top: 0; color: #455a64; font-size: 1.4em; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-        
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #fff; }
-        th { background: #f8f9fa; color: #37474f; padding: 8px; font-weight: 600; border: 1px solid #cfd8dc; font-size: 10px; text-transform: uppercase; }
-        td { padding: 8px; border: 1px solid #eceff1; text-align: center; }
-        .text-left { text-align: left; font-weight: bold; background: #fafafa; }
-        
-        /* Formato Six Sigma */
-        .q1-gold { background: #fff9c4; font-weight: bold; color: #f57f17; border: 1px solid #fbc02d; }
-        .cv-excelente { color: #2e7d32; font-weight: bold; }
-        .cv-alerta { color: #f57f17; font-weight: bold; }
-        .cv-critico { color: #c62828; font-weight: bold; }
-        
-        .chart-box { height: 300px; margin-bottom: 20px; position: relative; }
-        .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; color: white; font-size: 0.7em; float: right; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; color: #1c1e21; }
+        .header-ui { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; text-align: center; }
+        .file-input-wrapper { margin: 20px 0; padding: 20px; border: 2px dashed #007bff; border-radius: 8px; background: #e7f3ff; }
+        .turno-section { background: #1c1e21; color: white; padding: 15px; border-radius: 8px; margin: 40px 0 20px 0; font-size: 1.8em; text-align: center; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 25px; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-top: 6px solid; }
+        .border-INT { border-color: #007bff; } .border-EXT { border-color: #28a745; } .border-NVA { border-color: #dc3545; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11px; }
+        th { background: #f8f9fa; padding: 8px; border: 1px solid #dee2e6; }
+        td { padding: 8px; border: 1px solid #eee; text-align: center; }
+        .gold { background: #fff9c4; font-weight: bold; }
+        .sigma-badge { padding: 3px 6px; border-radius: 4px; font-weight: bold; font-size: 10px; }
+        .excelente { background: #d4edda; color: #155724; }
+        .critico { background: #f8d7da; color: #721c24; }
+        .chart-container { height: 250px; margin-bottom: 15px; }
+        #loading { display: none; font-weight: bold; color: #007bff; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1 style="text-align:center; font-size: 2.5em; margin-bottom: 5px;">Dashboard SMED <span style="color:#0288d1">Advanced Analytics</span></h1>
-    <p style="text-align:center; color:#78909c; font-size: 1.2em;">Análisis completo de 1,912 mediciones - Corrugadoras e Imprentas</p>
+    <div class="header-ui">
+        <h1>SMED crgm.app - Centro de Mando Estratégico</h1>
+        <p>Análisis Multidimensional: 5 Cuartiles + Six Sigma + 9 Gráficos</p>
+        
+        <div class="file-input-wrapper">
+            <label for="csvFile"><strong>Paso 1:</strong> Selecciona tu archivo CSV de mediciones: </label>
+            <input type="file" id="csvFile" accept=".csv">
+            <div id="loading">Procesando 1,912 registros...</div>
+        </div>
+    </div>
 
-    <div id="main-dashboard"></div>
+    <div id="dashboard"></div>
 </div>
 
 <script>
-// DATOS COMPLETOS PROCESADOS DEL CSV (Inyección dinámica)
-const smedFullData = JSON.parse('<INSERT_JSON_DATA_HERE>');
+    document.getElementById('csvFile').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
 
-const typeConfig = {
-    'INT': { label: 'INTERNAS (Paro)', color: 'rgba(2, 136, 209, 0.8)', badge: 'REDUCIR' },
-    'EXT': { label: 'EXTERNAS (Preparación)', color: 'rgba(67, 160, 71, 0.8)', badge: 'ESTANDARIZAR' },
-    'NVA': { label: 'MUDAS (Desperdicio)', color: 'rgba(211, 47, 47, 0.8)', badge: 'ELIMINAR' }
-};
+        document.getElementById('loading').style.display = 'block';
+        
+        Papa.parse(file, {
+            header: true,
+            dynamicTyping: true,
+            skipEmptyLines: true,
+            complete: function(results) {
+                processData(results.data);
+                document.getElementById('loading').style.display = 'none';
+            }
+        });
+    });
 
-const dashboard = document.getElementById('main-dashboard');
+    function processData(rawData) {
+        const dashboard = document.getElementById('dashboard');
+        dashboard.innerHTML = ''; // Limpiar
 
-['T1', 'T2', 'T3'].forEach(turno => {
-    // Título del Turno
-    const tSection = document.createElement('div');
-    tSection.className = 'turno-section';
-    tSection.innerText = `ANÁLISIS ESTRATÉGICO: TURNO ${turno}`;
-    dashboard.appendChild(tSection);
+        // Agrupación Multidimensional: Turno -> Tipo -> Actividad -> [Tiempos]
+        const tree = {};
+        rawData.forEach(row => {
+            const t = row.Turno;
+            const tp = row.Tipo;
+            const act = row.Actividad;
+            const dur = row.DuracionSeg;
 
-    const grid = document.createElement('div');
-    grid.className = 'grid';
+            if (!t || !tp || !act) return;
 
-    ['INT', 'EXT', 'NVA'].forEach(tipo => {
-        const activities = smedFullData[turno][tipo] || [];
-        if (activities.length === 0) return;
+            if (!tree[t]) tree[t] = {};
+            if (!tree[t][tp]) tree[t][tp] = {};
+            if (!tree[t][tp][act]) tree[t][tp][act] = [];
+            tree[t][tp][act].push(dur);
+        });
 
+        // Generar UI por cada Turno (T1, T2, T3)
+        const turnos = ['T1', 'T2', 'T3'];
+        const tipos = ['INT', 'EXT', 'NVA'];
+        const typeLabels = { 'INT': 'INTERNAS (Paro)', 'EXT': 'EXTERNAS (Prep)', 'NVA': 'MUDAS (Desperdicio)' };
+        const colors = { 'INT': '#007bff', 'EXT': '#28a745', 'NVA': '#dc3545' };
+
+        turnos.forEach(turno => {
+            if (!tree[turno]) return;
+
+            const tSection = document.createElement('div');
+            tSection.className = 'turno-section';
+            tSection.innerText = `ANÁLISIS TURNO: ${turno}`;
+            dashboard.appendChild(tSection);
+
+            const grid = document.createElement('div');
+            grid.className = 'grid';
+
+            tipos.forEach(tipo => {
+                const activities = tree[turno][tipo];
+                if (!activities) return;
+
+                const stats = calculateStats(activities);
+                const card = createCard(turno, tipo, stats, typeLabels[tipo], colors[tipo]);
+                grid.appendChild(card);
+            });
+            dashboard.appendChild(grid);
+        });
+    }
+
+    function calculateStats(activities) {
+        return Object.keys(activities).map(name => {
+            const data = activities[name].sort((a, b) => a - b);
+            const sum = data.reduce((a, b) => a + b, 0);
+            const mean = sum / data.length;
+            const std = Math.sqrt(data.map(x => Math.pow(x - mean, 2)).reduce((a, b) => a + b, 0) / (data.length - 1)) || 0;
+            const cv = mean > 0 ? std / mean : 0;
+
+            return {
+                name: name,
+                total: sum,
+                count: data.length,
+                min: data[0],
+                q1: getPercentile(data, 0.25),
+                med: getPercentile(data, 0.5),
+                q3: getPercentile(data, 0.75),
+                max: data[data.length - 1],
+                cv: cv,
+                std: std
+            };
+        }).sort((a, b) => b.total - a.total).slice(0, 10); // Top 10 por impacto
+    }
+
+    function getPercentile(data, p) {
+        const pos = (data.length - 1) * p;
+        const base = Math.floor(pos);
+        const rest = pos - base;
+        if (data[base + 1] !== undefined) {
+            return Math.round(data[base] + rest * (data[base + 1] - data[base]));
+        } else {
+            return data[base];
+        }
+    }
+
+    function createCard(turno, tipo, stats, label, color) {
         const card = document.createElement('div');
         card.className = `card border-${tipo}`;
         
-        // Generar filas de la tabla con lógica Six Sigma
-        const rows = activities.map(d => {
-            const cvStatus = d.CV < 0.3 ? 'cv-excelente' : (d.CV < 0.6 ? 'cv-alerta' : 'cv-critico');
+        const canvasId = `chart_${turno}_${tipo}`;
+        let rows = stats.map(s => {
+            const cvClass = s.cv < 0.5 ? 'excelente' : 'critico';
             return `
                 <tr>
-                    <td class="text-left">${d.Actividad}</td>
-                    <td>${d.Min}s</td>
-                    <td class="q1-gold">${d.Q1}s</td>
-                    <td>${d.Med}s</td>
-                    <td>${d.Q3}s</td>
-                    <td>${d.Max}s</td>
-                    <td style="color:#90a4ae">±${d.Std}s</td>
-                    <td class="${cvStatus}">${(d.CV * 100).toFixed(1)}%</td>
-                </tr>`;
+                    <td style="text-align:left"><b>${s.name}</b></td>
+                    <td>${s.min}s</td>
+                    <td class="gold">${s.q1}s</td>
+                    <td>${s.med}s</td>
+                    <td>${s.q3}s</td>
+                    <td>${s.max}s</td>
+                    <td><span class="sigma-badge ${cvClass}">${(s.cv * 100).toFixed(1)}%</span></td>
+                </tr>
+            `;
         }).join('');
 
         card.innerHTML = `
-            <h2>${typeConfig[tipo].label} <span class="badge" style="background:${typeConfig[tipo].color}">${typeConfig[tipo].badge}</span></h2>
-            <div class="chart-box"><canvas id="chart_${turno}_${tipo}"></canvas></div>
+            <h2>${label}</h2>
+            <div class="chart-container"><canvas id="${canvasId}"></canvas></div>
             <table>
                 <thead>
                     <tr>
-                        <th rowspan="2">Actividad</th>
-                        <th colspan="5">Distribución de Tiempos (Cuartiles)</th>
-                        <th colspan="2">Six Sigma</th>
-                    </tr>
-                    <tr>
-                        <th>Min</th><th class="q1-gold">Q1 (Gold)</th><th>Mediana</th><th>Q3</th><th>Max</th>
-                        <th>Desv. (σ)</th><th>CV%</th>
+                        <th>Actividad</th><th>Min</th><th class="gold">Q1</th><th>Med</th><th>Q3</th><th>Max</th><th>CV%</th>
                     </tr>
                 </thead>
                 <tbody>${rows}</tbody>
             </table>
         `;
-        grid.appendChild(card);
 
-        // Crear gráfico
+        // Renderizado diferido del gráfico
         setTimeout(() => {
-            new Chart(document.getElementById(`chart_${turno}_${tipo}`), {
+            new Chart(document.getElementById(canvasId), {
                 type: 'bar',
                 data: {
-                    labels: activities.slice(0, 10).map(a => a.Actividad),
-                    datasets: [{
-                        label: 'Impacto Total (Segundos)',
-                        data: activities.slice(0, 10).map(a => a.Total),
-                        backgroundColor: typeConfig[tipo].color,
-                        borderRadius: 5
-                    }]
+                    labels: stats.map(s => s.name),
+                    datasets: [{ label: 'Segundos Totales', data: stats.map(s => s.total), backgroundColor: color }]
                 },
-                options: {
-                    indexAxis: 'y',
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { x: { grid: { display: false } }, y: { grid: { display: false } } }
-                }
+                options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
-        }, 0);
-    });
-    dashboard.appendChild(grid);
-});
+        }, 100);
+
+        return card;
+    }
 </script>
+
 </body>
 </html>
