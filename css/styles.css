@@ -1046,11 +1046,14 @@ h3 {
 }
 
 .date-filter-btn {
-    padding: 8px 10px;
+    padding: 8px 12px;
     font-size: 0.85em;
-    min-width: 50px;
-    flex: 0 1 auto;
+    min-width: auto;
+    flex: 0 0 auto;
     white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .date-filter-btn .btn-icon {
@@ -1059,7 +1062,6 @@ h3 {
 
 .date-filter-btn .btn-text {
     display: inline;
-    margin-left: 4px;
 }
 
 .date-separator {

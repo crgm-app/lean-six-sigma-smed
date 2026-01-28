@@ -2273,7 +2273,7 @@ const MaquinaManager = {
             const currentValue = select.value;
             const isFilter = selectorId.includes('Filter');
             
-            let html = isFilter ? '<option value="ALL">🏭 Todas</option>' : '<option value="">--</option>';
+            let html = isFilter ? '<option value="ALL">Todas las máquinas</option>' : '<option value="">--</option>';
             
             AppState.config.maquinas.forEach(m => {
                 html += `<option value="${m}">${m}</option>`;
