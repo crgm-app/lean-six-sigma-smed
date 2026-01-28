@@ -1,0 +1,14 @@
+{
+  "version": "2.2",
+  "fecha": "2026-01-28",
+  "changelog": [
+    "✨ Sistema de actualización automática implementado",
+    "🔄 Ya no necesitas borrar datos de Chrome para actualizar",
+    "📱 Botón 'Buscar Actualizaciones' en Configuración",
+    "🔧 Mejoras en la gestión del Service Worker",
+    "💾 Backup automático antes de actualizar"
+  ],
+  "minVersion": "2.0",
+  "forceUpdate": false,
+  "updateURL": "https://smed.crgm.app/"
+}

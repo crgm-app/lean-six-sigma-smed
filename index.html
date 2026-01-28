@@ -1318,6 +1318,47 @@
         <!-- ============================================== -->
         <section id="tab-config" class="view-section">
             <div class="card">
+                <!-- ============================================== -->
+                <!-- SISTEMA DE ACTUALIZACIÓN -->
+                <!-- ============================================== -->
+                <div style="background: linear-gradient(135deg, #6366f1, #4f46e5); padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 2px solid #8b5cf6;">
+                    <h2 style="margin: 0 0 15px 0; color: white;">🔄 Actualización de la App</h2>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;">
+                            <div style="font-size: 0.85em; color: rgba(255,255,255,0.8);">Versión Actual</div>
+                            <div style="font-size: 1.8em; font-weight: bold; color: white;">v2.1</div>
+                            <div style="font-size: 0.75em; color: rgba(255,255,255,0.7); margin-top: 5px;">26 Enero 2026</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;">
+                            <div style="font-size: 0.85em; color: rgba(255,255,255,0.8);">Estado</div>
+                            <div id="updateStatus" style="font-size: 0.95em; color: white; margin-top: 5px;">
+                                ⏳ Verificando...
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Panel de actualización disponible (se muestra dinámicamente) -->
+                    <div id="updatePanel" style="display: none;"></div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button id="checkUpdateBtn" class="action-btn" onclick="AppUpdater.checkForUpdates(true)" style="background: white; color: #6366f1; font-weight: bold; padding: 12px 20px;">
+                            🔍 Buscar Actualizaciones
+                        </button>
+                        <button class="action-btn" onclick="AppUpdater.forceUpdate()" style="background: rgba(255,255,255,0.2); color: white; padding: 12px 20px;">
+                            🔧 Forzar Actualización
+                        </button>
+                    </div>
+                    
+                    <div style="margin-top: 15px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 6px; font-size: 0.85em; color: rgba(255,255,255,0.9);">
+                        <strong>💡 Cómo funciona:</strong><br>
+                        • <strong>Buscar Actualizaciones:</strong> Verifica si hay una nueva versión disponible<br>
+                        • <strong>Forzar Actualización:</strong> Limpia caché y recarga (útil si algo no funciona)<br>
+                        • <strong>Automático:</strong> La app verifica actualizaciones cada 30 minutos<br>
+                        • <strong>Tus datos están seguros:</strong> LocalStorage no se borra nunca
+                    </div>
+                </div>
+                
                 <h2>Gestión de Botones</h2>
                 
                 <!-- Formulario nuevo botón (categoría automática de primera palabra) -->
@@ -1667,6 +1708,7 @@
 
     <!-- Scripts -->
     <script src="js/app.js"></script>
+    <script src="js/updater.js"></script>
     <script src="js/statistics.js"></script>
     <script src="js/charts.js"></script>
     <script src="js/gantt.js"></script>
