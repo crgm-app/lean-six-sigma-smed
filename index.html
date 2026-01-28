@@ -53,40 +53,60 @@
             </div>
             
             <div class="global-filters-content" id="globalFiltersContent">
-                <!-- Filtros de Período -->
-                <div class="filter-section">
-                    <label class="filter-section-label">📅 Período</label>
-                    <div class="filter-buttons-row">
-                        <button class="global-filter-btn" data-period="today" onclick="GlobalFilters.setPeriod('today')">
-                            <span class="filter-btn-icon">📅</span>
-                            <span class="filter-btn-text">Hoy</span>
+                <!-- Navegador de Fechas Amigable -->
+                <div class="date-navigator">
+                    <!-- Tabs de Vista -->
+                    <div class="nav-tabs">
+                        <button class="nav-tab" data-view="day" onclick="DateNavigator.setView('day')">
+                            <span class="nav-tab-icon">📅</span>
+                            <span class="nav-tab-text">Día</span>
                         </button>
-                        <button class="global-filter-btn" data-period="week" onclick="GlobalFilters.setPeriod('week')">
-                            <span class="filter-btn-icon">📆</span>
-                            <span class="filter-btn-text">Semana</span>
+                        <button class="nav-tab" data-view="week" onclick="DateNavigator.setView('week')">
+                            <span class="nav-tab-icon">📆</span>
+                            <span class="nav-tab-text">Semana</span>
                         </button>
-                        <button class="global-filter-btn" data-period="month" onclick="GlobalFilters.setPeriod('month')">
-                            <span class="filter-btn-icon">🗓️</span>
-                            <span class="filter-btn-text">Mes</span>
+                        <button class="nav-tab" data-view="month" onclick="DateNavigator.setView('month')">
+                            <span class="nav-tab-icon">🗓️</span>
+                            <span class="nav-tab-text">Mes</span>
                         </button>
-                        <button class="global-filter-btn" data-period="year" onclick="GlobalFilters.setPeriod('year')">
-                            <span class="filter-btn-icon">📊</span>
-                            <span class="filter-btn-text">Año</span>
+                        <button class="nav-tab" data-view="year" onclick="DateNavigator.setView('year')">
+                            <span class="nav-tab-icon">📊</span>
+                            <span class="nav-tab-text">Año</span>
                         </button>
-                        <button class="global-filter-btn active" data-period="all" onclick="GlobalFilters.setPeriod('all')">
-                            <span class="filter-btn-icon">🔄</span>
-                            <span class="filter-btn-text">Todo</span>
+                        <button class="nav-tab active" data-view="all" onclick="DateNavigator.setView('all')">
+                            <span class="nav-tab-icon">🔄</span>
+                            <span class="nav-tab-text">Todo</span>
                         </button>
                     </div>
-                </div>
-
-                <!-- Rango de Fechas Personalizado -->
-                <div class="filter-section">
-                    <label class="filter-section-label">📆 Rango Personalizado</label>
-                    <div class="filter-date-range">
-                        <input type="date" id="globalDateFrom" class="global-date-input" onchange="GlobalFilters.setCustomRange()">
-                        <span class="date-range-separator">→</span>
-                        <input type="date" id="globalDateTo" class="global-date-input" onchange="GlobalFilters.setCustomRange()">
+                    
+                    <!-- Controles de Navegación -->
+                    <div class="nav-controls" id="navControls">
+                        <button class="nav-btn jump" onclick="DateNavigator.jumpBack()" title="Saltar atrás">
+                            <span class="nav-btn-icon">◀◀</span>
+                        </button>
+                        <button class="nav-btn prev" onclick="DateNavigator.previous()" title="Anterior">
+                            <span class="nav-btn-icon">◀</span>
+                        </button>
+                        <div class="nav-display" id="dateDisplay">
+                            <span class="nav-display-main" id="dateDisplayMain">Todos los registros</span>
+                            <span class="nav-display-sub" id="dateDisplaySub"></span>
+                        </div>
+                        <button class="nav-btn next" onclick="DateNavigator.next()" title="Siguiente">
+                            <span class="nav-btn-icon">▶</span>
+                        </button>
+                        <button class="nav-btn jump" onclick="DateNavigator.jumpForward()" title="Saltar adelante">
+                            <span class="nav-btn-icon">▶▶</span>
+                        </button>
+                        <button class="nav-btn today" onclick="DateNavigator.today()" title="Ir a hoy">
+                            <span class="nav-btn-icon">🔄</span>
+                            <span class="nav-btn-text">Hoy</span>
+                        </button>
+                    </div>
+                    
+                    <!-- Estadísticas del período -->
+                    <div class="nav-stats" id="navStats">
+                        <span class="nav-stats-icon">📊</span>
+                        <span class="nav-stats-text">Cargando...</span>
                     </div>
                 </div>
 

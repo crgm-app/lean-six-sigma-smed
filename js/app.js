@@ -1979,6 +1979,7 @@ function init() {
     // Inicializar filtros globales
     setTimeout(() => {
         GlobalFilters.init();
+        DateNavigator.init();
     }, 200);
     
     // Iniciar loop principal
@@ -2756,8 +2757,338 @@ Filtros.updateAllFilters = () => {
     }
 };
 
+// =====================================================
+// NAVEGADOR DE FECHAS AMIGABLE
+// =====================================================
+
+const DateNavigator = {
+    // Estado actual
+    currentDate: new Date(),
+    viewMode: 'all', // day, week, month, year, all
+    
+    // Nombres de meses y días en español
+    MONTHS: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+             'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
+    DAYS: ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'],
+    
+    // Cambiar modo de vista
+    setView: (mode) => {
+        DateNavigator.viewMode = mode;
+        
+        // Actualizar UI de tabs
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            if (tab.getAttribute('data-view') === mode) {
+                tab.classList.add('active');
+            } else {
+                tab.classList.remove('active');
+            }
+        });
+        
+        // Si se selecciona "Todo", resetear fecha a hoy
+        if (mode === 'all') {
+            DateNavigator.currentDate = new Date();
+        }
+        
+        // Aplicar cambios
+        DateNavigator.updateDisplay();
+        DateNavigator.apply();
+    },
+    
+    // Navegar al período anterior
+    previous: () => {
+        if (DateNavigator.viewMode === 'all') return;
+        
+        const date = new Date(DateNavigator.currentDate);
+        
+        switch(DateNavigator.viewMode) {
+            case 'day':
+                date.setDate(date.getDate() - 1);
+                break;
+            case 'week':
+                date.setDate(date.getDate() - 7);
+                break;
+            case 'month':
+                date.setMonth(date.getMonth() - 1);
+                break;
+            case 'year':
+                date.setFullYear(date.getFullYear() - 1);
+                break;
+        }
+        
+        DateNavigator.currentDate = date;
+        DateNavigator.updateDisplay();
+        DateNavigator.apply();
+    },
+    
+    // Navegar al período siguiente
+    next: () => {
+        if (DateNavigator.viewMode === 'all') return;
+        
+        const date = new Date(DateNavigator.currentDate);
+        
+        switch(DateNavigator.viewMode) {
+            case 'day':
+                date.setDate(date.getDate() + 1);
+                break;
+            case 'week':
+                date.setDate(date.getDate() + 7);
+                break;
+            case 'month':
+                date.setMonth(date.getMonth() + 1);
+                break;
+            case 'year':
+                date.setFullYear(date.getFullYear() + 1);
+                break;
+        }
+        
+        DateNavigator.currentDate = date;
+        DateNavigator.updateDisplay();
+        DateNavigator.apply();
+    },
+    
+    // Saltar atrás (cantidad mayor)
+    jumpBack: () => {
+        if (DateNavigator.viewMode === 'all') return;
+        
+        const date = new Date(DateNavigator.currentDate);
+        
+        switch(DateNavigator.viewMode) {
+            case 'day':
+                date.setDate(date.getDate() - 7); // 1 semana
+                break;
+            case 'week':
+                date.setDate(date.getDate() - 28); // 4 semanas
+                break;
+            case 'month':
+                date.setMonth(date.getMonth() - 3); // 3 meses
+                break;
+            case 'year':
+                date.setFullYear(date.getFullYear() - 5); // 5 años
+                break;
+        }
+        
+        DateNavigator.currentDate = date;
+        DateNavigator.updateDisplay();
+        DateNavigator.apply();
+    },
+    
+    // Saltar adelante (cantidad mayor)
+    jumpForward: () => {
+        if (DateNavigator.viewMode === 'all') return;
+        
+        const date = new Date(DateNavigator.currentDate);
+        
+        switch(DateNavigator.viewMode) {
+            case 'day':
+                date.setDate(date.getDate() + 7); // 1 semana
+                break;
+            case 'week':
+                date.setDate(date.getDate() + 28); // 4 semanas
+                break;
+            case 'month':
+                date.setMonth(date.getMonth() + 3); // 3 meses
+                break;
+            case 'year':
+                date.setFullYear(date.getFullYear() + 5); // 5 años
+                break;
+        }
+        
+        DateNavigator.currentDate = date;
+        DateNavigator.updateDisplay();
+        DateNavigator.apply();
+    },
+    
+    // Volver a hoy
+    today: () => {
+        DateNavigator.currentDate = new Date();
+        DateNavigator.updateDisplay();
+        DateNavigator.apply();
+    },
+    
+    // Obtener rango de fechas según el modo actual
+    getDateRange: () => {
+        const date = DateNavigator.currentDate;
+        let desde, hasta, label, sublabel;
+        
+        switch(DateNavigator.viewMode) {
+            case 'day':
+                desde = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+                hasta = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
+                label = `${date.getDate()} ${DateNavigator.MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+                sublabel = DateNavigator.DAYS[date.getDay()];
+                break;
+                
+            case 'week':
+                // Obtener inicio de semana (domingo)
+                const startOfWeek = new Date(date);
+                startOfWeek.setDate(date.getDate() - date.getDay());
+                startOfWeek.setHours(0, 0, 0, 0);
+                
+                // Fin de semana (sábado)
+                const endOfWeek = new Date(startOfWeek);
+                endOfWeek.setDate(startOfWeek.getDate() + 6);
+                endOfWeek.setHours(23, 59, 59, 999);
+                
+                desde = startOfWeek;
+                hasta = endOfWeek;
+                
+                // Calcular número de semana
+                const onejan = new Date(date.getFullYear(), 0, 1);
+                const weekNum = Math.ceil((((date - onejan) / 86400000) + onejan.getDay() + 1) / 7);
+                
+                label = `Semana ${weekNum}: ${startOfWeek.getDate()} ${DateNavigator.MONTHS[startOfWeek.getMonth()].substr(0, 3)} - ${endOfWeek.getDate()} ${DateNavigator.MONTHS[endOfWeek.getMonth()].substr(0, 3)}`;
+                sublabel = `${date.getFullYear()}`;
+                break;
+                
+            case 'month':
+                desde = new Date(date.getFullYear(), date.getMonth(), 1);
+                hasta = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59);
+                label = `${DateNavigator.MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+                
+                // Contar días del mes
+                const daysInMonth = hasta.getDate();
+                sublabel = `${daysInMonth} días`;
+                break;
+                
+            case 'year':
+                desde = new Date(date.getFullYear(), 0, 1);
+                hasta = new Date(date.getFullYear(), 11, 31, 23, 59, 59);
+                label = `${date.getFullYear()}`;
+                sublabel = '365 días';
+                break;
+                
+            case 'all':
+            default:
+                desde = null;
+                hasta = null;
+                label = 'Todos los registros';
+                sublabel = '';
+                break;
+        }
+        
+        return { desde, hasta, label, sublabel };
+    },
+    
+    // Actualizar el display visual
+    updateDisplay: () => {
+        const range = DateNavigator.getDateRange();
+        const displayMain = document.getElementById('dateDisplayMain');
+        const displaySub = document.getElementById('dateDisplaySub');
+        const display = document.getElementById('dateDisplay');
+        
+        if (displayMain) {
+            displayMain.textContent = range.label;
+            // Animación de cambio
+            if (display) {
+                display.classList.add('changing');
+                setTimeout(() => display.classList.remove('changing'), 300);
+            }
+        }
+        
+        if (displaySub) {
+            displaySub.textContent = range.sublabel;
+        }
+        
+        // Deshabilitar botones de navegación si está en modo "Todo"
+        const navControls = document.getElementById('navControls');
+        if (navControls) {
+            const btns = navControls.querySelectorAll('.nav-btn:not(.today)');
+            btns.forEach(btn => {
+                if (DateNavigator.viewMode === 'all') {
+                    btn.style.opacity = '0.3';
+                    btn.style.cursor = 'not-allowed';
+                } else {
+                    btn.style.opacity = '1';
+                    btn.style.cursor = 'pointer';
+                }
+            });
+        }
+    },
+    
+    // Actualizar estadísticas del período
+    updateStats: () => {
+        const statsText = document.querySelector('.nav-stats-text');
+        if (!statsText) return;
+        
+        // Obtener registros filtrados usando el sistema existente
+        const filtered = Filtros.getFiltered('history');
+        
+        // Calcular totales
+        const count = filtered.length;
+        const totalTime = filtered.reduce((sum, r) => sum + (r.duracion || r.duration || 0), 0);
+        
+        // Calcular distribución por tipo
+        const types = { INT: 0, EXT: 0, NVA: 0 };
+        filtered.forEach(r => {
+            const tipo = (r.tipo || 'INT').toUpperCase();
+            if (types.hasOwnProperty(tipo)) {
+                types[tipo]++;
+            }
+        });
+        
+        if (count === 0) {
+            statsText.textContent = 'Sin registros en este período';
+        } else {
+            statsText.textContent = `${count} registros • ${Utils.formatDuration(totalTime)} • 🟠${types.INT} 🟢${types.EXT} 🔴${types.NVA}`;
+        }
+    },
+    
+    // Aplicar filtros de fecha
+    apply: () => {
+        const range = DateNavigator.getDateRange();
+        
+        // Actualizar estado de filtros
+        if (range.desde && range.hasta) {
+            AppState.filtros.periodo = 'custom';
+            AppState.filtros.fechaDesde = range.desde.toISOString().split('T')[0];
+            AppState.filtros.fechaHasta = range.hasta.toISOString().split('T')[0];
+        } else {
+            AppState.filtros.periodo = 'all';
+            AppState.filtros.fechaDesde = null;
+            AppState.filtros.fechaHasta = null;
+        }
+        
+        // Aplicar filtros globales (esto actualizará todas las vistas)
+        GlobalFilters.applyFilters();
+        
+        // Actualizar estadísticas
+        DateNavigator.updateStats();
+    },
+    
+    // Inicializar
+    init: () => {
+        // Configurar modo inicial
+        DateNavigator.setView('all');
+        
+        // Atajos de teclado
+        document.addEventListener('keydown', (e) => {
+            // Solo si no está escribiendo en un input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            
+            switch(e.key) {
+                case 'ArrowLeft':
+                    DateNavigator.previous();
+                    e.preventDefault();
+                    break;
+                case 'ArrowRight':
+                    DateNavigator.next();
+                    e.preventDefault();
+                    break;
+                case 'h':
+                case 'H':
+                    DateNavigator.today();
+                    e.preventDefault();
+                    break;
+            }
+        });
+        
+        console.log('📅 Navegador de fechas inicializado');
+    }
+};
+
 // Exponer GlobalFilters globalmente
 window.GlobalFilters = GlobalFilters;
+window.DateNavigator = DateNavigator;
 
 // Exponer funciones globales necesarias
 window.Timer = Timer;
