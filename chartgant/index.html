@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMED Dashboard - crgm.app</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; margin: 20px; }
+        .container { max-width: 1200px; margin: auto; }
+        .section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 30px; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
+        h2 { margin: 0; color: #333; }
+        .type-badge { padding: 5px 15px; border-radius: 20px; font-weight: bold; color: white; }
+        .bg-int { background: #3498db; } .bg-ext { background: #2ecc71; } .bg-nva { background: #e74c3c; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f8f9fa; color: #666; }
+        .stat-q1 { color: #2ecc71; font-weight: bold; } /* El "Gold Standard" */
+        canvas { max-height: 400px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Dashboard SMED - Análisis Multidimensional</h1>
+        <p>Planta: Corrugadoras & Imprentas</p>
+    </div>
+
+    <div class="section">
+        <div class="header">
+            <h2><span class="type-badge bg-int">INT</span> Actividades Internas (Paro de Máquina)</h2>
+        </div>
+        <canvas id="chartInt"></canvas>
+        <div id="tableInt"></div>
+    </div>
+
+    <div class="section">
+        <div class="header">
+            <h2><span class="type-badge bg-ext">EXT</span> Actividades Externas (Preparación)</h2>
+        </div>
+        <canvas id="chartExt"></canvas>
+        <div id="tableExt"></div>
+    </div>
+
+    <div class="section">
+        <div class="header">
+            <h2><span class="type-badge bg-nva">NVA</span> Muda / Desperdicio (Lean Six Sigma)</h2>
+        </div>
+        <canvas id="chartNva"></canvas>
+        <div id="tableNva"></div>
+    </div>
+</div>
+
+<script>
+    // Datos procesados de tu CSV (Top 5 por categoría)
+    const dataSMED = {
+        int: [
+            { act: 'Sello Montaje', total: 51273, avg: 563, q1: 463, med: 555, q3: 621 },
+            { act: 'Tinta Rasqueta Lav', total: 45721, avg: 564, q1: 323, med: 461, q3: 850 },
+            { act: 'Tinta Lavado', total: 44466, avg: 535, q1: 247, med: 525, q3: 683 },
+            { act: 'Troquel Montar', total: 42996, avg: 524, q1: 424, med: 487, q3: 600 },
+            { act: 'Troquel Desmontar', total: 27246, avg: 332, q1: 226, med: 302, q3: 416 }
+        ],
+        ext: [
+            { act: 'Sello Requerir', total: 91045, avg: 901, q1: 750, med: 888, q3: 1077 },
+            { act: 'Tinta Requerir', total: 90537, avg: 1028, q1: 825, med: 1004, q3: 1147 },
+            { act: 'Troquel Requerir', total: 85944, avg: 924, q1: 753, med: 912, q3: 1077 }
+        ],
+        nva: [
+            { act: 'Sello Limpieza', total: 55330, avg: 356, q1: 179, med: 290, q3: 449 },
+            { act: 'Maquina Centrado', total: 34840, avg: 435, q1: 305, med: 381, q3: 519 },
+            { act: 'Maquina Atasco', total: 27946, avg: 294, q1: 112, med: 187, q3: 345 },
+            { act: 'Troquel Ajuste', total: 27682, avg: 503, q1: 227, med: 414, q3: 750 },
+            { act: 'Sello Ajuste', total: 25741, avg: 525, q1: 187, med: 357, q3: 701 }
+        ]
+    };
+
+    function createChart(canvasId, label, data, color) {
+        new Chart(document.getElementById(canvasId), {
+            type: 'bar',
+            data: {
+                labels: data.map(d => d.act),
+                datasets: [{
+                    label: 'Segundos Totales',
+                    data: data.map(d => d.total),
+                    backgroundColor: color
+                }]
+            },
+            options: { indexAxis: 'y', plugins: { legend: { display: false } } }
+        });
+    }
+
+    function createTable(containerId, data) {
+        let html = `<table><thead><tr><th>Actividad</th><th>Promedio (s)</th><th class="stat-q1">Q1 (Gold Standard)</th><th>Mediana</th><th>Q3</th></tr></thead><tbody>`;
+        data.forEach(d => {
+            html += `<tr>
+                <td>${d.act}</td>
+                <td>${d.avg}s</td>
+                <td class="stat-q1">${d.q1}s</td>
+                <td>${d.med}s</td>
+                <td>${d.q3}s</td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        document.getElementById(containerId).innerHTML = html;
+    }
+
+    // Inicializar
+    createChart('chartInt', 'Internas', dataSMED.int, '#3498db');
+    createTable('tableInt', dataSMED.int);
+
+    createChart('chartExt', 'Externas', dataSMED.ext, '#2ecc71');
+    createTable('tableExt', dataSMED.ext);
+
+    createChart('chartNva', 'Mudas', dataSMED.nva, '#e74c3c');
+    createTable('tableNva', dataSMED.nva);
+</script>
+
+</body>
+</html>
