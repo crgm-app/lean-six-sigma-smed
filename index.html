@@ -139,15 +139,31 @@
                 <!-- Historial -->
                 <h2>Historial de Actividades <span id="historyCount" style="font-size: 0.6em; color: #888;"></span></h2>
                 <!-- Filtros de Período -->
-                <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; align-items: center;">
-                    <button class="action-btn" onclick="Filtros.setPeriodo('today')" style="padding: 6px 12px; font-size: 0.85em;">📅 Hoy</button>
-                    <button class="action-btn" onclick="Filtros.setPeriodo('week')" style="padding: 6px 12px; font-size: 0.85em;">📆 Semana</button>
-                    <button class="action-btn" onclick="Filtros.setPeriodo('month')" style="padding: 6px 12px; font-size: 0.85em;">🗓️ Mes</button>
-                    <button class="action-btn" onclick="Filtros.setPeriodo('year')" style="padding: 6px 12px; font-size: 0.85em;">📊 Año</button>
-                    <button class="action-btn" onclick="Filtros.setPeriodo('all')" style="padding: 6px 12px; font-size: 0.85em;">🔄 Todo</button>
-                    <input type="date" id="historyDateFrom" style="padding: 5px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #00d4ff; font-size: 0.85em;" onchange="Filtros.setCustomRange(this.value, document.getElementById('historyDateTo').value)">
+                <div class="date-filters-container">
+                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('today')">
+                        <span class="btn-icon">📅</span>
+                        <span class="btn-text">Hoy</span>
+                    </button>
+                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('week')">
+                        <span class="btn-icon">📆</span>
+                        <span class="btn-text">Semana</span>
+                    </button>
+                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('month')">
+                        <span class="btn-icon">🗓️</span>
+                        <span class="btn-text">Mes</span>
+                    </button>
+                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('year')">
+                        <span class="btn-icon">📊</span>
+                        <span class="btn-text">Año</span>
+                    </button>
+                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('all')">
+                        <span class="btn-icon">🔄</span>
+                        <span class="btn-text">Todo</span>
+                    </button>
+                    <span class="date-separator">|</span>
+                    <input type="date" id="historyDateFrom" class="date-input" onchange="Filtros.setCustomRange(this.value, document.getElementById('historyDateTo').value)">
                     <span style="color: #888;">→</span>
-                    <input type="date" id="historyDateTo" style="padding: 5px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #00d4ff; font-size: 0.85em;" onchange="Filtros.setCustomRange(document.getElementById('historyDateFrom').value, this.value)">
+                    <input type="date" id="historyDateTo" class="date-input" onchange="Filtros.setCustomRange(document.getElementById('historyDateFrom').value, this.value)">
                 </div>
                 <!-- Filtros Adicionales -->
                 <div class="form-row mb-10" style="flex-wrap: wrap; gap: 8px;">
@@ -204,15 +220,31 @@
                 <h2>Análisis Multi-Perspectiva</h2>
                 
                 <!-- Filtros de Período -->
-                <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; align-items: center;">
-                    <button class="action-btn" onclick="Filtros.setPeriodo('today')" style="padding: 6px 12px; font-size: 0.85em;">📅 Hoy</button>
-                    <button class="action-btn" onclick="Filtros.setPeriodo('week')" style="padding: 6px 12px; font-size: 0.85em;">📆 Semana</button>
-                    <button class="action-btn" onclick="Filtros.setPeriodo('month')" style="padding: 6px 12px; font-size: 0.85em;">🗓️ Mes</button>
-                    <button class="action-btn" onclick="Filtros.setPeriodo('year')" style="padding: 6px 12px; font-size: 0.85em;">📊 Año</button>
-                    <button class="action-btn" onclick="Filtros.setPeriodo('all')" style="padding: 6px 12px; font-size: 0.85em;">🔄 Todo</button>
-                    <input type="date" id="analysisDateFrom" style="padding: 5px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #00d4ff; font-size: 0.85em;" onchange="Filtros.setCustomRange(this.value, document.getElementById('analysisDateTo').value); Analysis.render();">
+                <div class="date-filters-container">
+                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('today')">
+                        <span class="btn-icon">📅</span>
+                        <span class="btn-text">Hoy</span>
+                    </button>
+                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('week')">
+                        <span class="btn-icon">📆</span>
+                        <span class="btn-text">Semana</span>
+                    </button>
+                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('month')">
+                        <span class="btn-icon">🗓️</span>
+                        <span class="btn-text">Mes</span>
+                    </button>
+                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('year')">
+                        <span class="btn-icon">📊</span>
+                        <span class="btn-text">Año</span>
+                    </button>
+                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('all')">
+                        <span class="btn-icon">🔄</span>
+                        <span class="btn-text">Todo</span>
+                    </button>
+                    <span class="date-separator">|</span>
+                    <input type="date" id="analysisDateFrom" class="date-input" onchange="Filtros.setCustomRange(this.value, document.getElementById('analysisDateTo').value); Analysis.render();">
                     <span style="color: #888;">→</span>
-                    <input type="date" id="analysisDateTo" style="padding: 5px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #00d4ff; font-size: 0.85em;" onchange="Filtros.setCustomRange(document.getElementById('analysisDateFrom').value, this.value); Analysis.render();">
+                    <input type="date" id="analysisDateTo" class="date-input" onchange="Filtros.setCustomRange(document.getElementById('analysisDateFrom').value, this.value); Analysis.render();">
                 </div>
                 
                 <!-- Filtros Adicionales -->
@@ -448,15 +480,31 @@
                 <h2>Diagrama de Gantt - Timeline de Actividades</h2>
                 
                 <!-- Filtros de Período -->
-                <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; align-items: center;">
-                    <button class="action-btn" onclick="Filtros.setPeriodo('today')" style="padding: 6px 12px; font-size: 0.85em;">📅 Hoy</button>
-                    <button class="action-btn" onclick="Filtros.setPeriodo('week')" style="padding: 6px 12px; font-size: 0.85em;">📆 Semana</button>
-                    <button class="action-btn" onclick="Filtros.setPeriodo('month')" style="padding: 6px 12px; font-size: 0.85em;">🗓️ Mes</button>
-                    <button class="action-btn" onclick="Filtros.setPeriodo('year')" style="padding: 6px 12px; font-size: 0.85em;">📊 Año</button>
-                    <button class="action-btn" onclick="Filtros.setPeriodo('all')" style="padding: 6px 12px; font-size: 0.85em;">🔄 Todo</button>
-                    <input type="date" id="ganttDateFrom" style="padding: 5px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #00d4ff; font-size: 0.85em;" onchange="Filtros.setCustomRange(this.value, document.getElementById('ganttDateTo').value); Gantt.render();">
+                <div class="date-filters-container">
+                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('today')">
+                        <span class="btn-icon">📅</span>
+                        <span class="btn-text">Hoy</span>
+                    </button>
+                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('week')">
+                        <span class="btn-icon">📆</span>
+                        <span class="btn-text">Semana</span>
+                    </button>
+                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('month')">
+                        <span class="btn-icon">🗓️</span>
+                        <span class="btn-text">Mes</span>
+                    </button>
+                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('year')">
+                        <span class="btn-icon">📊</span>
+                        <span class="btn-text">Año</span>
+                    </button>
+                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('all')">
+                        <span class="btn-icon">🔄</span>
+                        <span class="btn-text">Todo</span>
+                    </button>
+                    <span class="date-separator">|</span>
+                    <input type="date" id="ganttDateFrom" class="date-input" onchange="Filtros.setCustomRange(this.value, document.getElementById('ganttDateTo').value); Gantt.render();">
                     <span style="color: #888;">→</span>
-                    <input type="date" id="ganttDateTo" style="padding: 5px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #00d4ff; font-size: 0.85em;" onchange="Filtros.setCustomRange(document.getElementById('ganttDateFrom').value, this.value); Gantt.render();">
+                    <input type="date" id="ganttDateTo" class="date-input" onchange="Filtros.setCustomRange(document.getElementById('ganttDateFrom').value, this.value); Gantt.render();">
                 </div>
                 
                 <!-- Filtros del Gantt -->
@@ -594,15 +642,31 @@
                 <h2 style="color: var(--accent-primary);">Análisis Estadístico Avanzado</h2>
                 
                 <!-- Filtros de Período -->
-                <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; align-items: center;">
-                    <button class="action-btn" onclick="Filtros.setPeriodo('today')" style="padding: 6px 12px; font-size: 0.85em;">📅 Hoy</button>
-                    <button class="action-btn" onclick="Filtros.setPeriodo('week')" style="padding: 6px 12px; font-size: 0.85em;">📆 Semana</button>
-                    <button class="action-btn" onclick="Filtros.setPeriodo('month')" style="padding: 6px 12px; font-size: 0.85em;">🗓️ Mes</button>
-                    <button class="action-btn" onclick="Filtros.setPeriodo('year')" style="padding: 6px 12px; font-size: 0.85em;">📊 Año</button>
-                    <button class="action-btn" onclick="Filtros.setPeriodo('all')" style="padding: 6px 12px; font-size: 0.85em;">🔄 Todo</button>
-                    <input type="date" id="statsDateFrom" style="padding: 5px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #00d4ff; font-size: 0.85em;" onchange="Filtros.setCustomRange(this.value, document.getElementById('statsDateTo').value); Statistics.calculate();">
+                <div class="date-filters-container">
+                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('today')">
+                        <span class="btn-icon">📅</span>
+                        <span class="btn-text">Hoy</span>
+                    </button>
+                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('week')">
+                        <span class="btn-icon">📆</span>
+                        <span class="btn-text">Semana</span>
+                    </button>
+                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('month')">
+                        <span class="btn-icon">🗓️</span>
+                        <span class="btn-text">Mes</span>
+                    </button>
+                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('year')">
+                        <span class="btn-icon">📊</span>
+                        <span class="btn-text">Año</span>
+                    </button>
+                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('all')">
+                        <span class="btn-icon">🔄</span>
+                        <span class="btn-text">Todo</span>
+                    </button>
+                    <span class="date-separator">|</span>
+                    <input type="date" id="statsDateFrom" class="date-input" onchange="Filtros.setCustomRange(this.value, document.getElementById('statsDateTo').value); Statistics.calculate();">
                     <span style="color: #888;">→</span>
-                    <input type="date" id="statsDateTo" style="padding: 5px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #00d4ff; font-size: 0.85em;" onchange="Filtros.setCustomRange(document.getElementById('statsDateFrom').value, this.value); Statistics.calculate();">
+                    <input type="date" id="statsDateTo" class="date-input" onchange="Filtros.setCustomRange(document.getElementById('statsDateFrom').value, this.value); Statistics.calculate();">
                 </div>
                 
                 <!-- Filtros por Máquina, OP, Turno, Colores -->
@@ -760,11 +824,40 @@
                 </button>
                 
                 <!-- ============================================== -->
-                <!-- COMPARADOR ESTADÍSTICO MULTI-DIMENSIONAL -->
+                <!-- COMPARATIVO ESTADÍSTICO DIRECTO (ESTILO GANTT) -->
                 <!-- ============================================== -->
-                <h2 class="mt-10">🔬 Comparador Estadístico Multi-Dimensional</h2>
+                <h2 class="mt-10">📊 Comparativo Estadístico Multi-Dimensional</h2>
                 <p style="color: #888; font-size: 0.9em; margin-bottom: 15px;">
-                    Selecciona múltiples máquinas, OPs o turnos para comparar sus estadísticas lado a lado con Box Plots y métricas Six Sigma.
+                    Compara el desempeño estadístico agrupando por OP, Máquina, Turno o Tipo. Los filtros aplicados arriba afectan los resultados.
+                </p>
+                
+                <!-- Botones de Comparación Directa -->
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+                    <button class="action-btn" onclick="StatsComparativo.renderComparativo('statsComparativoDirecto', 'op')" style="background: #00ff9d; color: #000;">
+                        📋 Comparar por OP
+                    </button>
+                    <button class="action-btn" onclick="StatsComparativo.renderComparativo('statsComparativoDirecto', 'maquina')" style="background: #00d4ff; color: #000;">
+                        🏭 Comparar por Máquina
+                    </button>
+                    <button class="action-btn" onclick="StatsComparativo.renderComparativo('statsComparativoDirecto', 'turno')" style="background: #f59e0b; color: #000;">
+                        ⏰ Comparar por Turno
+                    </button>
+                    <button class="action-btn" onclick="StatsComparativo.renderComparativo('statsComparativoDirecto', 'tipo')" style="background: #8b5cf6;">
+                        🏷️ Comparar por Tipo
+                    </button>
+                </div>
+                
+                <!-- Contenedor del Comparativo Directo -->
+                <div id="statsComparativoDirecto" style="background: linear-gradient(135deg, #1a1a2e, #0f0f1a); padding: 20px; border-radius: 12px; border: 1px solid #333; margin-bottom: 20px;">
+                    <div class="no-data-msg">Selecciona una dimensión para comparar estadísticamente</div>
+                </div>
+                
+                <!-- ============================================== -->
+                <!-- COMPARADOR ESTADÍSTICO INTERACTIVO (AVANZADO) -->
+                <!-- ============================================== -->
+                <h2 class="mt-10">🔬 Comparador Interactivo (Avanzado)</h2>
+                <p style="color: #888; font-size: 0.9em; margin-bottom: 15px;">
+                    Selecciona manualmente elementos específicos para comparar sus estadísticas lado a lado con Box Plots y métricas Six Sigma.
                 </p>
                 
                 <div style="background: linear-gradient(135deg, #1a1a2e, #0f0f1a); padding: 20px; border-radius: 12px; border: 1px solid #333;">

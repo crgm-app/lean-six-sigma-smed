@@ -1036,6 +1036,58 @@ h3 {
     visibility: visible;
 }
 
+/* --- FILTROS DE FECHA --- */
+.date-filters-container {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.date-filter-btn {
+    padding: 8px 10px;
+    font-size: 0.85em;
+    min-width: 50px;
+    flex: 0 1 auto;
+    white-space: nowrap;
+}
+
+.date-filter-btn .btn-icon {
+    display: inline;
+}
+
+.date-filter-btn .btn-text {
+    display: inline;
+    margin-left: 4px;
+}
+
+.date-separator {
+    color: var(--text-muted);
+    padding: 0 4px;
+    display: none;
+}
+
+.date-input {
+    padding: 6px 8px;
+    font-size: 0.85em;
+    min-width: 120px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    color: var(--text-primary);
+    border-radius: 4px;
+}
+
+.date-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+.date-input::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    filter: brightness(1.5);
+}
+
 /* --- RESPONSIVE --- */
 @media (max-width: 768px) {
     html {
@@ -1045,6 +1097,39 @@ h3 {
     .tab-btn {
         padding: 8px 5px;
         font-size: 0.7rem;
+    }
+    
+    /* Filtros de fecha en móvil - solo íconos */
+    .date-filter-btn {
+        min-width: 42px;
+        padding: 8px 6px;
+        font-size: 1em;
+    }
+    
+    .date-filter-btn .btn-text {
+        display: none;
+    }
+    
+    .date-filter-btn .btn-icon {
+        margin: 0;
+    }
+    
+    /* Inputs de fecha más legibles en móvil */
+    .date-input {
+        font-size: 0.9em;
+        padding: 8px;
+        min-width: 110px;
+        background: #1a1a1a;
+        color: #fff;
+        border: 2px solid var(--accent-primary);
+    }
+    
+    .date-input::-webkit-calendar-picker-indicator {
+        filter: invert(1) brightness(1.5);
+    }
+    
+    .date-separator {
+        display: inline;
     }
     
     .stats-grid {

@@ -15,14 +15,14 @@ const Statistics = {
         sixSigma: {}
     },
     
-    // Actualizar opciones del filtro (incluye OP dinámica)
+    // Actualizar opciones del filtro (incluye OP, Máquina y Categoría dinámicas)
     updateFilterOptions: () => {
         // Filtro de Categoría
         const selectCat = document.getElementById('statsFilter');
         if (selectCat) {
             const currentValue = selectCat.value;
-            const cats = [...new Set(AppState.registros.map(r => r.cat))];
-            const names = [...new Set(AppState.registros.map(r => r.name))];
+            const cats = [...new Set(AppState.registros.map(r => r.cat))].filter(c => c).sort();
+            const names = [...new Set(AppState.registros.map(r => r.name))].filter(n => n).sort();
             
             let html = '<option value="ALL">Todas</option>';
             if (cats.length > 0) {
@@ -36,7 +36,12 @@ const Statistics = {
                 html += '</optgroup>';
             }
             selectCat.innerHTML = html;
-            selectCat.value = currentValue || 'ALL';
+            // Restaurar valor si existe en las opciones
+            if (currentValue && (currentValue === 'ALL' || cats.some(c => `CAT:${c}` === currentValue) || names.some(n => `NAME:${n}` === currentValue))) {
+                selectCat.value = currentValue;
+            } else {
+                selectCat.value = 'ALL';
+            }
         }
         
         // Filtro de OP (dinámico)
@@ -51,12 +56,75 @@ const Statistics = {
                 html += `<option value="${op}">${op.padStart(8, '0')} (${count})</option>`;
             });
             selectOP.innerHTML = html;
-            selectOP.value = currentOP || 'ALL';
+            // Restaurar valor si existe en las opciones
+            if (currentOP && (currentOP === 'ALL' || ops.includes(currentOP))) {
+                selectOP.value = currentOP;
+            } else {
+                selectOP.value = 'ALL';
+            }
+        }
+        
+        // Filtro de Máquina (dinámico) - NUEVO
+        const selectMaquina = document.getElementById('statsFilterMaquina');
+        if (selectMaquina) {
+            const currentMaquina = selectMaquina.value;
+            // Obtener máquinas de los registros Y de la configuración
+            const maquinasRegistros = [...new Set(AppState.registros.filter(r => r.maquina).map(r => r.maquina))];
+            const maquinasConfig = AppState.config?.maquinas || [];
+            const maquinas = [...new Set([...maquinasRegistros, ...maquinasConfig])].sort((a, b) => {
+                const numA = parseInt(a.replace(/\D/g, '')) || 0;
+                const numB = parseInt(b.replace(/\D/g, '')) || 0;
+                return numA - numB;
+            });
+            
+            let html = '<option value="ALL">Todas</option>';
+            maquinas.forEach(m => {
+                const count = AppState.registros.filter(r => r.maquina === m).length;
+                html += `<option value="${m}">${m}${count > 0 ? ` (${count})` : ''}</option>`;
+            });
+            selectMaquina.innerHTML = html;
+            // Restaurar valor si existe en las opciones
+            if (currentMaquina && (currentMaquina === 'ALL' || maquinas.includes(currentMaquina))) {
+                selectMaquina.value = currentMaquina;
+            } else {
+                selectMaquina.value = 'ALL';
+            }
+        }
+        
+        // Filtro de Turno - asegurar que mantenga el valor seleccionado
+        const selectTurno = document.getElementById('statsFilterTurno');
+        if (selectTurno) {
+            // El turno tiene opciones fijas, solo asegurar que tenga valor
+            if (!selectTurno.value) {
+                selectTurno.value = 'ALL';
+            }
+        }
+        
+        // Filtro de Tipo - asegurar que mantenga el valor seleccionado
+        const selectTipo = document.getElementById('statsFilterTipo');
+        if (selectTipo) {
+            // El tipo tiene opciones fijas, solo asegurar que tenga valor
+            if (!selectTipo.value) {
+                selectTipo.value = 'ALL';
+            }
+        }
+        
+        // Filtro de Colores - asegurar que mantenga el valor seleccionado
+        const selectColores = document.getElementById('statsFilterColores');
+        if (selectColores) {
+            // Los colores tienen opciones fijas, solo asegurar que tenga valor
+            if (!selectColores.value) {
+                selectColores.value = 'ALL';
+            }
         }
     },
     
     // Calcular estadísticas - USA FILTROS CENTRALIZADOS
     calculate: () => {
+        // Actualizar opciones de filtros dinámicos (Máquina, OP, Categoría)
+        // Esto asegura que las opciones se actualicen cuando cambia cualquier filtro
+        Statistics.updateFilterOptions();
+        
         // USAR FILTROS CENTRALIZADOS si están disponibles
         let filtered = typeof Filtros !== 'undefined' ? Filtros.getFiltered('stats') : [...AppState.registros];
         
@@ -64,6 +132,17 @@ const Statistics = {
         const filterTipo = document.getElementById('statsFilterTipo')?.value || 'ALL';
         if (filterTipo !== 'ALL') {
             filtered = filtered.filter(r => r.tipo === filterTipo);
+        }
+        
+        // Aplicar filtro adicional por Colores si existe el selector
+        const filterColores = document.getElementById('statsFilterColores')?.value || 'ALL';
+        if (filterColores !== 'ALL') {
+            const numColores = parseInt(filterColores);
+            if (numColores >= 5) {
+                filtered = filtered.filter(r => (r.colores || 1) >= 5);
+            } else {
+                filtered = filtered.filter(r => (r.colores || 1) === numColores);
+            }
         }
         
         // Aplicar filtro adicional por Categoría/Actividad específica si existe
@@ -1023,7 +1102,264 @@ const StatsComparative = {
 };
 
 // =====================================================
-// COMPARADOR ESTADÍSTICO MULTI-DIMENSIONAL
+// COMPARATIVO ESTADÍSTICO DIRECTO (ESTILO GANTT)
+// =====================================================
+
+const StatsComparativo = {
+    // Renderizar comparativo estadístico por dimensión (sin selección manual)
+    renderComparativo: (containerId, dimension = 'op') => {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        
+        const registros = typeof Filtros !== 'undefined' ? Filtros.getFiltered('stats') : AppState.registros;
+        
+        if (registros.length === 0) {
+            container.innerHTML = '<div class="no-data-msg">No hay datos para comparar</div>';
+            return;
+        }
+        
+        // Agrupar por dimensión seleccionada
+        const grupos = {};
+        registros.forEach(r => {
+            let key;
+            switch(dimension) {
+                case 'maquina': key = r.maquina || 'Sin Máquina'; break;
+                case 'turno': key = r.turno || 'Sin Turno'; break;
+                case 'tipo': key = r.tipo || 'INT'; break;
+                default: key = r.op ? r.op.padStart(8, '0') : 'Sin OP';
+            }
+            
+            if (!grupos[key]) {
+                grupos[key] = [];
+            }
+            grupos[key].push(r.duration || r.duracion || 0);
+        });
+        
+        // Calcular estadísticas para cada grupo (solo grupos con 2+ datos)
+        const statsData = [];
+        Object.entries(grupos).forEach(([name, tiempos]) => {
+            if (tiempos.length < 2) return;
+            
+            const sorted = [...tiempos].sort((a, b) => a - b);
+            const n = sorted.length;
+            const sum = tiempos.reduce((a, b) => a + b, 0);
+            const mean = sum / n;
+            
+            // Cuartiles
+            const q1 = sorted[Math.floor(n * 0.25)];
+            const median = sorted[Math.floor(n * 0.5)];
+            const q3 = sorted[Math.floor(n * 0.75)];
+            
+            // Varianza y desviación
+            const variance = tiempos.reduce((acc, v) => acc + Math.pow(v - mean, 2), 0) / n;
+            const stdDev = Math.sqrt(variance);
+            const cv = mean > 0 ? (stdDev / mean * 100) : 0;
+            
+            // Six Sigma básico
+            const usl = mean * 1.2;
+            const lsl = mean * 0.8;
+            const cpk = Math.min(
+                stdDev > 0 ? (usl - mean) / (3 * stdDev) : 0,
+                stdDev > 0 ? (mean - lsl) / (3 * stdDev) : 0
+            );
+            
+            statsData.push({
+                name,
+                n,
+                min: sorted[0],
+                max: sorted[n - 1],
+                q1,
+                median,
+                q3,
+                mean: Utils.round2(mean),
+                stdDev: Utils.round2(stdDev),
+                cv: Utils.round2(cv),
+                cpk: Utils.round2(cpk),
+                total: Utils.round2(sum)
+            });
+        });
+        
+        if (statsData.length === 0) {
+            container.innerHTML = `
+                <div class="no-data-msg">
+                    ⚠️ No hay suficientes datos para comparar<br>
+                    <small style="color: #888;">Se necesitan al menos 2 registros por grupo</small>
+                </div>
+            `;
+            return;
+        }
+        
+        // Ordenar por promedio (menor a mayor)
+        statsData.sort((a, b) => a.mean - b.mean);
+        
+        // Configuración de colores por dimensión
+        const dimConfig = {
+            op: { icon: '📋', label: 'Orden de Producción', color: '#00ff9d' },
+            maquina: { icon: '🏭', label: 'Máquina', color: '#00d4ff' },
+            turno: { icon: '⏰', label: 'Turno', color: '#f59e0b' },
+            tipo: { icon: '🏷️', label: 'Tipo SMED', color: '#8b5cf6' }
+        };
+        const config = dimConfig[dimension] || dimConfig.op;
+        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+        
+        // Encontrar escalas globales para box plots
+        const allMins = statsData.map(s => s.min);
+        const allMaxs = statsData.map(s => s.max);
+        const globalMin = Math.min(...allMins);
+        const globalMax = Math.max(...allMaxs);
+        const globalRange = globalMax - globalMin || 1;
+        
+        let html = `
+            <h4 style="margin: 0 0 15px 0; color: ${config.color};">${config.icon} Comparativa Estadística por ${config.label}</h4>
+            <p style="color: #888; font-size: 0.85em; margin-bottom: 15px;">${statsData.length} grupos encontrados con 2+ registros</p>
+            
+            <!-- Box Plots Comparativos -->
+            <div style="background: #1a1a2e; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <h5 style="margin: 0 0 15px 0; color: #fff;">📦 Box Plots Comparativos</h5>
+        `;
+        
+        // Box plots lado a lado
+        statsData.forEach((s, i) => {
+            const color = colors[i % colors.length];
+            const getPct = (val) => ((val - globalMin) / globalRange) * 85 + 5;
+            
+            const pMin = getPct(s.min);
+            const pQ1 = getPct(s.q1);
+            const pMed = getPct(s.median);
+            const pQ3 = getPct(s.q3);
+            const pMax = getPct(s.max);
+            
+            html += `
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                    <div style="width: 90px; color: ${color}; font-weight: bold; font-size: 0.85em; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${s.name}">${s.name}</div>
+                    <div style="flex: 1; position: relative; height: 30px; background: #0a0a0a; border-radius: 4px;">
+                        <!-- Whisker izquierdo -->
+                        <div style="position: absolute; left: ${pMin}%; top: 50%; width: 2px; height: 16px; background: ${color}; transform: translateY(-50%);"></div>
+                        <!-- Línea min-Q1 -->
+                        <div style="position: absolute; left: ${pMin}%; top: 50%; width: ${pQ1 - pMin}%; height: 2px; background: ${color}; transform: translateY(-50%);"></div>
+                        <!-- Caja Q1-Q3 -->
+                        <div style="position: absolute; left: ${pQ1}%; top: 50%; width: ${pQ3 - pQ1}%; height: 20px; background: ${color}33; border: 2px solid ${color}; transform: translateY(-50%); border-radius: 3px;"></div>
+                        <!-- Mediana -->
+                        <div style="position: absolute; left: ${pMed}%; top: 50%; width: 3px; height: 24px; background: ${color}; transform: translateY(-50%);"></div>
+                        <!-- Línea Q3-Max -->
+                        <div style="position: absolute; left: ${pQ3}%; top: 50%; width: ${pMax - pQ3}%; height: 2px; background: ${color}; transform: translateY(-50%);"></div>
+                        <!-- Whisker derecho -->
+                        <div style="position: absolute; left: ${pMax}%; top: 50%; width: 2px; height: 16px; background: ${color}; transform: translateY(-50%);"></div>
+                    </div>
+                    <div style="width: 70px; text-align: left; font-size: 0.8em; color: #888;">
+                        μ=${s.mean}s
+                    </div>
+                </div>
+            `;
+        });
+        
+        // Escala
+        html += `
+                <div style="display: flex; justify-content: space-between; margin-left: 105px; margin-right: 85px; font-size: 0.7em; color: #666;">
+                    <span>${globalMin.toFixed(0)}s</span>
+                    <span>${((globalMin + globalMax) / 2).toFixed(0)}s</span>
+                    <span>${globalMax.toFixed(0)}s</span>
+                </div>
+            </div>
+        `;
+        
+        // Tabla comparativa detallada
+        html += `
+            <h5 style="margin: 20px 0 10px 0; color: #fff;">📊 Tabla Estadística Comparativa</h5>
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.82em;">
+                    <thead>
+                        <tr style="background: #1a1a2e;">
+                            <th style="padding: 8px; text-align: left; color: ${config.color};">${config.label}</th>
+                            <th style="padding: 8px; text-align: center;">N</th>
+                            <th style="padding: 8px; text-align: center;">Media (μ)</th>
+                            <th style="padding: 8px; text-align: center;">Mediana</th>
+                            <th style="padding: 8px; text-align: center;">σ</th>
+                            <th style="padding: 8px; text-align: center;">CV%</th>
+                            <th style="padding: 8px; text-align: center;">Min</th>
+                            <th style="padding: 8px; text-align: center;">Max</th>
+                            <th style="padding: 8px; text-align: center;">Cpk</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        statsData.forEach((s, i) => {
+            const cvColor = s.cv < 20 ? '#10b981' : s.cv < 40 ? '#f59e0b' : '#ef4444';
+            const cpkColor = s.cpk >= 1.33 ? '#10b981' : s.cpk >= 1.0 ? '#f59e0b' : '#ef4444';
+            
+            html += `
+                <tr style="background: ${i % 2 === 0 ? '#0a0a0a' : '#121212'};">
+                    <td style="padding: 8px; color: ${colors[i % colors.length]}; font-weight: bold;">${s.name}</td>
+                    <td style="padding: 8px; text-align: center;">${s.n}</td>
+                    <td style="padding: 8px; text-align: center; color: #00d4ff;">${s.mean}s</td>
+                    <td style="padding: 8px; text-align: center;">${s.median.toFixed(1)}s</td>
+                    <td style="padding: 8px; text-align: center;">${s.stdDev}s</td>
+                    <td style="padding: 8px; text-align: center; color: ${cvColor}; font-weight: bold;">${s.cv}%</td>
+                    <td style="padding: 8px; text-align: center; color: #888;">${s.min.toFixed(1)}s</td>
+                    <td style="padding: 8px; text-align: center; color: #888;">${s.max.toFixed(1)}s</td>
+                    <td style="padding: 8px; text-align: center; color: ${cpkColor}; font-weight: bold;">${s.cpk}</td>
+                </tr>
+            `;
+        });
+        
+        html += '</tbody></table></div>';
+        
+        // Rankings
+        const menorMedia = statsData.reduce((a, b) => a.mean < b.mean ? a : b);
+        const menorCV = statsData.reduce((a, b) => a.cv < b.cv ? a : b);
+        const mejorCpk = statsData.reduce((a, b) => a.cpk > b.cpk ? a : b);
+        
+        html += `
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-top: 15px;">
+                <div style="background: #00d4ff22; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #00d4ff;">
+                    <div style="color: #888; font-size: 0.8em;">⚡ Más Rápido (menor μ)</div>
+                    <div style="color: #00d4ff; font-weight: bold; font-size: 1.1em;">${menorMedia.name}</div>
+                    <div style="color: #00d4ff;">${menorMedia.mean}s promedio</div>
+                </div>
+                <div style="background: #10b98122; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #10b981;">
+                    <div style="color: #888; font-size: 0.8em;">🎯 Más Consistente (menor CV)</div>
+                    <div style="color: #10b981; font-weight: bold; font-size: 1.1em;">${menorCV.name}</div>
+                    <div style="color: #10b981;">CV: ${menorCV.cv}%</div>
+                </div>
+                <div style="background: #8b5cf622; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #8b5cf6;">
+                    <div style="color: #888; font-size: 0.8em;">📐 Mejor Capacidad (Cpk)</div>
+                    <div style="color: #8b5cf6; font-weight: bold; font-size: 1.1em;">${mejorCpk.name}</div>
+                    <div style="color: #8b5cf6;">Cpk: ${mejorCpk.cpk}</div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 15px; padding: 10px; background: #0a0a0a; border-radius: 4px; font-size: 0.85em; color: #888;">
+                💡 <strong>Interpretación:</strong> 
+                <strong style="color: #00d4ff;">CV &lt; 20%</strong> = Proceso estable | 
+                <strong style="color: #10b981;">Cpk &gt; 1.33</strong> = Proceso capaz | 
+                Menor media = Más eficiente
+            </div>
+        `;
+        
+        container.innerHTML = html;
+    },
+    
+    // Shortcuts para cada dimensión
+    renderByOP: (containerId = 'statsComparativoDirecto') => {
+        StatsComparativo.renderComparativo(containerId, 'op');
+    },
+    
+    renderByMaquina: (containerId = 'statsComparativoDirecto') => {
+        StatsComparativo.renderComparativo(containerId, 'maquina');
+    },
+    
+    renderByTurno: (containerId = 'statsComparativoDirecto') => {
+        StatsComparativo.renderComparativo(containerId, 'turno');
+    },
+    
+    renderByTipo: (containerId = 'statsComparativoDirecto') => {
+        StatsComparativo.renderComparativo(containerId, 'tipo');
+    }
+};
+
+// =====================================================
+// COMPARADOR ESTADÍSTICO MULTI-DIMENSIONAL (INTERACTIVO)
 // =====================================================
 
 const StatsMultiComparator = {
@@ -1429,4 +1765,5 @@ window.Statistics = Statistics;
 window.StatsInterpretation = StatsInterpretation;
 window.Pareto = Pareto;
 window.StatsComparative = StatsComparative;
+window.StatsComparativo = StatsComparativo;
 window.StatsMultiComparator = StatsMultiComparator;
