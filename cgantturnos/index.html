@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>SMED Full Statistics & Six Sigma Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #eceff1; margin: 0; padding: 20px; font-size: 13px; }
+        .container { max-width: 1400px; margin: auto; }
+        .turno-section { background: #263238; color: white; padding: 15px; border-radius: 8px; margin: 40px 0 15px 0; text-align: center; font-size: 1.6em; letter-spacing: 2px; }
+        .grid { display: grid; grid-template-columns: repeat(1, 1fr); gap: 30px; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-left: 8px solid; }
+        .border-int { border-color: #0288d1; }
+        .border-ext { border-color: #43a047; }
+        .border-nva { border-color: #d32f2f; }
+        h2 { margin-top: 0; color: #455a64; display: flex; justify-content: space-between; align-items: center; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #fff; }
+        th { background: #f1f8e9; color: #33691e; padding: 10px; font-weight: 600; border: 1px solid #dcedc8; text-transform: uppercase; font-size: 11px; }
+        td { padding: 10px; border: 1px solid #eee; text-align: center; }
+        .text-left { text-align: left; font-weight: bold; }
+        
+        /* Estilos Six Sigma */
+        .gold-std { background: #fff9c4; font-weight: bold; color: #f57f17; } /* Q1 */
+        .sigma-excelente { background: #c8e6c9; color: #2e7d32; border-radius: 4px; padding: 2px 6px; font-weight: bold; }
+        .sigma-estable { background: #fff9c4; color: #f57f17; border-radius: 4px; padding: 2px 6px; }
+        .sigma-critico { background: #ffcdd2; color: #c62828; border-radius: 4px; padding: 2px 6px; font-weight: bold; }
+        
+        .chart-box { height: 250px; margin-bottom: 20px; }
+        .badge { font-size: 0.6em; vertical-align: middle; padding: 4px 8px; border-radius: 12px; color: white; margin-left: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 style="text-align:center; color: #263238;">SMED Intelligence Center <span style="color: #0288d1;">Six Sigma Edition</span></h1>
+    <p style="text-align:center; font-style: italic;">Análisis Multidimensional de 2 Corrugadoras Fosber y 18 Imprentas</p>
+
+    <div id="dashboard-content"></div>
+</div>
+
+<script>
+// Datos reales extraídos y procesados con estadística avanzada
+const smedData = {
+  "T1": {
+    "INT": [
+        {act: "Tinta Lavado", min: 393, q1: 562, med: 689, q3: 967, max: 1487, std: 293, cv: 0.379},
+        {act: "Sello Montaje", min: 203, q1: 474, med: 521, q3: 615, max: 1333, std: 177, cv: 0.322},
+        {act: "Troquel Montar", min: 218, q1: 417, med: 443, q3: 481, max: 697, std: 120, cv: 0.272}
+    ],
+    "EXT": [
+        {act: "Sello Requerir", min: 559, q1: 800, med: 910, q3: 1021, max: 1350, std: 187, cv: 0.204},
+        {act: "Tinta Requerir", min: 398, q1: 798, med: 953, q3: 1097, max: 2023, std: 358, cv: 0.367}
+    ],
+    "NVA": [
+        {act: "Sello Ajuste", min: 85, q1: 290, med: 400, q3: 723, max: 2481, std: 592, cv: 0.928},
+        {act: "Mecanico Correctivo", min: 230, q1: 318, med: 887, q3: 1455, max: 9200, std: 3823, cv: 1.58}
+    ]
+  },
+  "T2": {
+    "INT": [
+        {act: "Tinta Rasqueta Lav", min: 170, q1: 363, med: 461, q3: 654, max: 1078, std: 244, cv: 0.466},
+        {act: "Troquel Montar", min: 298, q1: 448, med: 518, q3: 601, max: 822, std: 135, cv: 0.250}
+    ],
+    "EXT": [
+        {act: "Tinta Requerir", min: 556, q1: 858, med: 1049, q3: 1177, max: 2130, std: 372, cv: 0.341}
+    ],
+    "NVA": [
+        {act: "Sello Limpieza", min: 1, q1: 147, med: 252, q3: 399, max: 1695, std: 340, cv: 1.00}
+    ]
+  },
+  "T3": {
+    "INT": [
+        {act: "Tinta Rasqueta Lav", min: 110, q1: 618, med: 924, q3: 1099, max: 1238, std: 331, cv: 0.392}
+    ],
+    "EXT": [
+        {act: "Troquel Requerir", min: 602, q1: 743, med: 960, q3: 1086, max: 1621, std: 241, cv: 0.257}
+    ],
+    "NVA": [
+        {act: "Maquina Atasco", min: 52, q1: 113, med: 246, q3: 522, max: 2339, std: 453, cv: 1.12}
+    ]
+  }
+};
+
+const types = { 
+    'INT': {label: 'Actividades Internas', color: '#0288d1', badge: 'PARO MÁQUINA'},
+    'EXT': {label: 'Actividades Externas', color: '#43a047', badge: 'PREPARACIÓN'},
+    'NVA': {label: 'Mudas / Desperdicios', color: '#d32f2f', badge: 'SIX SIGMA TARGET'}
+};
+
+const content = document.getElementById('dashboard-content');
+
+Object.keys(smedData).forEach(turno => {
+    const section = document.createElement('div');
+    section.className = 'turno-section';
+    section.innerText = `PANEL DE CONTROL - TURNO ${turno}`;
+    content.appendChild(section);
+
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+    
+    Object.keys(types).forEach(tipo => {
+        const data = smedData[turno][tipo];
+        if(!data) return;
+
+        const card = document.createElement('div');
+        card.className = `card border-${tipo.toLowerCase()}`;
+        
+        let rows = data.map(d => {
+            let sigmaStatus = d.cv < 0.3 ? 'sigma-excelente' : (d.cv < 0.6 ? 'sigma-estable' : 'sigma-critico');
+            let sigmaLabel = d.cv < 0.3 ? 'BAJA VAR' : (d.cv < 0.6 ? 'CONTROL' : 'INESTABLE');
+            
+            return `
+            <tr>
+                <td class="text-left">${d.act}</td>
+                <td>${d.min}s</td>
+                <td class="gold-std">${d.q1}s</td>
+                <td>${d.med}s</td>
+                <td>${d.q3}s</td>
+                <td>${d.max}s</td>
+                <td style="color:#78909c">±${d.std}s</td>
+                <td><span class="${sigmaStatus}">${(d.cv * 100).toFixed(1)}%</span></td>
+                <td><span class="${sigmaStatus}">${sigmaLabel}</span></td>
+            </tr>`;
+        }).join('');
+
+        card.innerHTML = `
+            <h2>${types[tipo].label} <span class="badge" style="background:${types[tipo].color}">${types[tipo].badge}</span></h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th rowspan="2">Actividad</th>
+                        <th colspan="5">Los 5 Cuartiles (Distribución)</th>
+                        <th colspan="3">Métricas Six Sigma (Variabilidad)</th>
+                    </tr>
+                    <tr>
+                        <th>Min</th><th class="gold-std">Q1 (Meta)</th><th>Mediana</th><th>Q3</th><th>Max</th>
+                        <th>Std Dev (σ)</th><th>CV %</th><th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        `;
+        grid.appendChild(card);
+    });
+    content.appendChild(grid);
+});
+</script>
+</body>
+</html>
