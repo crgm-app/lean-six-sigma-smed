@@ -2059,7 +2059,7 @@ document.addEventListener('DOMContentLoaded', init);
 // =====================================================
 
 const FreeTimers = {
-    // Lista de timers activos { id, start, interval }
+    // Lista de timers activos { id, start, interval, tempName }
     active: [],
     
     // Agregar nuevo cronómetro libre
@@ -2070,7 +2070,8 @@ const FreeTimers = {
             start: Date.now(),
             interval: null,
             stopped: false,
-            elapsed: 0
+            elapsed: 0,
+            tempName: '' // Nombre temporal mientras corre el cronómetro
         };
         
         FreeTimers.active.push(timer);
@@ -2091,10 +2092,24 @@ const FreeTimers = {
         }, 100);
     },
     
+    // Actualizar nombre temporal de un cronómetro
+    updateTempName: (id, name) => {
+        const timer = FreeTimers.active.find(t => t.id === id);
+        if (timer) {
+            timer.tempName = name;
+        }
+    },
+    
     // Detener un cronómetro (mostrar panel de datos)
     stop: (id) => {
         const timer = FreeTimers.active.find(t => t.id === id);
         if (timer && !timer.stopped) {
+            // Capturar nombre temporal del input antes de detener
+            const tempInput = document.getElementById(`freeTimerTempName_${id}`);
+            if (tempInput) {
+                timer.tempName = tempInput.value.trim();
+            }
+            
             timer.stopped = true;
             timer.elapsed = (Date.now() - timer.start) / 1000;
             if (timer.interval) {
@@ -2149,7 +2164,65 @@ const FreeTimers = {
         FreeTimers.remove(id);
         UI.renderAll();
         
-        alert(`✅ "${name}" guardado: ${duration.toFixed(1)}s`);
+        // Mostrar feedback visual mejorado
+        FreeTimers.showSaveNotification(name, duration);
+    },
+    
+    // Mostrar notificación de guardado exitoso
+    showSaveNotification: (name, duration) => {
+        // Crear elemento de notificación
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+            z-index: 9999;
+            font-weight: bold;
+            animation: slideIn 0.3s ease-out;
+        `;
+        notification.innerHTML = `✅ "${name}" guardado en historial: ${duration.toFixed(1)}s`;
+        
+        // Añadir animación CSS si no existe
+        if (!document.getElementById('notificationStyles')) {
+            const style = document.createElement('style');
+            style.id = 'notificationStyles';
+            style.textContent = `
+                @keyframes slideIn {
+                    from {
+                        transform: translateX(400px);
+                        opacity: 0;
+                    }
+                    to {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                }
+                @keyframes slideOut {
+                    from {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                    to {
+                        transform: translateX(400px);
+                        opacity: 0;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        document.body.appendChild(notification);
+        
+        // Remover después de 3 segundos
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.3s ease-in';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
     },
     
     // Cancelar un cronómetro
@@ -2176,7 +2249,7 @@ const FreeTimers = {
             const elapsed = timer.elapsed.toFixed(1);
             
             if (timer.stopped) {
-                // Mostrar panel de datos
+                // Mostrar panel de datos con nombre prellenado
                 return `
                     <div style="background: #1a1a2e; padding: 12px; border-radius: 8px; margin-bottom: 8px; border: 1px solid #8b5cf6;">
                         <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
@@ -2185,7 +2258,7 @@ const FreeTimers = {
                             </div>
                             <div style="flex: 2; min-width: 120px;">
                                 <label style="font-size: 10px; color: #888;">Nombre:</label>
-                                <input type="text" id="freeTimerName_${timer.id}" placeholder="Ej: Espera supervisor" 
+                                <input type="text" id="freeTimerName_${timer.id}" placeholder="Ej: Espera supervisor" value="${timer.tempName || ''}"
                                        style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid #444; background: #0a0a0a; color: #fff;">
                             </div>
                             <div style="flex: 1; min-width: 90px;">
@@ -2196,18 +2269,23 @@ const FreeTimers = {
                                     <option value="EXT">🟢 Externa</option>
                                 </select>
                             </div>
-                            <button class="action-btn success" onclick="FreeTimers.save('${timer.id}')" style="padding: 6px 12px;">✓</button>
+                            <button class="action-btn success" onclick="FreeTimers.save('${timer.id}')" style="padding: 6px 12px;">✓ Guardar</button>
                             <button class="action-btn danger" onclick="FreeTimers.remove('${timer.id}')" style="padding: 6px 12px;">✕</button>
                         </div>
                     </div>
                 `;
             } else {
-                // Mostrar timer corriendo - con ID único para actualizar solo el texto
+                // Mostrar timer corriendo con campo de nombre editable inline
                 return `
-                    <div style="display: flex; align-items: center; gap: 10px; background: #1a1a2e; padding: 10px; border-radius: 8px; margin-bottom: 8px;">
-                        <span style="color: #888;">⏱️ Timer ${index + 1}:</span>
-                        <span id="freeTimerDisplay_${timer.id}" style="font-size: 1.3em; color: #8b5cf6; font-weight: bold; font-family: monospace; min-width: 80px;">${elapsed}s</span>
-                        <button class="action-btn" onclick="FreeTimers.stop('${timer.id}')" style="background: #ef4444; padding: 8px 15px; font-size: 1em;">⏹️ Detener</button>
+                    <div style="display: flex; align-items: center; gap: 10px; background: #1a1a2e; padding: 10px; border-radius: 8px; margin-bottom: 8px; border: 2px solid #8b5cf6;">
+                        <span id="freeTimerDisplay_${timer.id}" style="font-size: 1.2em; color: #8b5cf6; font-weight: bold; font-family: monospace; min-width: 70px;">${elapsed}s</span>
+                        <input type="text" 
+                               id="freeTimerTempName_${timer.id}" 
+                               placeholder="Nombre temporal (ej: Espera material)"
+                               value="${timer.tempName || ''}"
+                               oninput="FreeTimers.updateTempName('${timer.id}', this.value)"
+                               style="flex: 1; min-width: 150px; padding: 8px; border-radius: 4px; border: 1px solid #8b5cf6; background: #0a0a0a; color: #fff; font-size: 0.95em;">
+                        <button class="action-btn" onclick="FreeTimers.stop('${timer.id}')" style="background: #ef4444; padding: 8px 15px; font-size: 1em; white-space: nowrap;">⏹️ Detener</button>
                         <button class="action-btn danger" onclick="FreeTimers.remove('${timer.id}')" style="padding: 8px 12px;">✕</button>
                     </div>
                 `;
