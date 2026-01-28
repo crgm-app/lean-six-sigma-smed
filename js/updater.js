@@ -8,7 +8,7 @@ const AppUpdater = {
     VERSION_URL: 'https://smed.crgm.app/version.json',
     
     // Versión actual de la app (debe coincidir con app.js)
-    CURRENT_VERSION: '2.1',
+    CURRENT_VERSION: '2.2',
     
     // Estado
     updateAvailable: false,

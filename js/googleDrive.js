@@ -478,7 +478,7 @@ const GoogleDrive = {
         
         try {
             const backupData = {
-                version: '2.1',
+                version: '2.2',
                 fecha: new Date().toISOString(),
                 email: GoogleDrive.userEmail,
                 registros: AppState.registros,

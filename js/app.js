@@ -33,7 +33,7 @@ const COSTO_HORA_DEFAULT = 500; // GTQ por hora
 const SOPORTE = {
     email: 'smed@crgm.app',
     dominio: 'https://smed.crgm.app',
-    version: '2.1',
+    version: '2.2',
     fecha: '26 Enero 2026'
 };
 window.SOPORTE = SOPORTE;
