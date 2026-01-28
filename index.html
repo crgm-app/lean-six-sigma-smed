@@ -6,7 +6,7 @@
     <title>SMED Analyzer Pro - Lean Manufacturing</title>
     
     <!-- PWA Meta Tags -->
-    <meta name="description" content="Cronómetro Industrial + Análisis Lean Manufacturing + Six Sigma crgm">
+    <meta name="description" content="Cronómetro Industrial + Análisis Lean Manufacturing + Six Sigma">
     <meta name="theme-color" content="#00ff9d">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -38,6 +38,120 @@
             <button class="tab-btn" data-tab="theory">📚 Teoría</button>
             <button class="tab-btn" data-tab="config">⚙️ Config</button>
         </nav>
+
+        <!-- ============================================== -->
+        <!-- FILTROS GLOBALES UNIFICADOS (Compartidos para todas las pestañas) -->
+        <!-- ============================================== -->
+        <div class="global-filters-wrapper" id="globalFiltersWrapper">
+            <div class="global-filters-header" onclick="GlobalFilters.toggle()">
+                <div class="filters-title">
+                    <span class="filters-icon">🗓️</span>
+                    <span>FILTROS</span>
+                    <span class="filters-badge" id="filtersBadge">0</span>
+                </div>
+                <button class="filters-toggle" id="filtersToggleBtn">−</button>
+            </div>
+            
+            <div class="global-filters-content" id="globalFiltersContent">
+                <!-- Filtros de Período -->
+                <div class="filter-section">
+                    <label class="filter-section-label">📅 Período</label>
+                    <div class="filter-buttons-row">
+                        <button class="global-filter-btn" data-period="today" onclick="GlobalFilters.setPeriod('today')">
+                            <span class="filter-btn-icon">📅</span>
+                            <span class="filter-btn-text">Hoy</span>
+                        </button>
+                        <button class="global-filter-btn" data-period="week" onclick="GlobalFilters.setPeriod('week')">
+                            <span class="filter-btn-icon">📆</span>
+                            <span class="filter-btn-text">Semana</span>
+                        </button>
+                        <button class="global-filter-btn" data-period="month" onclick="GlobalFilters.setPeriod('month')">
+                            <span class="filter-btn-icon">🗓️</span>
+                            <span class="filter-btn-text">Mes</span>
+                        </button>
+                        <button class="global-filter-btn" data-period="year" onclick="GlobalFilters.setPeriod('year')">
+                            <span class="filter-btn-icon">📊</span>
+                            <span class="filter-btn-text">Año</span>
+                        </button>
+                        <button class="global-filter-btn active" data-period="all" onclick="GlobalFilters.setPeriod('all')">
+                            <span class="filter-btn-icon">🔄</span>
+                            <span class="filter-btn-text">Todo</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Rango de Fechas Personalizado -->
+                <div class="filter-section">
+                    <label class="filter-section-label">📆 Rango Personalizado</label>
+                    <div class="filter-date-range">
+                        <input type="date" id="globalDateFrom" class="global-date-input" onchange="GlobalFilters.setCustomRange()">
+                        <span class="date-range-separator">→</span>
+                        <input type="date" id="globalDateTo" class="global-date-input" onchange="GlobalFilters.setCustomRange()">
+                    </div>
+                </div>
+
+                <!-- Filtros Adicionales -->
+                <div class="filter-section">
+                    <label class="filter-section-label">🔍 Filtros Adicionales</label>
+                    <div class="filter-selects-row">
+                        <div class="filter-select-group">
+                            <label>🏭 Máquina</label>
+                            <select id="globalFilterMaquina" class="global-filter-select" onchange="GlobalFilters.applyFilters()">
+                                <option value="ALL">Todas</option>
+                            </select>
+                        </div>
+                        <div class="filter-select-group">
+                            <label>📋 OP</label>
+                            <select id="globalFilterOP" class="global-filter-select" onchange="GlobalFilters.applyFilters()">
+                                <option value="ALL">Todas</option>
+                            </select>
+                        </div>
+                        <div class="filter-select-group">
+                            <label>⏰ Turno</label>
+                            <select id="globalFilterTurno" class="global-filter-select" onchange="GlobalFilters.applyFilters()">
+                                <option value="ALL">Todos</option>
+                                <option value="T1">T1</option>
+                                <option value="T2">T2</option>
+                                <option value="T3">T3</option>
+                            </select>
+                        </div>
+                        <div class="filter-select-group">
+                            <label>🎨 Colores</label>
+                            <select id="globalFilterColores" class="global-filter-select" onchange="GlobalFilters.applyFilters()">
+                                <option value="ALL">Todos</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4+</option>
+                            </select>
+                        </div>
+                        <div class="filter-select-group">
+                            <label>🏷️ Tipo</label>
+                            <select id="globalFilterTipo" class="global-filter-select" onchange="GlobalFilters.applyFilters()">
+                                <option value="ALL">Todos</option>
+                                <option value="INT">🟠 INT</option>
+                                <option value="EXT">🟢 EXT</option>
+                                <option value="NVA">🔴 NVA</option>
+                            </select>
+                        </div>
+                        <div class="filter-select-group">
+                            <label>📁 Categoría</label>
+                            <select id="globalFilterCategoria" class="global-filter-select" onchange="GlobalFilters.applyFilters()">
+                                <option value="ALL">Todas</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botón Limpiar Filtros -->
+                <div class="filter-actions">
+                    <button class="clear-filters-btn" onclick="GlobalFilters.clearAll()">
+                        <span>🗑️</span>
+                        <span>Limpiar Filtros</span>
+                    </button>
+                </div>
+            </div>
+        </div>
 
         <!-- ============================================== -->
         <!-- TAB: RELOJ / CRONÓMETRO -->
@@ -138,34 +252,7 @@
 
                 <!-- Historial -->
                 <h2>Historial de Actividades <span id="historyCount" style="font-size: 0.6em; color: #888;"></span></h2>
-                <!-- Filtros de Período -->
-                <div class="date-filters-container">
-                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('today')">
-                        <span class="btn-icon">📅</span>
-                        <span class="btn-text">Hoy</span>
-                    </button>
-                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('week')">
-                        <span class="btn-icon">📆</span>
-                        <span class="btn-text">Semana</span>
-                    </button>
-                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('month')">
-                        <span class="btn-icon">🗓️</span>
-                        <span class="btn-text">Mes</span>
-                    </button>
-                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('year')">
-                        <span class="btn-icon">📊</span>
-                        <span class="btn-text">Año</span>
-                    </button>
-                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('all')">
-                        <span class="btn-icon">🔄</span>
-                        <span class="btn-text">Todo</span>
-                    </button>
-                    <span class="date-separator">|</span>
-                    <input type="date" id="historyDateFrom" class="date-input" onchange="Filtros.setCustomRange(this.value, document.getElementById('historyDateTo').value)">
-                    <span style="color: #888;">→</span>
-                    <input type="date" id="historyDateTo" class="date-input" onchange="Filtros.setCustomRange(document.getElementById('historyDateFrom').value, this.value)">
-                </div>
-                <!-- Filtros Adicionales -->
+                <!-- Filtros Legacy (mantener selectores para compatibilidad, pero ocultos) -->
                 <div class="form-row mb-10" style="flex-wrap: wrap; gap: 8px;">
                     <div class="form-group" style="flex:1; min-width: 80px;">
                         <select id="historyFilterMaquina" class="form-select" onchange="UI.renderHistory()">
@@ -219,35 +306,7 @@
             <div class="card">
                 <h2>Análisis Multi-Perspectiva</h2>
                 
-                <!-- Filtros de Período -->
-                <div class="date-filters-container">
-                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('today')">
-                        <span class="btn-icon">📅</span>
-                        <span class="btn-text">Hoy</span>
-                    </button>
-                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('week')">
-                        <span class="btn-icon">📆</span>
-                        <span class="btn-text">Semana</span>
-                    </button>
-                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('month')">
-                        <span class="btn-icon">🗓️</span>
-                        <span class="btn-text">Mes</span>
-                    </button>
-                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('year')">
-                        <span class="btn-icon">📊</span>
-                        <span class="btn-text">Año</span>
-                    </button>
-                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('all')">
-                        <span class="btn-icon">🔄</span>
-                        <span class="btn-text">Todo</span>
-                    </button>
-                    <span class="date-separator">|</span>
-                    <input type="date" id="analysisDateFrom" class="date-input" onchange="Filtros.setCustomRange(this.value, document.getElementById('analysisDateTo').value); Analysis.render();">
-                    <span style="color: #888;">→</span>
-                    <input type="date" id="analysisDateTo" class="date-input" onchange="Filtros.setCustomRange(document.getElementById('analysisDateFrom').value, this.value); Analysis.render();">
-                </div>
-                
-                <!-- Filtros Adicionales -->
+                <!-- Filtros Legacy (ocultos, usar filtros globales) -->
                 <div class="form-row mb-15" style="flex-wrap: wrap; gap: 10px;">
                     <div class="form-group" style="flex:1; min-width: 100px;">
                         <label class="form-label">🏭 Máquina:</label>
@@ -479,35 +538,7 @@
             <div class="card">
                 <h2>Diagrama de Gantt - Timeline de Actividades</h2>
                 
-                <!-- Filtros de Período -->
-                <div class="date-filters-container">
-                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('today')">
-                        <span class="btn-icon">📅</span>
-                        <span class="btn-text">Hoy</span>
-                    </button>
-                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('week')">
-                        <span class="btn-icon">📆</span>
-                        <span class="btn-text">Semana</span>
-                    </button>
-                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('month')">
-                        <span class="btn-icon">🗓️</span>
-                        <span class="btn-text">Mes</span>
-                    </button>
-                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('year')">
-                        <span class="btn-icon">📊</span>
-                        <span class="btn-text">Año</span>
-                    </button>
-                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('all')">
-                        <span class="btn-icon">🔄</span>
-                        <span class="btn-text">Todo</span>
-                    </button>
-                    <span class="date-separator">|</span>
-                    <input type="date" id="ganttDateFrom" class="date-input" onchange="Filtros.setCustomRange(this.value, document.getElementById('ganttDateTo').value); Gantt.render();">
-                    <span style="color: #888;">→</span>
-                    <input type="date" id="ganttDateTo" class="date-input" onchange="Filtros.setCustomRange(document.getElementById('ganttDateFrom').value, this.value); Gantt.render();">
-                </div>
-                
-                <!-- Filtros del Gantt -->
+                <!-- Filtros Legacy (ocultos, usar filtros globales) -->
                 <div class="form-row mb-15" style="flex-wrap: wrap; gap: 10px;">
                     <div class="form-group" style="flex:1; min-width: 100px;">
                         <label class="form-label">🏭 Máquina:</label>
@@ -641,35 +672,7 @@
             <div class="card">
                 <h2 style="color: var(--accent-primary);">Análisis Estadístico Avanzado</h2>
                 
-                <!-- Filtros de Período -->
-                <div class="date-filters-container">
-                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('today')">
-                        <span class="btn-icon">📅</span>
-                        <span class="btn-text">Hoy</span>
-                    </button>
-                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('week')">
-                        <span class="btn-icon">📆</span>
-                        <span class="btn-text">Semana</span>
-                    </button>
-                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('month')">
-                        <span class="btn-icon">🗓️</span>
-                        <span class="btn-text">Mes</span>
-                    </button>
-                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('year')">
-                        <span class="btn-icon">📊</span>
-                        <span class="btn-text">Año</span>
-                    </button>
-                    <button class="date-filter-btn action-btn" onclick="Filtros.setPeriodo('all')">
-                        <span class="btn-icon">🔄</span>
-                        <span class="btn-text">Todo</span>
-                    </button>
-                    <span class="date-separator">|</span>
-                    <input type="date" id="statsDateFrom" class="date-input" onchange="Filtros.setCustomRange(this.value, document.getElementById('statsDateTo').value); Statistics.calculate();">
-                    <span style="color: #888;">→</span>
-                    <input type="date" id="statsDateTo" class="date-input" onchange="Filtros.setCustomRange(document.getElementById('statsDateFrom').value, this.value); Statistics.calculate();">
-                </div>
-                
-                <!-- Filtros por Máquina, OP, Turno, Colores -->
+                <!-- Filtros Legacy (ocultos, usar filtros globales) -->
                 <div class="form-row mb-15" style="flex-wrap: wrap; gap: 10px;">
                     <div class="form-group" style="flex:1; min-width: 100px;">
                         <label class="form-label">🏭 Máquina:</label>

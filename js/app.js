@@ -1976,6 +1976,11 @@ function init() {
     // Renderizar UI inicial
     UI.renderAll();
     
+    // Inicializar filtros globales
+    setTimeout(() => {
+        GlobalFilters.init();
+    }, 200);
+    
     // Iniciar loop principal
     UI.startMainLoop();
     
@@ -2479,6 +2484,280 @@ const RecordEditor = {
         console.log('✅ Registro actualizado:', record.id);
     }
 };
+
+// =====================================================
+// FILTROS GLOBALES UNIFICADOS
+// =====================================================
+
+const GlobalFilters = {
+    // Estado del panel (expandido/colapsado)
+    isExpanded: true,
+    
+    // Toggle expandir/colapsar
+    toggle: () => {
+        const content = document.getElementById('globalFiltersContent');
+        const btn = document.getElementById('filtersToggleBtn');
+        const wrapper = document.getElementById('globalFiltersWrapper');
+        
+        if (!content || !btn) return;
+        
+        GlobalFilters.isExpanded = !GlobalFilters.isExpanded;
+        
+        if (GlobalFilters.isExpanded) {
+            content.classList.remove('collapsed');
+            btn.textContent = '−';
+        } else {
+            content.classList.add('collapsed');
+            btn.textContent = '+';
+        }
+    },
+    
+    // Establecer período
+    setPeriod: (period) => {
+        // Actualizar estado
+        AppState.filtros.periodo = period;
+        
+        // Limpiar fechas personalizadas si no es custom
+        if (period !== 'custom') {
+            AppState.filtros.fechaDesde = null;
+            AppState.filtros.fechaHasta = null;
+            document.getElementById('globalDateFrom').value = '';
+            document.getElementById('globalDateTo').value = '';
+        }
+        
+        // Actualizar UI de botones
+        document.querySelectorAll('.global-filter-btn[data-period]').forEach(btn => {
+            if (btn.getAttribute('data-period') === period) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+        
+        // Aplicar filtros
+        GlobalFilters.applyFilters();
+    },
+    
+    // Establecer rango personalizado
+    setCustomRange: () => {
+        const desde = document.getElementById('globalDateFrom')?.value;
+        const hasta = document.getElementById('globalDateTo')?.value;
+        
+        if (desde || hasta) {
+            AppState.filtros.periodo = 'custom';
+            AppState.filtros.fechaDesde = desde || null;
+            AppState.filtros.fechaHasta = hasta || null;
+            
+            // Desactivar botones de período
+            document.querySelectorAll('.global-filter-btn[data-period]').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            GlobalFilters.applyFilters();
+        }
+    },
+    
+    // Aplicar todos los filtros
+    applyFilters: () => {
+        // Sincronizar con selectores legacy (para compatibilidad con código existente)
+        GlobalFilters.syncLegacySelectors();
+        
+        // Actualizar badge de filtros activos
+        GlobalFilters.updateBadge();
+        
+        // Renderizar todas las vistas
+        UI.renderHistory();
+        
+        if (typeof Statistics !== 'undefined') {
+            Statistics.calculate();
+        }
+        
+        if (typeof Analysis !== 'undefined') {
+            Analysis.render();
+        }
+        
+        if (typeof Gantt !== 'undefined') {
+            Gantt.render();
+        }
+    },
+    
+    // Sincronizar con selectores legacy
+    syncLegacySelectors: () => {
+        const maquina = document.getElementById('globalFilterMaquina')?.value;
+        const op = document.getElementById('globalFilterOP')?.value;
+        const turno = document.getElementById('globalFilterTurno')?.value;
+        const colores = document.getElementById('globalFilterColores')?.value;
+        const tipo = document.getElementById('globalFilterTipo')?.value;
+        const categoria = document.getElementById('globalFilterCategoria')?.value;
+        
+        // Actualizar estado
+        if (maquina) AppState.filtros.maquina = maquina;
+        if (op) AppState.filtros.op = op;
+        if (turno) AppState.filtros.turno = turno;
+        if (colores) AppState.filtros.colores = colores;
+        if (tipo) AppState.filtros.tipo = tipo;
+        if (categoria) AppState.filtros.categoria = categoria;
+        
+        // Sincronizar con selectores legacy de cada pestaña
+        const legacySelectors = [
+            'historyFilterMaquina', 'analysisFilterMaquina', 'ganttFilterMaquina', 'statsFilterMaquina',
+            'historyFilterOP', 'analysisFilterOP', 'ganttFilterOP', 'statsFilterOP',
+            'historyFilterTurno', 'analysisFilterTurno', 'ganttFilterTurno', 'statsFilterTurno',
+            'historyFilterColores', 'ganttFilterColores', 'statsFilterColores',
+            'historyFilterTipo', 'analysisFilterTipo', 'ganttFilterTipo', 'statsFilterTipo',
+            'historyFilter', 'analysisFilter', 'ganttFilter', 'statsFilter'
+        ];
+        
+        legacySelectors.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            
+            if (id.includes('Maquina') && maquina) el.value = maquina;
+            else if (id.includes('OP') && op) el.value = op;
+            else if (id.includes('Turno') && turno) el.value = turno;
+            else if (id.includes('Colores') && colores) el.value = colores;
+            else if (id.includes('Tipo') && tipo) el.value = tipo;
+            else if (id.includes('Filter') && !id.includes('Maquina') && !id.includes('OP') && !id.includes('Turno') && !id.includes('Colores') && !id.includes('Tipo') && categoria) {
+                el.value = categoria;
+            }
+        });
+    },
+    
+    // Actualizar badge con número de filtros activos
+    updateBadge: () => {
+        const badge = document.getElementById('filtersBadge');
+        if (!badge) return;
+        
+        let count = 0;
+        
+        // Contar filtros activos
+        if (AppState.filtros.periodo !== 'all') count++;
+        if (AppState.filtros.maquina !== 'ALL') count++;
+        if (AppState.filtros.op !== 'ALL') count++;
+        if (AppState.filtros.turno !== 'ALL') count++;
+        if (AppState.filtros.colores !== 'ALL') count++;
+        if (AppState.filtros.tipo !== 'ALL') count++;
+        if (AppState.filtros.categoria !== 'ALL') count++;
+        
+        badge.textContent = count;
+        badge.style.display = count > 0 ? 'block' : 'none';
+    },
+    
+    // Limpiar todos los filtros
+    clearAll: () => {
+        // Resetear estado
+        AppState.filtros = {
+            categoria: 'ALL',
+            tipo: 'ALL',
+            vista: 'general',
+            op: 'ALL',
+            periodo: 'all',
+            maquina: 'ALL',
+            turno: 'ALL',
+            colores: 'ALL',
+            fechaDesde: null,
+            fechaHasta: null
+        };
+        
+        // Resetear UI
+        document.querySelectorAll('.global-filter-btn[data-period]').forEach(btn => {
+            if (btn.getAttribute('data-period') === 'all') {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+        
+        document.getElementById('globalDateFrom').value = '';
+        document.getElementById('globalDateTo').value = '';
+        
+        const selects = [
+            'globalFilterMaquina', 'globalFilterOP', 'globalFilterTurno',
+            'globalFilterColores', 'globalFilterTipo', 'globalFilterCategoria'
+        ];
+        
+        selects.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = 'ALL';
+        });
+        
+        // Aplicar cambios
+        GlobalFilters.applyFilters();
+    },
+    
+    // Inicializar filtros globales
+    init: () => {
+        // Poblar selectores
+        GlobalFilters.populateSelectors();
+        
+        // Actualizar badge inicial
+        GlobalFilters.updateBadge();
+        
+        // Ocultar filtros globales en pestañas de Teoría y Config
+        Tabs.onSwitch = (tabId) => {
+            const wrapper = document.getElementById('globalFiltersWrapper');
+            if (!wrapper) return;
+            
+            if (tabId === 'theory' || tabId === 'config') {
+                wrapper.style.display = 'none';
+            } else {
+                wrapper.style.display = 'block';
+            }
+        };
+    },
+    
+    // Poblar selectores dinámicamente
+    populateSelectors: () => {
+        // Máquinas
+        const maquinaSelect = document.getElementById('globalFilterMaquina');
+        if (maquinaSelect) {
+            let html = '<option value="ALL">Todas</option>';
+            AppState.config.maquinas.forEach(m => {
+                html += `<option value="${m}">${m}</option>`;
+            });
+            maquinaSelect.innerHTML = html;
+        }
+        
+        // OPs
+        Filtros.updateOPFilter('globalFilterOP');
+        
+        // Categorías
+        Filtros.updateCategoryFilter('globalFilterCategoria');
+    },
+    
+    // Actualizar opciones dinámicas cuando cambian los datos
+    updateDynamicOptions: () => {
+        GlobalFilters.populateSelectors();
+    }
+};
+
+// Modificar Tabs.switch para incluir callback
+const OriginalTabsSwitch = Tabs.switch;
+Tabs.switch = (tabId) => {
+    OriginalTabsSwitch(tabId);
+    
+    // Callback para ocultar/mostrar filtros
+    const wrapper = document.getElementById('globalFiltersWrapper');
+    if (wrapper) {
+        if (tabId === 'theory' || tabId === 'config') {
+            wrapper.style.display = 'none';
+        } else {
+            wrapper.style.display = 'block';
+        }
+    }
+};
+
+// Modificar Filtros.updateAllFilters para incluir filtros globales
+const OriginalUpdateAllFilters = Filtros.updateAllFilters;
+Filtros.updateAllFilters = () => {
+    OriginalUpdateAllFilters();
+    if (typeof GlobalFilters !== 'undefined') {
+        GlobalFilters.updateDynamicOptions();
+    }
+};
+
+// Exponer GlobalFilters globalmente
+window.GlobalFilters = GlobalFilters;
 
 // Exponer funciones globales necesarias
 window.Timer = Timer;
