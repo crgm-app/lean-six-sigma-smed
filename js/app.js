@@ -1647,6 +1647,88 @@ const CSV = {
 window.CSVIntegrity = CSVIntegrity;
 
 // =====================================================
+// ORGANIZADOR DE BOTONES
+// =====================================================
+
+const ButtonOrganizer = {
+    // Modo de ordenamiento actual
+    sortBy: 'category', // category, name, type, color
+    
+    // Obtener botones ordenados
+    getSorted: () => {
+        let sorted = [...AppState.buttons];
+        
+        switch(ButtonOrganizer.sortBy) {
+            case 'name':
+                // Ordenar alfabéticamente por nombre
+                sorted.sort((a, b) => a.name.localeCompare(b.name));
+                break;
+                
+            case 'category':
+                // Ordenar por categoría, luego por nombre
+                sorted.sort((a, b) => {
+                    const catCompare = a.cat.localeCompare(b.cat);
+                    if (catCompare !== 0) return catCompare;
+                    return a.name.localeCompare(b.name);
+                });
+                break;
+                
+            case 'type':
+                // Ordenar por tipo SMED (INT → EXT → NVA)
+                const typeOrder = { INT: 0, EXT: 1, NVA: 2 };
+                sorted.sort((a, b) => {
+                    const typeA = a.tipo || 'INT';
+                    const typeB = b.tipo || 'INT';
+                    const orderCompare = typeOrder[typeA] - typeOrder[typeB];
+                    if (orderCompare !== 0) return orderCompare;
+                    return a.name.localeCompare(b.name);
+                });
+                break;
+                
+            case 'color':
+                // Ordenar por color (hue del color hexadecimal)
+                sorted.sort((a, b) => {
+                    const colorA = a.color || Utils.getCategoryColor(a.cat);
+                    const colorB = b.color || Utils.getCategoryColor(b.cat);
+                    
+                    // Convertir hex a valor numérico para ordenar
+                    const hexToNum = (hex) => parseInt(hex.replace('#', ''), 16);
+                    return hexToNum(colorA) - hexToNum(colorB);
+                });
+                break;
+                
+            default:
+                // Sin ordenamiento (orden de creación)
+                break;
+        }
+        
+        return sorted;
+    },
+    
+    // Cambiar modo de ordenamiento
+    setSortMode: (mode) => {
+        ButtonOrganizer.sortBy = mode;
+        // Guardar preferencia
+        localStorage.setItem('smed_button_sort', mode);
+        UI.renderButtons();
+    },
+    
+    // Cargar preferencia guardada
+    loadPreference: () => {
+        const saved = localStorage.getItem('smed_button_sort');
+        if (saved) {
+            ButtonOrganizer.sortBy = saved;
+            // Actualizar selector en UI si existe
+            const selector = document.getElementById('btnSortOrder');
+            if (selector) selector.value = saved;
+        }
+    }
+};
+
+// Exponer globalmente
+window.ButtonOrganizer = ButtonOrganizer;
+
+// =====================================================
 // INTERFAZ DE USUARIO (UI)
 // =====================================================
 
@@ -1704,7 +1786,7 @@ const UI = {
         }).join('');
     },
     
-    // Grid de botones SMED - muestra OP activa en cada botón
+    // Grid de botones SMED - muestra OP activa en cada botón con colores personalizados
     // Los botones verifican si están activos usando la clave compuesta cat_tipo
     renderButtons: () => {
         const container = document.getElementById('buttonsGrid');
@@ -1714,18 +1796,34 @@ const UI = {
         const opActiva = AppState.opActiva.numero ? AppState.opActiva.numero.padStart(8, '0') : '';
         const turnoActivo = AppState.opActiva.turno || 'T1';
         
-        container.innerHTML = AppState.buttons.map(btn => {
+        // Obtener botones ordenados según preferencia del usuario
+        const sortedButtons = ButtonOrganizer.getSorted();
+        
+        container.innerHTML = sortedButtons.map(btn => {
             // Clave compuesta: categoría + tipo (ej: "Troquel_INT", "Montacargas_NVA")
             const timerKey = `${btn.cat}_${btn.tipo || 'INT'}`;
             const isActive = AppState.activeTimers[timerKey] && 
                            AppState.activeTimers[timerKey].btnId === btn.id;
             const elapsed = isActive ? Timer.getElapsedTime(timerKey) : 0;
             
+            // Obtener color del botón (personalizado o automático por categoría)
+            const btnColor = btn.color || Utils.getCategoryColor(btn.cat);
+            
+            // Estilos dinámicos con color personalizado visible
+            const btnStyle = `
+                border-left: 4px solid ${btnColor};
+                ${isActive ? `
+                    background: linear-gradient(135deg, ${btnColor}15, ${btnColor}05);
+                    box-shadow: 0 0 15px ${btnColor}60, inset 0 0 20px ${btnColor}10;
+                ` : ''}
+            `.replace(/\s+/g, ' ').trim();
+            
             return `
                 <button class="smed-btn ${isActive ? 'is-running' : ''}" 
                         data-cat="${btn.cat}"
                         data-tipo="${btn.tipo || 'INT'}"
                         data-timer-key="${timerKey}"
+                        style="${btnStyle}"
                         onclick="Timer.handleButtonClick('${btn.id}')">
                     <span class="btn-name">${isActive ? '▶ ' : ''}${btn.name}</span>
                     <span class="btn-cat">${btn.cat}</span>
@@ -1967,6 +2065,9 @@ const Theory = {
 function init() {
     // Cargar datos guardados
     Storage.load();
+    
+    // Cargar preferencia de ordenamiento de botones
+    ButtonOrganizer.loadPreference();
     
     // Auto-seleccionar turno basado en fecha/hora actual
     setTimeout(() => {

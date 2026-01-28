@@ -244,7 +244,20 @@
                 </div>
 
                 <!-- Grid de Botones SMED -->
-                <h2>Actividades SMED</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                    <h2 style="margin: 0;">Actividades SMED</h2>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <label style="font-size: 0.85em; color: #888;">🔀 Ordenar por:</label>
+                        <select id="btnSortOrder" 
+                                onchange="ButtonOrganizer.setSortMode(this.value)" 
+                                style="padding: 6px 12px; border-radius: 6px; border: 1px solid #444; background: linear-gradient(135deg, #1a1a2e, #0f0f1a); color: #00d4ff; font-size: 0.85em; cursor: pointer; font-weight: bold;">
+                            <option value="category">📁 Categoría</option>
+                            <option value="name">🔤 Nombre</option>
+                            <option value="type">🏷️ Tipo SMED</option>
+                            <option value="color">🎨 Color</option>
+                        </select>
+                    </div>
+                </div>
                 <div id="buttonsGrid" class="btn-grid"></div>
 
                 <!-- MÚLTIPLES Cronómetros Libres -->
