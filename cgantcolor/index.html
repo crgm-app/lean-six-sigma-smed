@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>SMED 360° - Análisis por Turno y Colores</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --int: #007bff; --ext: #28a745; --nva: #dc3545; --bg: #f8f9fa; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 20px; }
+        .header { background: #1c1e21; color: white; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px; }
+        
+        /* Controles de Filtrado */
+        .controls { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: flex; justify-content: center; gap: 20px; margin-bottom: 20px; align-items: center; }
+        select { padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 1.1em; cursor: pointer; }
+        
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 25px; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.05); border-top: 8px solid; }
+        .border-INT { border-color: var(--int); } .border-EXT { border-color: var(--ext); } .border-NVA { border-color: var(--nva); }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11px; }
+        th { background: #f1f3f5; padding: 8px; border: 1px solid #dee2e6; }
+        td { padding: 8px; border: 1px solid #eee; text-align: center; }
+        .gold { background: #fff9c4; font-weight: bold; }
+        .sigma-badge { padding: 4px 8px; border-radius: 5px; color: white; font-weight: bold; font-size: 10px; }
+        
+        .chart-container { height: 250px; margin-bottom: 15px; }
+        #status { font-weight: bold; margin: 10px; color: var(--int); }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>SMED crgm.app - Explorador de 36 Escenarios</h1>
+    <p>Comparativa Multidimensional: Turno x Colores x Tipo de Actividad</p>
+</div>
+
+<div class="controls">
+    <div>
+        <strong>Paso 1:</strong> <input type="file" id="csvFile" accept=".csv">
+    </div>
+    <div>
+        <strong>Turno:</strong> 
+        <select id="selTurno">
+            <option value="T1">Turno 1</option>
+            <option value="T2">Turno 2</option>
+            <option value="T3">Turno 3</option>
+        </select>
+    </div>
+    <div>
+        <strong>Complejidad:</strong> 
+        <select id="selColor">
+            <option value="1">1 Color</option>
+            <option value="2">2 Colores</option>
+            <option value="3">3 Colores</option>
+            <option value="4">4 Colores</option>
+        </select>
+    </div>
+    <div id="status">Esperando archivo...</div>
+</div>
+
+<div id="dashboard" class="grid"></div>
+
+<script>
+    let db_full = {}; // Aquí guardaremos los 36 escenarios procesados
+    let charts = [];
+
+    document.getElementById('csvFile').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        document.getElementById('status').innerText = "Cargando...";
+
+        Papa.parse(file, {
+            header: true,
+            dynamicTyping: true,
+            skipEmptyLines: true,
+            beforeFirstChunk: function(chunk) {
+                let rows = chunk.split(/\r\n|\r|\n/);
+                if (rows[0].startsWith("#")) rows.shift();
+                return rows.join("\n");
+            },
+            complete: function(results) {
+                processAll36(results.data);
+                document.getElementById('status').innerText = "¡Datos Listos!";
+                updateView();
+            }
+        });
+    });
+
+    function processAll36(data) {
+        db_full = {};
+        data.forEach(row => {
+            const { Turno, Colores, Tipo, Actividad, DuracionSeg } = row;
+            if (!Turno || !Colores || !Tipo) return;
+            
+            const colKey = Math.floor(Colores).toString();
+            if (!db_full[Turno]) db_full[Turno] = {};
+            if (!db_full[Turno][colKey]) db_full[Turno][colKey] = {};
+            if (!db_full[Turno][colKey][Tipo]) db_full[Turno][colKey][Tipo] = {};
+            if (!db_full[Turno][colKey][Tipo][Actividad]) db_full[Turno][colKey][Tipo][Actividad] = [];
+            
+            db_full[Turno][colKey][Tipo][Actividad].push(DuracionSeg);
+        });
+    }
+
+    function updateView() {
+        const t = document.getElementById('selTurno').value;
+        const c = document.getElementById('selColor').value;
+        const dash = document.getElementById('dashboard');
+        dash.innerHTML = '';
+        charts.forEach(chart => chart.destroy());
+        charts = [];
+
+        if (!db_full[t] || !db_full[t][c]) {
+            dash.innerHTML = `<h2 style="grid-column: 1/-1; text-align: center;">Sin datos para Turno ${t} y ${c} Colores</h2>`;
+            return;
+        }
+
+        ['INT', 'EXT', 'NVA'].forEach(tipo => {
+            const dataSet = db_full[t][c][tipo];
+            if (!dataSet) return;
+
+            const stats = calculateStats(dataSet);
+            const card = createCard(t, c, tipo, stats);
+            dash.appendChild(card);
+        });
+    }
+
+    function calculateStats(activities) {
+        return Object.keys(activities).map(name => {
+            const v = activities[name].sort((a,b) => a-b);
+            const sum = v.reduce((a,b) => a+b, 0);
+            const mean = sum / v.length;
+            const std = Math.sqrt(v.map(x => Math.pow(x-mean,2)).reduce((a,b)=>a+b,0) / (v.length-1)) || 0;
+            return {
+                name, total: sum, min: v[0], max: v[v.length-1],
+                q1: v[Math.floor(v.length*0.25)],
+                med: v[Math.floor(v.length*0.5)],
+                cv: mean > 0 ? (std/mean) : 0
+            };
+        }).sort((a,b) => b.total - a.total).slice(0, 8);
+    }
+
+    function createCard(t, c, tipo, stats) {
+        const card = document.createElement('div');
+        card.className = `card border-${tipo}`;
+        const canvasId = `chart_${tipo}`;
+        const color = tipo === 'INT' ? '#007bff' : tipo === 'EXT' ? '#28a745' : '#dc3545';
+
+        card.innerHTML = `
+            <h3>${tipo} - Turno ${t} (${c} Colores)</h3>
+            <div class="chart-container"><canvas id="${canvasId}"></canvas></div>
+            <table>
+                <thead><tr><th>Actividad</th><th>Min</th><th class="gold">Q1 (Meta)</th><th>Mediana</th><th>Var%</th></tr></thead>
+                <tbody>${stats.map(s => `<tr><td style="text-align:left"><b>${s.name}</b></td><td>${s.min}s</td><td class="gold">${s.q1}s</td><td>${s.med}s</td><td><span class="sigma-badge" style="background:${s.cv < 0.5 ? '#28a745' : '#dc3545'}">${(s.cv*100).toFixed(0)}%</span></td></tr>`).join('')}</tbody>
+            </table>
+        `;
+
+        setTimeout(() => {
+            const ctx = card.querySelector('canvas').getContext('2d');
+            charts.push(new Chart(ctx, {
+                type: 'bar',
+                data: { labels: stats.map(s => s.name), datasets: [{ data: stats.map(s => s.total), backgroundColor: color }] },
+                options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            }));
+        }, 50);
+
+        return card;
+    }
+
+    document.getElementById('selTurno').addEventListener('change', updateView);
+    document.getElementById('selColor').addEventListener('change', updateView);
+</script>
+</body>
+</html>
