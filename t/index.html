@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SMED Analytics Pro - crgm.app</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --int: #007bff; --ext: #28a745; --nva: #dc3545; --dark: #1c1e21; --gold: #f1c40f; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: #f4f7f6; margin: 0; padding: 10px; color: #333; }
+        
+        /* Header & Controls */
+        .header { background: var(--dark); color: white; padding: 20px 15px; border-radius: 12px; text-align: center; margin-bottom: 15px; }
+        .controls { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px; }
+        @media (min-width: 768px) { .controls { flex-direction: row; justify-content: center; } }
+        
+        select, input[type="file"] { padding: 12px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; width: 100%; box-sizing: border-box; }
+        @media (min-width: 768px) { select, input[type="file"] { width: auto; } }
+
+        /* Cards & Grid */
+        .grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        @media (min-width: 1200px) { .grid { grid-template-columns: repeat(auto-fit, minmax(700px, 1fr)); } }
+        
+        .card { background: white; padding: 15px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); border-top: 10px solid; display: flex; flex-direction: column; }
+        .border-INT { border-color: var(--int); } .border-EXT { border-color: var(--ext); } .border-NVA { border-color: var(--nva); }
+
+        /* Visuals */
+        .chart-box { height: 50vh; min-height: 320px; position: relative; margin-bottom: 15px; }
+        .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; border: 1px solid #eee; }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 10px; min-width: 750px; }
+        th { background: #f8f9fa; padding: 8px; border: 1px solid #dee2e6; text-transform: uppercase; font-size: 9px; }
+        td { padding: 8px; border: 1px solid #eee; text-align: center; }
+        
+        /* Styling Columns */
+        .q1-col { background: #fff9c4; font-weight: bold; color: #856404; }
+        .pct-col { color: #666; font-weight: bold; border-left: 2px solid #eee !important; }
+        .acum-col { color: var(--int); font-weight: bold; background: #f0f7ff; }
+        .sigma-badge { padding: 3px 6px; border-radius: 4px; color: white; font-weight: bold; font-size: 9px; }
+        .stat-label { font-size: 0.8em; color: #777; display: block; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1 style="margin:0; font-size:1.4em;">SMED Intelligence <span style="color:var(--gold)">360°</span></h1>
+    <div id="status" style="font-size: 0.8em; margin-top:5px; opacity:0.8;">Cargue su archivo para empezar</div>
+</div>
+
+<div class="controls">
+    <input type="file" id="csvFile" accept=".csv">
+    <select id="selTurno">
+        <option value="ALL">TODOS LOS TURNOS</option>
+        <option value="T1">TURNO 1</option><option value="T2">TURNO 2</option><option value="T3">TURNO 3</option>
+    </select>
+    <select id="selColor">
+        <option value="ALL">TODAS LAS COMPLEJIDADES</option>
+        <option value="1">1 COLOR</option><option value="2">2 COLORES</option>
+        <option value="3">3 COLORES</option><option value="4">4 COLORES</option>
+    </select>
+</div>
+
+<div id="dashboard" class="grid"></div>
+
+<script>
+    let rawDataGlobal = [];
+    let activeCharts = [];
+
+    document.getElementById('csvFile').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        document.getElementById('status').innerText = "Analizando Big Data...";
+
+        Papa.parse(file, {
+            header: true, dynamicTyping: true, skipEmptyLines: true,
+            beforeFirstChunk: chunk => {
+                let rows = chunk.split(/\r\n|\r|\n/);
+                if (rows[0].startsWith("#")) rows.shift();
+                return rows.join("\n");
+            },
+            complete: results => {
+                rawDataGlobal = results.data;
+                document.getElementById('status').innerText = "✓ " + rawDataGlobal.length + " Registros Listos";
+                render();
+            }
+        });
+    });
+
+    function render() {
+        const tF = document.getElementById('selTurno').value;
+        const cF = document.getElementById('selColor').value;
+        const dash = document.getElementById('dashboard');
+        
+        dash.innerHTML = '';
+        activeCharts.forEach(c => c.destroy());
+        activeCharts = [];
+
+        if (rawDataGlobal.length === 0) return;
+
+        const filtered = rawDataGlobal.filter(d => {
+            const matchT = (tF === 'ALL' || d.Turno === tF);
+            const matchC = (cF === 'ALL' || Math.floor(d.Colores).toString() === cF);
+            return matchT && matchC && d.Tipo && d.Actividad;
+        });
+
+        ['INT', 'EXT', 'NVA'].forEach(tipo => {
+            const sub = filtered.filter(d => d.Tipo === tipo);
+            if (sub.length === 0) return;
+            const stats = processFullStats(sub);
+            dash.appendChild(createFullCard(tipo, stats, tF, cF));
+        });
+    }
+
+    function processFullStats(data) {
+        const catTotal = data.reduce((a, b) => a + (b.DuracionSeg || 0), 0);
+        const groups = {};
+        data.forEach(d => {
+            if (!groups[d.Actividad]) groups[d.Actividad] = [];
+            groups[d.Actividad].push(d.DuracionSeg);
+        });
+
+        let items = Object.keys(groups).map(name => {
+            const v = groups[name].sort((a,b) => a-b);
+            const n = v.length;
+            const sum = v.reduce((a,b) => a+b, 0);
+            const avg = sum/n;
+            const std = Math.sqrt(v.map(x=>Math.pow(x-avg,2)).reduce((a,b)=>a+b,0)/(n-1)) || 0;
+            return {
+                name, total: sum, count: n,
+                min: v[0], q1: v[Math.floor(n*0.25)], 
+                med: v[Math.floor(n*0.5)], q3: v[Math.floor(n*0.75)],
+                max: v[n-1], std: std, cv: avg > 0 ? (std/avg) : 0,
+                pct: (sum / catTotal) * 100
+            };
+        }).sort((a,b) => b.total - a.total);
+
+        let acc = 0;
+        items.forEach(i => { acc += i.pct; i.acum = acc; });
+        return { items, catTotal };
+    }
+
+    function createFullCard(tipo, data, tL, cL) {
+        const card = document.createElement('div');
+        card.className = `card border-${tipo}`;
+        const color = tipo === 'INT' ? '#007bff' : tipo === 'EXT' ? '#28a745' : '#dc3545';
+        
+        card.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h2 style="margin:0; font-size:1.1em;">${tipo} | ${tL} | ${cL} Col</h2>
+                <div style="text-align:right"><span style="font-size:14px; font-weight:bold;">${(data.catTotal/3600).toFixed(1)}h</span><br><small>TOTAL CAT</small></div>
+            </div>
+            <div class="chart-box"><canvas></canvas></div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th rowspan="2">Actividad</th>
+                            <th colspan="5">Distribución (Segundos)</th>
+                            <th colspan="2">Pareto</th>
+                            <th colspan="2">Six Sigma</th>
+                        </tr>
+                        <tr>
+                            <th>Min</th><th class="q1-col">Q1 (Meta)</th><th>Med</th><th>Q3</th><th>Max</th>
+                            <th class="pct-col">% Total</th><th class="acum-col">% Acum</th>
+                            <th>σ</th><th>CV%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.items.map(i => `
+                            <tr>
+                                <td style="text-align:left"><b>${i.name}</b></td>
+                                <td>${i.min}s</td>
+                                <td class="q1-col">${i.q1}s</td>
+                                <td>${i.med}s</td>
+                                <td>${i.q3}s</td>
+                                <td>${i.max}s</td>
+                                <td class="pct-col">${i.pct.toFixed(1)}%</td>
+                                <td class="acum-col">${i.acum.toFixed(1)}%</td>
+                                <td>±${i.std.toFixed(0)}</td>
+                                <td><span class="sigma-badge" style="background:${i.cv < 0.5 ? '#28a745' : '#dc3545'}">${(i.cv*100).toFixed(0)}%</span></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        const ctx = card.querySelector('canvas').getContext('2d');
+        activeCharts.push(new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.items.slice(0,10).map(i => i.name),
+                datasets: [
+                    { label: 'Segundos', data: data.items.slice(0,10).map(i => i.total), backgroundColor: color, yAxisID: 'y' },
+                    { label: '% Acum', data: data.items.slice(0,10).map(i => i.acum), type: 'line', borderColor: '#f39c12', yAxisID: 'y1', pointRadius: 4 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: { y: { position: 'left' }, y1: { position: 'right', max: 100, min: 0, grid: { display: false } } },
+                plugins: { legend: { display: false } }
+            }
+        }));
+
+        return card;
+    }
+
+    document.getElementById('selTurno').addEventListener('change', render);
+    document.getElementById('selColor').addEventListener('change', render);
+</script>
+</body>
+</html>
