@@ -2,65 +2,109 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>SMED Global Dashboard - crgm.app</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SMED Pro - Mobile & Desktop</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root { --int: #007bff; --ext: #28a745; --nva: #dc3545; --dark: #1c1e21; }
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; font-size: 11px; }
-        .header { background: var(--dark); color: white; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px; }
-        .controls { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; justify-content: center; gap: 20px; margin-bottom: 25px; align-items: center; flex-wrap: wrap; }
-        select, input { padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 1.1em; cursor: pointer; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(550px, 1fr)); gap: 30px; }
-        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border-top: 8px solid; }
-        .border-INT { border-color: var(--int); } .border-EXT { border-color: var(--ext); } .border-NVA { border-color: var(--nva); }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th { background: #f8f9fa; padding: 8px; border: 1px solid #dee2e6; font-size: 9px; }
-        td { padding: 8px; border: 1px solid #eee; text-align: center; }
-        .gold { background: #fff9c4; font-weight: bold; color: #856404; }
-        .pct-col { color: #666; font-weight: bold; width: 45px; }
-        .acum-col { color: var(--int); font-weight: bold; width: 55px; }
-        .sigma-tag { padding: 3px 6px; border-radius: 4px; color: white; font-weight: bold; font-size: 9px; }
-        .chart-box { height: 250px; margin-bottom: 15px; }
-        .summary-badge { padding: 5px 15px; background: #e9ecef; border-radius: 20px; font-size: 13px; font-weight: bold; }
+        
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background: #f8f9fa; margin: 0; padding: 10px; color: #333;
+        }
+
+        .header { 
+            background: var(--dark); color: white; padding: 20px 10px; 
+            border-radius: 12px; text-align: center; margin-bottom: 15px;
+        }
+
+        .controls { 
+            background: white; padding: 15px; border-radius: 12px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px;
+            display: flex; flex-direction: column; gap: 15px;
+        }
+
+        /* Responsive Grid para Controles */
+        @media (min-width: 768px) {
+            .controls { flex-direction: row; justify-content: center; align-items: center; }
+            body { padding: 30px; }
+        }
+
+        select, input[type="file"] { 
+            padding: 12px; border-radius: 8px; border: 1px solid #ddd; 
+            font-size: 16px; width: 100%; max-width: 100%; box-sizing: border-box;
+        }
+
+        @media (min-width: 768px) {
+            select, input[type="file"] { width: auto; }
+        }
+
+        .grid { 
+            display: grid; grid-template-columns: 1fr; gap: 20px; 
+        }
+
+        @media (min-width: 1024px) {
+            .grid { grid-template-columns: repeat(auto-fit, minmax(600px, 1fr)); }
+        }
+
+        .card { 
+            background: white; padding: 15px; border-radius: 15px; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05); border-top: 10px solid;
+            display: flex; flex-direction: column;
+        }
+
+        .border-INT { border-color: var(--int); }
+        .border-EXT { border-color: var(--ext); }
+        .border-NVA { border-color: var(--nva); }
+
+        /* Ajuste de Alto de Pantalla para el Gráfico */
+        .chart-box { 
+            height: 45vh; /* Ocupa el 45% del alto de la pantalla del celular */
+            min-height: 300px;
+            position: relative; 
+            margin-bottom: 15px;
+        }
+
+        .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 500px; }
+        th { background: #f8f9fa; padding: 10px; border: 1px solid #dee2e6; }
+        td { padding: 10px; border: 1px solid #eee; text-align: center; }
+        
+        .gold { background: #fff9c4; font-weight: bold; }
+        .badge { padding: 5px 12px; background: #eee; border-radius: 20px; font-weight: bold; font-size: 14px; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1>SMED Intelligence Global Explorer</h1>
-    <p>Agregación Multidimensional: Turnos, Colores y Categorías Lean Six Sigma</p>
+    <h1 style="margin:0; font-size:1.5em;">SMED Mobile Explorer</h1>
+    <div id="status" style="font-size: 0.8em; margin-top:5px; opacity:0.8;">Esperando archivo...</div>
 </div>
 
 <div class="controls">
-    <strong>1. Cargar Mediciones (CSV):</strong> <input type="file" id="csvFile" accept=".csv">
-    <strong>2. Turno:</strong> 
+    <input type="file" id="csvFile" accept=".csv">
     <select id="selTurno">
         <option value="ALL">TODOS LOS TURNOS</option>
-        <option value="T1">Turno 1</option>
-        <option value="T2">Turno 2</option>
-        <option value="T3">Turno 3</option>
+        <option value="T1">T1</option><option value="T2">T2</option><option value="T3">T3</option>
     </select>
-    <strong>3. Complejidad:</strong> 
     <select id="selColor">
         <option value="ALL">TODOS LOS COLORES</option>
-        <option value="1">1 Color</option>
-        <option value="2">2 Colores</option>
-        <option value="3">3 Colores</option>
-        <option value="4">4 Colores</option>
+        <option value="1">1 Color</option><option value="2">2 Colores</option>
+        <option value="3">3 Colores</option><option value="4">4 Colores</option>
     </select>
-    <div id="status" style="font-weight:bold; color:var(--int)">Esperando CSV...</div>
 </div>
 
 <div id="dashboard" class="grid"></div>
 
 <script>
-    let rawDataGlobal = [];
-    let charts = [];
+    let rawData = [];
+    let activeCharts = [];
 
     document.getElementById('csvFile').addEventListener('change', function(e) {
         const file = e.target.files[0];
-        document.getElementById('status').innerText = "Analizando 1,912 filas...";
+        document.getElementById('status').innerText = "Cargando datos...";
 
         Papa.parse(file, {
             header: true, dynamicTyping: true, skipEmptyLines: true,
@@ -70,127 +114,122 @@
                 return rows.join("\n");
             },
             complete: results => {
-                rawDataGlobal = results.data;
-                document.getElementById('status').innerText = "✓ Sistema Listo";
-                updateUI();
+                rawData = results.data;
+                document.getElementById('status').innerText = "✓ " + rawData.length + " mediciones listas";
+                render();
             }
         });
     });
 
-    function updateUI() {
-        const tFilter = document.getElementById('selTurno').value;
-        const cFilter = document.getElementById('selColor').value;
+    function render() {
+        const t = document.getElementById('selTurno').value;
+        const c = document.getElementById('selColor').value;
         const dash = document.getElementById('dashboard');
+        
         dash.innerHTML = '';
-        charts.forEach(c => c.destroy());
-        charts = [];
+        activeCharts.forEach(ch => ch.destroy());
+        activeCharts = [];
 
-        if (rawDataGlobal.length === 0) return;
+        if (rawData.length === 0) return;
 
-        // Filtrado Dinámico
-        const filtered = rawDataGlobal.filter(d => {
-            const matchT = (tFilter === 'ALL' || d.Turno === tFilter);
-            const matchC = (cFilter === 'ALL' || Math.floor(d.Colores).toString() === cFilter);
-            return matchT && matchC && d.Tipo && d.Actividad;
+        const filtered = rawData.filter(d => {
+            const matchT = (t === 'ALL' || d.Turno === t);
+            const matchC = (c === 'ALL' || Math.floor(d.Colores).toString() === c);
+            return matchT && matchC && d.Tipo;
         });
-
-        if (filtered.length === 0) {
-            dash.innerHTML = `<h2 style="grid-column: 1/-1; text-align: center;">No hay datos para esta combinación.</h2>`;
-            return;
-        }
 
         ['INT', 'EXT', 'NVA'].forEach(tipo => {
-            const subData = filtered.filter(d => d.Tipo === tipo);
-            if (subData.length === 0) return;
-
-            const stats = processDeepStats(subData);
-            dash.appendChild(renderCard(tipo, stats, tFilter, cFilter));
+            const sub = filtered.filter(d => d.Tipo === tipo);
+            if (sub.length === 0) return;
+            
+            const stats = processStats(sub);
+            const card = createCard(tipo, stats, t, c);
+            dash.appendChild(card);
         });
     }
 
-    function processDeepStats(data) {
-        const catTotal = data.reduce((a, b) => a + (b.DuracionSeg || 0), 0);
-        const grouped = {};
-        
+    function processStats(data) {
+        const totalCat = data.reduce((a, b) => a + (b.DuracionSeg || 0), 0);
+        const groups = {};
         data.forEach(d => {
-            if (!grouped[d.Actividad]) grouped[d.Actividad] = [];
-            grouped[d.Actividad].push(d.DuracionSeg);
+            if (!groups[d.Actividad]) groups[d.Actividad] = [];
+            groups[d.Actividad].push(d.DuracionSeg);
         });
 
-        let stats = Object.keys(grouped).map(name => {
-            const v = grouped[name].sort((a,b) => a - b);
+        let items = Object.keys(groups).map(name => {
+            const v = groups[name].sort((a,b) => a-b);
             const n = v.length;
             const sum = v.reduce((a,b) => a+b, 0);
-            const avg = sum/n;
-            const std = Math.sqrt(v.map(x=>Math.pow(x-avg,2)).reduce((a,b)=>a+b,0)/(n-1)) || 0;
             return {
-                name, total: sum, n, min: v[0], 
-                q1: v[Math.floor(n*0.25)], med: v[Math.floor(n*0.5)], 
-                q3: v[Math.floor(n*0.75)], max: v[n-1],
-                cv: avg > 0 ? (std/avg) : 0, pct: (sum/catTotal)*100
+                name, total: sum, n, 
+                min: v[0], q1: v[Math.floor(n*0.25)], 
+                med: v[Math.floor(n*0.5)], max: v[n-1],
+                pct: (sum / totalCat) * 100
             };
-        }).sort((a,b) => b.total - a.total);
+        }).sort((a,b) => b.total - a.total).slice(0, 10);
 
-        let runningPct = 0;
-        stats.forEach(s => {
-            runningPct += s.pct;
-            s.acum = runningPct;
-        });
-
-        return { items: stats, totalSeg: catTotal };
+        let acc = 0;
+        items.forEach(i => { acc += i.pct; i.acum = acc; });
+        return { items, totalCat };
     }
 
-    function renderCard(tipo, data, tLab, cLab) {
+    function createCard(tipo, data, tLab, cLab) {
         const card = document.createElement('div');
         card.className = `card border-${tipo}`;
         const color = tipo === 'INT' ? '#007bff' : tipo === 'EXT' ? '#28a745' : '#dc3545';
         
-        const rows = data.items.slice(0, 10).map(s => `
-            <tr>
-                <td style="text-align:left"><b>${s.name}</b></td>
-                <td>${s.min}s</td>
-                <td class="gold">${s.q1}s</td>
-                <td>${s.med}s</td>
-                <td class="pct-col">${s.pct.toFixed(1)}%</td>
-                <td class="acum-col">${s.acum.toFixed(1)}%</td>
-                <td><span class="sigma-tag" style="background:${s.cv < 0.4 ? '#28a745' : '#dc3545'}">${(s.cv*100).toFixed(0)}%</span></td>
-            </tr>
-        `).join('');
-
         card.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h2 style="margin:0">${tipo} | ${tLab} | ${cLab} Col</h2>
-                <span class="summary-badge">Total: ${(data.totalSeg/3600).toFixed(1)} h</span>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h2 style="margin:0; font-size:1.2em;">${tipo} (${tLab} | ${cLab} Col)</h2>
+                <span class="badge">${(data.totalCat/3600).toFixed(1)}h</span>
             </div>
             <div class="chart-box"><canvas></canvas></div>
-            <table>
-                <thead>
-                    <tr><th>Actividad</th><th>Min</th><th class="gold">Q1</th><th>Med</th><th>%</th><th>% Acum</th><th>CV%</th></tr>
-                </thead>
-                <tbody>${rows}</tbody>
-            </table>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr><th>Actividad</th><th>Total</th><th class="gold">Q1 (Meta)</th><th>Mediana</th><th>% Acum</th></tr>
+                    </thead>
+                    <tbody>
+                        ${data.items.map(i => `
+                            <tr>
+                                <td style="text-align:left"><b>${i.name}</b></td>
+                                <td>${i.total}s</td>
+                                <td class="gold">${i.q1}s</td>
+                                <td>${i.med}s</td>
+                                <td style="color:var(--int)"><b>${i.acum.toFixed(1)}%</b></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
         `;
 
-        setTimeout(() => {
-            const ctx = card.querySelector('canvas').getContext('2d');
-            charts.push(new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: data.items.slice(0,10).map(i => i.name),
-                    datasets: [
-                        { label: 'Segundos', data: data.items.slice(0,10).map(i => i.total), backgroundColor: color, yAxisID: 'y' },
-                        { label: '% Acum', data: data.items.slice(0,10).map(i => i.acum), type: 'line', borderColor: '#f39c12', yAxisID: 'y1' }
-                    ]
+        const ctx = card.querySelector('canvas').getContext('2d');
+        activeCharts.push(new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.items.map(i => i.name),
+                datasets: [
+                    { label: 'Segundos', data: data.items.map(i => i.total), backgroundColor: color, yAxisID: 'y' },
+                    { label: '% Acum', data: data.items.map(i => i.acum), type: 'line', borderColor: '#f39c12', yAxisID: 'y1' }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { 
+                    y: { position: 'left' }, 
+                    y1: { position: 'right', max: 100, grid: { display: false } } 
                 },
-                options: { indexAxis: 'x', maintainAspectRatio: false, scales: { y: { position: 'left' }, y1: { position: 'right', max: 100, grid: { display: false } } } }
-            }));
-        }, 50);
+                plugins: { legend: { display: false } }
+            }
+        }));
 
         return card;
     }
 
-    document.getElementById('selTurno').addEventListener('change', updateUI);
-    document.getElementById('selColor').addEventListener('change', updateUI);
+    document.getElementById('selTurno').addEventListener('change', render);
+    document.getElementById('selColor').addEventListener('change', render);
 </script>
 </body>
 </html>
