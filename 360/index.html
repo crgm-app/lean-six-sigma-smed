@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>SMED 360° - Matriz de 36 Escenarios (Six Sigma)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --int: #007bff; --ext: #28a745; --nva: #dc3545; --dark: #2c3e50; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; margin: 0; padding: 20px; font-size: 12px; }
+        .header-main { background: var(--dark); color: white; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px; }
+        
+        .controls { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; justify-content: center; gap: 20px; margin-bottom: 25px; align-items: center; border: 1px solid #ddd; }
+        select, input { padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 1em; }
+        
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 30px; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border-top: 10px solid; position: relative; }
+        .border-INT { border-color: var(--int); } .border-EXT { border-color: var(--ext); } .border-NVA { border-color: var(--nva); }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
+        th { background: #f8f9fa; padding: 8px; border: 1px solid #dee2e6; font-size: 9px; text-transform: uppercase; color: #666; }
+        td { padding: 8px; border: 1px solid #eee; text-align: center; }
+        
+        /* Estilos Six Sigma */
+        .gold-std { background: #fff9c4; font-weight: bold; color: #856404; }
+        .sigma-tag { padding: 3px 6px; border-radius: 4px; color: white; font-weight: bold; font-size: 9px; }
+        .est-excelente { background: #28a745; } /* CV < 30% */
+        .est-alerta { background: #ffc107; color: #333; } /* CV 30-60% */
+        .est-critico { background: #dc3545; } /* CV > 60% */
+
+        .chart-box { height: 280px; margin-bottom: 15px; }
+        .summary-mini { display: flex; justify-content: space-around; margin-bottom: 15px; padding: 10px; background: #f1f3f5; border-radius: 8px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="header-main">
+    <h1>SMED crgm.app - Analizador Multidimensional 360°</h1>
+    <p>3 Turnos × 4 Niveles de Color × 3 Tipos SMED | Estadística Full de 5 Cuartiles & Six Sigma</p>
+</div>
+
+<div class="controls">
+    <strong>1. Cargar CSV:</strong> <input type="file" id="csvFile" accept=".csv">
+    <strong>2. Turno:</strong> 
+    <select id="selTurno"><option value="T1">Turno 1</option><option value="T2">Turno 2</option><option value="T3">Turno 3</option></select>
+    <strong>3. Complejidad:</strong> 
+    <select id="selColor"><option value="1">1 Color</option><option value="2">2 Colores</option><option value="3">3 Colores</option><option value="4">4 Colores</option></select>
+    <div id="status" style="font-weight:bold; color:var(--int)">Esperando datos...</div>
+</div>
+
+<div id="dashboard" class="grid"></div>
+
+<script>
+    let rawStore = {}; 
+    let activeCharts = [];
+
+    document.getElementById('csvFile').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        document.getElementById('status').innerText = "Procesando...";
+
+        Papa.parse(file, {
+            header: true, dynamicTyping: true, skipEmptyLines: true,
+            beforeFirstChunk: chunk => {
+                let rows = chunk.split(/\r\n|\r|\n/);
+                if (rows[0].startsWith("#")) rows.shift();
+                return rows.join("\n");
+            },
+            complete: results => {
+                buildDataMatrix(results.data);
+                document.getElementById('status').innerText = "¡36 Escenarios Listos!";
+                refreshUI();
+            }
+        });
+    });
+
+    function buildDataMatrix(data) {
+        rawStore = {};
+        data.forEach(row => {
+            const { Turno, Colores, Tipo, Actividad, DuracionSeg } = row;
+            if (!Turno || !Colores || !Tipo) return;
+            const cKey = Math.floor(Colores).toString();
+            
+            if (!rawStore[Turno]) rawStore[Turno] = {};
+            if (!rawStore[Turno][cKey]) rawStore[Turno][cKey] = {};
+            if (!rawStore[Turno][cKey][Tipo]) rawStore[Turno][cKey][Tipo] = {};
+            if (!rawStore[Turno][cKey][Tipo][Actividad]) rawStore[Turno][cKey][Tipo][Actividad] = [];
+            
+            rawStore[Turno][cKey][Tipo][Actividad].push(DuracionSeg);
+        });
+    }
+
+    function refreshUI() {
+        const t = document.getElementById('selTurno').value;
+        const c = document.getElementById('selColor').value;
+        const dash = document.getElementById('dashboard');
+        dash.innerHTML = '';
+        activeCharts.forEach(c => c.destroy());
+        activeCharts = [];
+
+        if (!rawStore[t] || !rawStore[t][c]) {
+            dash.innerHTML = `<h2 style="grid-column:1/-1; text-align:center; padding:50px;">Sin mediciones para Turno ${t} con ${c} Colores.</h2>`;
+            return;
+        }
+
+        ['INT', 'EXT', 'NVA'].forEach(tipo => {
+            if (!rawStore[t][c][tipo]) return;
+            const stats = processSixSigma(rawStore[t][c][tipo]);
+            dash.appendChild(createCard(t, c, tipo, stats));
+        });
+    }
+
+    function processSixSigma(activities) {
+        return Object.keys(activities).map(name => {
+            const v = activities[name].sort((a,b) => a-b);
+            const n = v.length;
+            const sum = v.reduce((a,b)=>a+b,0);
+            const avg = sum/n;
+            const std = Math.sqrt(v.map(x=>Math.pow(x-avg,2)).reduce((a,b)=>a+b,0)/(n-1)) || 0;
+            const cv = avg > 0 ? (std/avg) : 0;
+
+            return {
+                name, total: sum, count: n, avg: Math.round(avg),
+                min: v[0],
+                q1: v[Math.floor(n*0.25)],
+                med: v[Math.floor(n*0.5)],
+                q3: v[Math.floor(n*0.75)],
+                max: v[n-1],
+                std: Math.round(std),
+                cv: cv
+            };
+        }).sort((a,b) => b.total - a.total);
+    }
+
+    function createCard(t, c, tipo, stats) {
+        const card = document.createElement('div');
+        card.className = `card border-${tipo}`;
+        const canvasId = `chart_${tipo}`;
+        const color = tipo === 'INT' ? '#007bff' : tipo === 'EXT' ? '#28a745' : '#dc3545';
+
+        const rows = stats.map(s => {
+            const sigmaClass = s.cv < 0.3 ? 'est-excelente' : (s.cv < 0.6 ? 'est-alerta' : 'est-critico');
+            return `
+                <tr>
+                    <td style="text-align:left"><b>${s.name}</b></td>
+                    <td>${s.min}s</td>
+                    <td class="gold-std">${s.q1}s</td>
+                    <td>${s.med}s</td>
+                    <td>${s.q3}s</td>
+                    <td>${s.max}s</td>
+                    <td style="color:#888">±${s.std}</td>
+                    <td><span class="sigma-tag ${sigmaClass}">${(s.cv*100).toFixed(0)}%</span></td>
+                </tr>
+            `;
+        }).join('');
+
+        card.innerHTML = `
+            <h2>${tipo} | Turno ${t} (${c} Colores)</h2>
+            <div class="summary-mini">Impacto Total: ${(stats.reduce((a,b)=>a+b.total,0)/60).toFixed(1)} min</div>
+            <div class="chart-box"><canvas id="${canvasId}"></canvas></div>
+            <table>
+                <thead>
+                    <tr>
+                        <th rowspan="2">Actividad</th><th colspan="5">5 Cuartiles (Distribución)</th><th colspan="2">Six Sigma</th>
+                    </tr>
+                    <tr>
+                        <th>Min</th><th class="gold-std">Q1 (Meta)</th><th>Med</th><th>Q3</th><th>Max</th><th>Std(σ)</th><th>CV%</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        `;
+
+        setTimeout(() => {
+            const ctx = card.querySelector('canvas').getContext('2d');
+            activeCharts.push(new Chart(ctx, {
+                type: 'bar',
+                data: { labels: stats.map(s=>s.name), datasets: [{ data: stats.map(s=>s.total), backgroundColor: color, borderRadius: 5 }] },
+                options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            }));
+        }, 50);
+
+        return card;
+    }
+
+    document.getElementById('selTurno').addEventListener('change', refreshUI);
+    document.getElementById('selColor').addEventListener('change', refreshUI);
+</script>
+</body>
+</html>
