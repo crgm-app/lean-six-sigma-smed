@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SMED Countdown 100-0 | crgm.app</title>
+    <title>SMED 360° - Acumulado 100 a 0</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root { --int: #007bff; --ext: #28a745; --nva: #dc3545; --dark: #1c1e21; --gold: #f1c40f; --accent: #e67e22; }
-        body { font-family: -apple-system, system-ui, sans-serif; background: #f0f2f5; margin: 0; padding: 10px; color: #333; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: #f4f7f6; margin: 0; padding: 10px; color: #333; }
         
         .header { background: var(--dark); color: white; padding: 20px 15px; border-radius: 12px; text-align: center; margin-bottom: 15px; border-bottom: 5px solid var(--accent); }
         .controls { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px; }
@@ -17,8 +17,8 @@
         select, input[type="file"] { padding: 12px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; width: 100%; box-sizing: border-box; }
         @media (min-width: 768px) { select, input[type="file"] { width: auto; } }
 
-        .grid { display: grid; grid-template-columns: 1fr; gap: 25px; }
-        @media (min-width: 1200px) { .grid { grid-template-columns: repeat(auto-fit, minmax(750px, 1fr)); } }
+        .grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        @media (min-width: 1200px) { .grid { grid-template-columns: repeat(auto-fit, minmax(800px, 1fr)); } }
         
         .card { background: white; padding: 15px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); border-top: 10px solid; display: flex; flex-direction: column; }
         .border-INT { border-color: var(--int); } .border-EXT { border-color: var(--ext); } .border-NVA { border-color: var(--nva); }
@@ -26,12 +26,11 @@
         .chart-box { height: 50vh; min-height: 380px; position: relative; margin-bottom: 15px; }
         .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; border: 1px solid #eee; }
         
-        table { width: 100%; border-collapse: collapse; font-size: 10px; min-width: 850px; }
-        th { background: #f8f9fa; padding: 8px; border: 1px solid #dee2e6; text-transform: uppercase; font-size: 9px; white-space: nowrap; }
+        table { width: 100%; border-collapse: collapse; font-size: 10px; min-width: 900px; }
+        th { background: #f8f9fa; padding: 8px; border: 1px solid #dee2e6; text-transform: uppercase; font-size: 9px; }
         td { padding: 8px; border: 1px solid #eee; text-align: center; }
         
         .q1-col { background: #fff9c4; font-weight: bold; color: #856404; }
-        .pct-col { color: #666; font-weight: bold; background: #fafafa; }
         .acum-col { color: var(--accent); font-weight: bold; background: #fff5eb; border-left: 2px solid var(--accent) !important; }
         .sigma-badge { padding: 3px 6px; border-radius: 4px; color: white; font-weight: bold; font-size: 9px; }
         .badge { padding: 5px 12px; background: #eee; border-radius: 20px; font-weight: bold; font-size: 14px; }
@@ -40,8 +39,8 @@
 <body>
 
 <div class="header">
-    <h1 style="margin:0; font-size:1.4em;">SMED Countdown <span style="color:var(--accent)">100% &rarr; 0%</span></h1>
-    <div id="status" style="font-size: 0.8em; margin-top:5px; opacity:0.8;">Cargue el CSV para iniciar la cuenta regresiva de ineficiencia</div>
+    <h1 style="margin:0; font-size:1.4em;">SMED Countdown <span style="color:var(--gold)">100% &rarr; 0%</span></h1>
+    <div id="status" style="font-size: 0.8em; margin-top:5px; opacity:0.8;">Cargue el CSV para visualizar la reducción acumulada</div>
 </div>
 
 <div class="controls">
@@ -65,7 +64,7 @@
 
     document.getElementById('csvFile').addEventListener('change', function(e) {
         const file = e.target.files[0];
-        document.getElementById('status').innerText = "Calculando brechas de mejora...";
+        document.getElementById('status').innerText = "Procesando inversión acumulativa...";
         Papa.parse(file, {
             header: true, dynamicTyping: true, skipEmptyLines: true,
             beforeFirstChunk: chunk => {
@@ -75,7 +74,7 @@
             },
             complete: results => {
                 rawDataGlobal = results.data;
-                document.getElementById('status').innerText = "✓ " + rawDataGlobal.length + " Mediciones Listas";
+                document.getElementById('status').innerText = "✓ " + rawDataGlobal.length + " Registros Listos";
                 render();
             }
         });
@@ -85,6 +84,7 @@
         const tF = document.getElementById('selTurno').value;
         const cF = document.getElementById('selColor').value;
         const dash = document.getElementById('dashboard');
+        
         dash.innerHTML = '';
         activeCharts.forEach(c => c.destroy());
         activeCharts = [];
@@ -128,12 +128,11 @@
             };
         }).sort((a,b) => b.total - a.total);
 
-        // LÓGICA COUNTDOWN (100 a 0)
-        let currentRemaining = 100;
+        // LÓGICA ACUMULADO 100% a 0%
+        let currentLevel = 100;
         items.forEach(i => { 
-            i.beforePct = currentRemaining; // Valor antes de resolver esta tarea
-            currentRemaining -= i.pct;
-            i.afterPct = currentRemaining;  // Valor después de resolver esta tarea
+            i.val100to0 = currentLevel; // La línea marca el nivel inicial antes de restar esta tarea
+            currentLevel -= i.pct;
         });
         return { items, catTotal };
     }
@@ -154,14 +153,14 @@
                     <thead>
                         <tr>
                             <th rowspan="2">Actividad</th>
-                            <th colspan="5">Distribución (Segundos)</th>
-                            <th colspan="2">Countdown Pareto</th>
+                            <th colspan="5">Cuartiles (Segundos)</th>
+                            <th colspan="2">Impacto %</th>
                             <th colspan="2">Six Sigma</th>
                         </tr>
                         <tr>
-                            <th>Min</th><th class="q1-col">Q1 (Meta)</th><th>Med</th><th>Q3</th><th>Max</th>
-                            <th class="pct-col">% Peso</th><th class="acum-col">% Restante</th>
-                            <th>σ</th><th>CV%</th>
+                            <th>Min</th><th class="q1-col">Q1 (Gold)</th><th>Med</th><th>Q3</th><th>Max</th>
+                            <th>Individual</th><th class="acum-col">Acum 100-0</th>
+                            <th>σ (Desv)</th><th>CV% (Var)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -173,8 +172,8 @@
                                 <td>${i.med}s</td>
                                 <td>${i.q3}s</td>
                                 <td>${i.max}s</td>
-                                <td class="pct-col">${i.pct.toFixed(1)}%</td>
-                                <td class="acum-col">${i.afterPct.toFixed(1)}%</td>
+                                <td>${i.pct.toFixed(1)}%</td>
+                                <td class="acum-col">${i.val100to0.toFixed(1)}%</td>
                                 <td>±${i.std.toFixed(0)}</td>
                                 <td><span class="sigma-badge" style="background:${i.cv < 0.5 ? '#28a745' : '#dc3545'}">${(i.cv*100).toFixed(0)}%</span></td>
                             </tr>
@@ -191,14 +190,14 @@
                 labels: data.items.slice(0,10).map(i => i.name),
                 datasets: [
                     { label: 'Segundos Totales', data: data.items.slice(0,10).map(i => i.total), backgroundColor: color, yAxisID: 'y' },
-                    { label: '% Ineficiencia Restante', data: data.items.slice(0,10).map(i => i.afterPct), type: 'line', borderColor: 'var(--accent)', yAxisID: 'y1', pointRadius: 5, borderWidth: 3, tension: 0.2 }
+                    { label: 'Acumulado 100-0', data: data.items.slice(0,10).map(i => i.val100to0), type: 'line', borderColor: 'var(--accent)', yAxisID: 'y1', pointRadius: 6, borderWidth: 3, tension: 0.1 }
                 ]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 scales: { 
                     y: { position: 'left', title: { display: true, text: 'Segundos' } }, 
-                    y1: { position: 'right', max: 100, min: 0, title: { display: true, text: '% Por Resolver' }, grid: { display: false } } 
+                    y1: { position: 'right', max: 100, min: 0, title: { display: true, text: 'Nivel %' }, grid: { display: false } } 
                 },
                 plugins: { legend: { position: 'bottom' } }
             }
