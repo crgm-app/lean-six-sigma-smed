@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>SMED crgm.app - Dashboard Final</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --dark: #1c1e21; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; padding: 20px; }
+        .upload-card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; max-width: 600px; margin: auto; }
+        .drop-zone { border: 3px dashed var(--primary); padding: 30px; border-radius: 10px; background: #f8fbff; cursor: pointer; }
+        
+        /* Spinner de carga */
+        .loader { border: 5px solid #f3f3f3; border-top: 5px solid var(--primary); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; display: none; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .turno-header { background: var(--dark); color: white; padding: 15px; border-radius: 8px; margin: 40px 0 20px 0; text-align: center; font-size: 1.5em; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-top: 6px solid; }
+        .border-INT { border-color: var(--primary); } .border-EXT { border-color: var(--success); } .border-NVA { border-color: var(--danger); }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 10px; }
+        th, td { padding: 8px; border: 1px solid #eee; text-align: center; }
+        th { background: #f8f9fa; text-transform: uppercase; }
+        .gold { background: #fff9c4; font-weight: bold; }
+        .chart-container { height: 220px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="upload-card">
+    <h2>Analizador SMED Profesional</h2>
+    <p>Soporte para 18 Imprentas y 2 Corrugadoras Fosber</p>
+    <div class="drop-zone" onclick="document.getElementById('csvFile').click()">
+        <strong>Seleccionar archivo SMED_2026...csv</strong>
+        <input type="file" id="csvFile" accept=".csv" style="display:none">
+    </div>
+    <div id="loader" class="loader"></div>
+    <div id="msg" style="margin-top:10px; font-weight:bold;"></div>
+</div>
+
+<div id="dashboard"></div>
+
+<script>
+    document.getElementById('csvFile').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        document.getElementById('loader').style.display = 'block';
+        document.getElementById('msg').innerText = "Saltando metadatos y analizando mediciones...";
+
+        Papa.parse(file, {
+            header: true,
+            dynamicTyping: true,
+            skipEmptyLines: true,
+            beforeFirstChunk: function(chunk) {
+                // ESTA ES LA CLAVE: Saltamos la línea de metadatos que empieza con #
+                let rows = chunk.split(/\r\n|\r|\n/);
+                if (rows[0].startsWith("#")) {
+                    rows.shift(); 
+                }
+                return rows.join("\n");
+            },
+            complete: function(results) {
+                renderDashboard(results.data);
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('msg').innerText = `Procesadas ${results.data.length} actividades con éxito.`;
+            }
+        });
+    });
+
+    function renderDashboard(data) {
+        const dashboard = document.getElementById('dashboard');
+        dashboard.innerHTML = '';
+        const tree = {};
+
+        data.forEach(row => {
+            if (!row.Turno || !row.Tipo || !row.Actividad) return;
+            if (!tree[row.Turno]) tree[row.Turno] = {};
+            if (!tree[row.Turno][row.Tipo]) tree[row.Turno][row.Tipo] = {};
+            if (!tree[row.Turno][row.Tipo][row.Actividad]) tree[row.Turno][row.Tipo][row.Actividad] = [];
+            tree[row.Turno][row.Tipo][row.Actividad].push(row.DuracionSeg);
+        });
+
+        const turnos = ['T1', 'T2', 'T3'];
+        const tipos = ['INT', 'EXT', 'NVA'];
+        const colors = { 'INT': '#007bff', 'EXT': '#28a745', 'NVA': '#dc3545' };
+
+        turnos.forEach(t => {
+            if (!tree[t]) return;
+            const tHeader = document.createElement('div');
+            tHeader.className = 'turno-header';
+            tHeader.innerText = `REPORTE ESTRATÉGICO - TURNO ${t}`;
+            dashboard.appendChild(tHeader);
+
+            const grid = document.createElement('div');
+            grid.className = 'grid';
+
+            tipos.forEach(tipo => {
+                if (!tree[t][tipo]) return;
+                const stats = Object.keys(tree[t][tipo]).map(name => {
+                    const vals = tree[t][tipo][name].sort((a,b) => a - b);
+                    const n = vals.length;
+                    const mean = vals.reduce((a,b) => a+b, 0) / n;
+                    const std = Math.sqrt(vals.map(x => Math.pow(x-mean, 2)).reduce((a,b) => a+b, 0) / (n-1)) || 0;
+                    return {
+                        name, total: vals.reduce((a,b)=>a+b,0), min: vals[0], 
+                        q1: vals[Math.floor(n*0.25)], med: vals[Math.floor(n*0.5)], 
+                        max: vals[n-1], cv: (std/mean)||0
+                    };
+                }).sort((a,b) => b.total - a.total).slice(0, 8);
+
+                const card = document.createElement('div');
+                card.className = `card border-${tipo}`;
+                const canvasId = `chart_${t}_${tipo}`;
+
+                card.innerHTML = `
+                    <h3>${tipo === 'INT' ? 'INTERNAS' : tipo === 'EXT' ? 'EXTERNAS' : 'MUDAS (NVA)'}</h3>
+                    <div class="chart-container"><canvas id="${canvasId}"></canvas></div>
+                    <table>
+                        <thead><tr><th>Actividad</th><th>Min</th><th class="gold">Q1</th><th>Med</th><th>Var%</th></tr></thead>
+                        <tbody>${stats.map(s => `<tr><td style="text-align:left">${s.name}</td><td>${s.min}s</td><td class="gold">${s.q1}s</td><td>${s.med}s</td><td>${(s.cv*100).toFixed(0)}%</td></tr>`).join('')}</tbody>
+                    </table>
+                `;
+                grid.appendChild(card);
+                
+                setTimeout(() => {
+                    new Chart(document.getElementById(canvasId), {
+                        type: 'bar', data: { labels: stats.map(s=>s.name), datasets: [{ data: stats.map(s=>s.total), backgroundColor: colors[tipo] }] },
+                        options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                    });
+                }, 50);
+            });
+            dashboard.appendChild(grid);
+        });
+    }
+</script>
+</body>
+</html>
