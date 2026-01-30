@@ -943,7 +943,25 @@
         <!-- ============================================== -->
         <section id="tab-reports" class="view-section">
             <div class="card">
-                <h2>📄 Generador de Informes</h2>
+                <h2>📄 Centro de Informes</h2>
+                <p style="color: #888; margin-bottom: 15px;">Visualiza informes especializados con los datos actuales de la app o exporta informes personalizados.</p>
+                
+                <!-- Galería de Informes Disponibles -->
+                <div style="background: linear-gradient(135deg, #1a1a2e, #0f0f1a); padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 2px solid #00d4ff;">
+                    <h3 style="margin: 0 0 15px 0; color: #00d4ff;">📊 Informes Especializados</h3>
+                    <p style="color: #888; font-size: 0.9em; margin-bottom: 15px;">
+                        Estos informes utilizan automáticamente los datos y filtros actuales de la app.
+                    </p>
+                    
+                    <div id="reportsGallery" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;">
+                        <!-- Informes se cargan dinámicamente -->
+                    </div>
+                </div>
+                
+                <!-- Separador -->
+                <div style="border-top: 2px solid #333; margin: 30px 0;"></div>
+                
+                <h2 style="margin-top: 0;">📄 Generador de Informes Personalizados</h2>
                 <p style="color: #888; margin-bottom: 15px;">Configura qué secciones incluir en el informe. La configuración se guarda para futuras exportaciones.</p>
                 
                 <!-- Configuración del Informe -->
@@ -1748,6 +1766,7 @@
     <script src="js/charts.js"></script>
     <script src="js/gantt.js"></script>
     <script src="js/reports.js"></script>
+    <script src="js/reportsGallery.js"></script>
     <script src="js/googleDrive.js"></script>
     
     <!-- Cargar configuración de informes -->
