@@ -3349,10 +3349,19 @@ const CategoryFilter = {
         UI.renderButtons();
     },
     
-    // Seleccionar todas las categorías
+    // Toggle: Seleccionar/Deseleccionar todas las categorías
     selectAll: () => {
         const allCategories = CategoryFilter.getAllCategories();
-        CategoryFilter.selectedCategories = new Set(allCategories);
+        const allSelected = CategoryFilter.selectedCategories.size === allCategories.length;
+        
+        if (allSelected) {
+            // Si todas están seleccionadas, deseleccionar todas
+            CategoryFilter.selectedCategories.clear();
+        } else {
+            // Si no todas están seleccionadas, seleccionar todas
+            CategoryFilter.selectedCategories = new Set(allCategories);
+        }
+        
         CategoryFilter.save();
         CategoryFilter.render();
         UI.renderButtons();
@@ -3425,14 +3434,17 @@ const CategoryFilter = {
             countEl.style.color = visibleButtons === totalButtons ? '#888' : '#8b5cf6';
         }
         
-        // Botón "Todas"
+        // Botón "Todas" (toggle)
+        const todasIcon = allSelected ? '✓' : '◻';
+        const todasText = allSelected ? 'Todas' : 'Ninguna';
+        
         let html = `
             <button onclick="CategoryFilter.selectAll()" 
                     style="padding: 8px 16px; border-radius: 20px; border: 2px solid ${allSelected ? '#00d4ff' : '#444'}; 
                            background: ${allSelected ? '#00d4ff22' : '#1a1a2e'}; color: ${allSelected ? '#00d4ff' : '#888'}; 
                            cursor: pointer; font-size: 0.9em; font-weight: ${allSelected ? 'bold' : 'normal'}; 
                            transition: all 0.2s;">
-                ✓ Todas (${totalButtons})
+                ${todasIcon} ${todasText} (${totalButtons})
             </button>
         `;
         
