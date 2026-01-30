@@ -11,7 +11,19 @@
         :root { --int: #007bff; --ext: #28a745; --nva: #dc3545; --dark: #1c1e21; --accent: #e67e22; }
         body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; margin: 0; padding: 15px; }
         
-        .header { background: var(--dark); color: white; padding: 25px; border-radius: 15px; text-align: center; margin-bottom: 20px; border-bottom: 6px solid var(--accent); }
+        /* Encabezado Unificado */
+        .header-unified { background: linear-gradient(135deg, #2c3e50, #1a1a2e); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; position: relative; border-bottom: 4px solid #00ff9d; }
+        .header-controls { position: absolute; top: 15px; right: 15px; display: flex; gap: 10px; z-index: 10; }
+        .btn-back, .btn-fullscreen { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.3s; }
+        .btn-back:hover, .btn-fullscreen:hover { background: rgba(255,255,255,0.25); transform: translateY(-2px); }
+        .header-branding { text-align: center; }
+        .header-branding h1 { margin: 0; font-size: 1.8em; color: #00ff9d; }
+        .header-branding .subtitle { margin: 10px 0 0 0; font-size: 1em; opacity: 0.9; color: #fff; }
+        
+        @media (max-width: 768px) {
+            .header-controls { position: static; justify-content: center; margin-bottom: 15px; }
+            .btn-back, .btn-fullscreen { font-size: 12px; padding: 6px 12px; }
+        }
         .controls { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 25px; display: flex; flex-direction: column; gap: 15px; align-items: center; }
         @media (min-width: 768px) { .controls { flex-direction: row; justify-content: center; } }
         
@@ -39,9 +51,15 @@
 </head>
 <body>
 
-<div class="header">
-    <h1 style="margin:0;">SMED Six Sigma <span style="color:var(--accent)">100&rarr;0 + Velas</span></h1>
-    <p style="opacity:0.8;">Análisis de Dispersión y Pareto para Corrugadoras e Imprentas</p>
+<div class="header-unified">
+    <div class="header-controls">
+        <button onclick="goBack()" class="btn-back">← Volver</button>
+        <button onclick="toggleFullscreen()" class="btn-fullscreen">⛶ Pantalla Completa</button>
+    </div>
+    <div class="header-branding">
+        <h1>🏭 SMED Analyzer Pro</h1>
+        <p class="subtitle">SMED Six Sigma 100→0 + Box Plots | Análisis de Dispersión y Pareto</p>
+    </div>
 </div>
 
 <div class="controls">
@@ -207,6 +225,23 @@
 
     document.getElementById('selTurno').addEventListener('change', render);
     document.getElementById('selColor').addEventListener('change', render);
+
+    // Funciones de navegación
+    function goBack() {
+        window.location.href = '../../index.html';
+    }
+
+    function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                console.log('Error al entrar en pantalla completa:', err);
+            });
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+    }
 </script>
 </body>
 </html>
