@@ -896,6 +896,12 @@ const ButtonManager = {
         });
         
         Storage.save();
+        
+        // Actualizar filtro de categorías
+        if (typeof CategoryFilter !== 'undefined') {
+            CategoryFilter.selectAll(); // Auto-seleccionar la nueva categoría
+        }
+        
         UI.renderAll();
         return true;
     },
@@ -1799,7 +1805,12 @@ const UI = {
         // Obtener botones ordenados según preferencia del usuario
         const sortedButtons = ButtonOrganizer.getSorted();
         
-        container.innerHTML = sortedButtons.map(btn => {
+        // Filtrar botones según el filtro de categorías
+        const filteredButtons = sortedButtons.filter(btn => {
+            return typeof CategoryFilter !== 'undefined' ? CategoryFilter.shouldShowButton(btn) : true;
+        });
+        
+        container.innerHTML = filteredButtons.map(btn => {
             // Clave compuesta: categoría + tipo (ej: "Troquel_INT", "Montacargas_NVA")
             const timerKey = `${btn.cat}_${btn.tipo || 'INT'}`;
             const isActive = AppState.activeTimers[timerKey] && 
@@ -2081,6 +2092,7 @@ function init() {
     setTimeout(() => {
         GlobalFilters.init();
         DateNavigator.init();
+        CategoryFilter.init();
     }, 200);
     
     // Iniciar loop principal
@@ -3264,6 +3276,206 @@ const DateNavigator = {
         console.log('📅 Navegador de fechas inicializado');
     }
 };
+
+// =====================================================
+// FILTRO DE CATEGORÍAS PARA BOTONES
+// =====================================================
+
+const CategoryFilter = {
+    // Estado: categorías seleccionadas (por defecto, todas)
+    selectedCategories: new Set(),
+    isCollapsed: false,
+    
+    // Inicializar desde localStorage
+    init: () => {
+        const saved = localStorage.getItem('smed_category_filter');
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                CategoryFilter.selectedCategories = new Set(data.selected || []);
+                CategoryFilter.isCollapsed = data.collapsed || false;
+            } catch (e) {
+                console.error('Error cargando filtro de categorías:', e);
+            }
+        }
+        
+        // Si no hay nada guardado, seleccionar todas por defecto
+        if (CategoryFilter.selectedCategories.size === 0) {
+            CategoryFilter.selectAll();
+        }
+        
+        // Renderizar el filtro
+        CategoryFilter.render();
+    },
+    
+    // Guardar estado en localStorage
+    save: () => {
+        const data = {
+            selected: Array.from(CategoryFilter.selectedCategories),
+            collapsed: CategoryFilter.isCollapsed
+        };
+        localStorage.setItem('smed_category_filter', JSON.stringify(data));
+    },
+    
+    // Obtener todas las categorías únicas de los botones
+    getAllCategories: () => {
+        const categories = new Set();
+        AppState.buttons.forEach(btn => {
+            if (btn.cat) categories.add(btn.cat);
+        });
+        return Array.from(categories).sort();
+    },
+    
+    // Contar botones por categoría
+    getButtonCountByCategory: () => {
+        const counts = {};
+        AppState.buttons.forEach(btn => {
+            const cat = btn.cat || 'Sin categoría';
+            counts[cat] = (counts[cat] || 0) + 1;
+        });
+        return counts;
+    },
+    
+    // Alternar una categoría
+    toggleCategory: (category) => {
+        if (CategoryFilter.selectedCategories.has(category)) {
+            CategoryFilter.selectedCategories.delete(category);
+        } else {
+            CategoryFilter.selectedCategories.add(category);
+        }
+        
+        CategoryFilter.save();
+        CategoryFilter.render();
+        UI.renderButtons();
+    },
+    
+    // Seleccionar todas las categorías
+    selectAll: () => {
+        const allCategories = CategoryFilter.getAllCategories();
+        CategoryFilter.selectedCategories = new Set(allCategories);
+        CategoryFilter.save();
+        CategoryFilter.render();
+        UI.renderButtons();
+    },
+    
+    // Deseleccionar todas las categorías
+    deselectAll: () => {
+        CategoryFilter.selectedCategories.clear();
+        CategoryFilter.save();
+        CategoryFilter.render();
+        UI.renderButtons();
+    },
+    
+    // Toggle expandir/colapsar
+    toggle: () => {
+        const content = document.getElementById('categoryFilterContent');
+        const btn = document.getElementById('categoryFilterToggleBtn');
+        
+        if (!content || !btn) return;
+        
+        CategoryFilter.isCollapsed = !CategoryFilter.isCollapsed;
+        
+        if (CategoryFilter.isCollapsed) {
+            content.style.display = 'none';
+            btn.textContent = '▶ Mostrar';
+        } else {
+            content.style.display = 'block';
+            btn.textContent = '▼ Ocultar';
+        }
+        
+        CategoryFilter.save();
+    },
+    
+    // Verificar si un botón debe mostrarse según el filtro
+    shouldShowButton: (button) => {
+        // Si todas las categorías están seleccionadas, mostrar todos
+        const allCategories = CategoryFilter.getAllCategories();
+        if (CategoryFilter.selectedCategories.size === allCategories.length) {
+            return true;
+        }
+        
+        // Si no hay categorías seleccionadas, no mostrar nada
+        if (CategoryFilter.selectedCategories.size === 0) {
+            return false;
+        }
+        
+        // Verificar si la categoría del botón está seleccionada
+        return CategoryFilter.selectedCategories.has(button.cat);
+    },
+    
+    // Renderizar el filtro de categorías
+    render: () => {
+        const container = document.getElementById('categoryFilterButtons');
+        const countEl = document.getElementById('categoryFilterCount');
+        
+        if (!container) return;
+        
+        const allCategories = CategoryFilter.getAllCategories();
+        const counts = CategoryFilter.getButtonCountByCategory();
+        const allSelected = CategoryFilter.selectedCategories.size === allCategories.length;
+        
+        // Contar botones visibles
+        const visibleButtons = AppState.buttons.filter(btn => CategoryFilter.shouldShowButton(btn)).length;
+        const totalButtons = AppState.buttons.length;
+        
+        // Actualizar contador
+        if (countEl) {
+            countEl.textContent = `${visibleButtons} de ${totalButtons} botones`;
+            countEl.style.background = visibleButtons === totalButtons ? '#0a0a0a' : '#8b5cf622';
+            countEl.style.color = visibleButtons === totalButtons ? '#888' : '#8b5cf6';
+        }
+        
+        // Botón "Todas"
+        let html = `
+            <button onclick="CategoryFilter.selectAll()" 
+                    style="padding: 8px 16px; border-radius: 20px; border: 2px solid ${allSelected ? '#00d4ff' : '#444'}; 
+                           background: ${allSelected ? '#00d4ff22' : '#1a1a2e'}; color: ${allSelected ? '#00d4ff' : '#888'}; 
+                           cursor: pointer; font-size: 0.9em; font-weight: ${allSelected ? 'bold' : 'normal'}; 
+                           transition: all 0.2s;">
+                ✓ Todas (${totalButtons})
+            </button>
+        `;
+        
+        // Botones por categoría
+        allCategories.forEach(cat => {
+            const isSelected = CategoryFilter.selectedCategories.has(cat);
+            const count = counts[cat] || 0;
+            const btnColor = Utils.getCategoryColor(cat);
+            
+            html += `
+                <button onclick="CategoryFilter.toggleCategory('${cat}')" 
+                        style="padding: 8px 16px; border-radius: 20px; border: 2px solid ${isSelected ? btnColor : '#444'}; 
+                               background: ${isSelected ? btnColor + '22' : '#1a1a2e'}; 
+                               color: ${isSelected ? btnColor : '#888'}; 
+                               cursor: pointer; font-size: 0.9em; font-weight: ${isSelected ? 'bold' : 'normal'}; 
+                               transition: all 0.2s; display: flex; align-items: center; gap: 6px;">
+                    ${isSelected ? '✓' : ''} 
+                    <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ${btnColor};"></span>
+                    ${cat} (${count})
+                </button>
+            `;
+        });
+        
+        container.innerHTML = html;
+        
+        // Aplicar estado de colapsado
+        const content = document.getElementById('categoryFilterContent');
+        const btn = document.getElementById('categoryFilterToggleBtn');
+        
+        if (content && btn) {
+            if (CategoryFilter.isCollapsed) {
+                content.style.display = 'none';
+                btn.textContent = '▶ Mostrar';
+            } else {
+                content.style.display = 'block';
+                btn.textContent = '▼ Ocultar';
+            }
+        }
+    }
+};
+
+// Exponer CategoryFilter globalmente
+window.CategoryFilter = CategoryFilter;
 
 // Exponer GlobalFilters globalmente
 window.GlobalFilters = GlobalFilters;

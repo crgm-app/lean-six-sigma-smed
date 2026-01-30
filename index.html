@@ -258,6 +258,28 @@
                         </select>
                     </div>
                 </div>
+
+                <!-- Filtro de Categorías -->
+                <div style="background: linear-gradient(135deg, #1a1a2e, #0f0f1a); border: 1px solid #333; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 0.95em; color: #00d4ff; font-weight: bold;">📁 Filtrar Categorías</span>
+                            <span id="categoryFilterCount" style="font-size: 0.8em; color: #888; background: #0a0a0a; padding: 3px 10px; border-radius: 12px;">0 de 0 botones</span>
+                        </div>
+                        <button onclick="CategoryFilter.toggle()" id="categoryFilterToggleBtn" 
+                                style="background: none; border: 1px solid #444; color: #888; padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 0.9em;">
+                            ▼ Ocultar
+                        </button>
+                    </div>
+                    
+                    <div id="categoryFilterContent">
+                        <div id="categoryFilterButtons" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #333; font-size: 0.8em; color: #666;">
+                            💡 Click en las categorías para mostrar/ocultar • Click en "Todas" para mostrar todo
+                        </div>
+                    </div>
+                </div>
+
                 <div id="buttonsGrid" class="btn-grid"></div>
 
                 <!-- MÚLTIPLES Cronómetros Libres -->
