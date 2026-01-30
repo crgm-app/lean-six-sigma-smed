@@ -1508,6 +1508,33 @@
                     }, 500);
                 </script>
 
+                <!-- Unidad de Tiempo -->
+                <h2 style="margin-top: 20px;">⏱️ Unidad de Tiempo</h2>
+                <div style="background: linear-gradient(135deg, #1a1a2e, #0f0f1a); padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #00d4ff;">
+                    <p style="color: #888; font-size: 0.85em; margin-top: 0;">
+                        Cambia cómo se muestran todos los tiempos en la aplicación (cronómetros, historial, gráficos, estadísticas, etc.).
+                    </p>
+                    <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                        <span style="color: #fff; font-weight: bold;">Mostrar tiempos en:</span>
+                        <button id="timeUnitToggle" onclick="TimeUnits.toggle()" 
+                                style="padding: 10px 20px; border-radius: 20px; border: 2px solid #00d4ff; 
+                                       background: #00d4ff22; color: #00d4ff; cursor: pointer; font-weight: bold; 
+                                       transition: all 0.3s; font-size: 1em;">
+                            ⏱️ Segundos
+                        </button>
+                    </div>
+                    <div style="margin-top: 10px; padding: 10px; background: #0a0a0a; border-radius: 4px; font-size: 0.85em;">
+                        <strong style="color: #00d4ff;">Ejemplos:</strong><br>
+                        <span style="color: #888;">
+                            Segundos: <strong style="color: #fff;" id="exampleSeconds">45.3 seg</strong> | 
+                            Minutos: <strong style="color: #fff;" id="exampleMinutes">0.8 min</strong>
+                        </span>
+                    </div>
+                    <div style="margin-top: 10px; padding: 10px; background: #0a0a0a; border-radius: 4px; font-size: 0.85em; color: #666;">
+                        💡 <strong style="color: #8b5cf6;">Tip:</strong> La preferencia se guarda automáticamente y persiste al refrescar la página.
+                    </div>
+                </div>
+
                 <!-- Gestión de Máquinas -->
                 <h2 style="margin-top: 20px;">🏭 Gestión de Máquinas</h2>
                 <div style="background: #1a1a2e; padding: 15px; border-radius: 8px; margin-bottom: 15px;">

@@ -400,8 +400,14 @@ const Utils = {
         return Utils.round2(fraction * 86400);
     },
     
-    // Formatear duración en formato legible
+    // Formatear duración en formato legible (usa TimeUnits)
     formatDuration: (seconds) => {
+        // Si TimeUnits está disponible, usarlo
+        if (typeof TimeUnits !== 'undefined') {
+            return TimeUnits.format(seconds);
+        }
+        
+        // Fallback legacy (si TimeUnits aún no se ha cargado)
         if (seconds < 60) return `${seconds.toFixed(1)}s`;
         if (seconds < 3600) {
             const mins = Math.floor(seconds / 60);
@@ -2084,19 +2090,25 @@ function init() {
     // Cargar preferencia de ordenamiento de botones
     ButtonOrganizer.loadPreference();
     
+    // NUEVO: Cargar preferencia de unidad de tiempo
+    TimeUnits.load();
+    
+    // IMPORTANTE: Inicializar CategoryFilter ANTES de renderizar (para mantener estado al refrescar)
+    CategoryFilter.init();
+    
     // Auto-seleccionar turno basado en fecha/hora actual
     setTimeout(() => {
         TurnoManager.autoSelectTurno();
     }, 100);
     
-    // Renderizar UI inicial
+    // Renderizar UI inicial (ahora con el filtro de categorías ya cargado)
     UI.renderAll();
     
-    // Inicializar filtros globales
+    // Inicializar filtros globales (sin CategoryFilter.init, ya se ejecutó arriba)
     setTimeout(() => {
         GlobalFilters.init();
         DateNavigator.init();
-        CategoryFilter.init();
+        TimeUnits.updateSwitchUI(); // Inicializar UI del switch de unidades
     }, 200);
     
     // Iniciar loop principal
@@ -3368,8 +3380,9 @@ const CategoryFilter = {
         // Renderizar el filtro con el estado correcto
         CategoryFilter.render();
         
-        // Log para debug
-        console.log(`📁 Filtro de categorías inicializado: ${CategoryFilter.selectedCategories.size}/${allCategories.length} seleccionadas`);
+        // Log para debug - ahora muestra si mantuvo el estado guardado
+        const wasRestored = saved ? 'estado guardado restaurado' : 'primera vez (todas seleccionadas)';
+        console.log(`📁 Filtro de categorías inicializado: ${CategoryFilter.selectedCategories.size}/${allCategories.length} seleccionadas (${wasRestored})`);
     },
     
     // Guardar estado en localStorage
@@ -3557,7 +3570,114 @@ window.CategoryFilter = CategoryFilter;
 window.GlobalFilters = GlobalFilters;
 window.DateNavigator = DateNavigator;
 
+// =====================================================
+// MÓDULO DE UNIDADES DE TIEMPO (SEGUNDOS/MINUTOS)
+// =====================================================
+
+const TimeUnits = {
+    // Estado actual (cargado desde localStorage)
+    current: 'seconds', // 'seconds' o 'minutes'
+    
+    // Cargar preferencia guardada
+    load: () => {
+        const saved = localStorage.getItem('smed_time_unit');
+        if (saved && ['seconds', 'minutes'].includes(saved)) {
+            TimeUnits.current = saved;
+        }
+        console.log(`⏱️ Unidad de tiempo: ${TimeUnits.current}`);
+    },
+    
+    // Guardar preferencia
+    save: () => {
+        localStorage.setItem('smed_time_unit', TimeUnits.current);
+    },
+    
+    // Toggle entre unidades
+    toggle: () => {
+        TimeUnits.current = TimeUnits.current === 'seconds' ? 'minutes' : 'seconds';
+        TimeUnits.save();
+        TimeUnits.updateSwitchUI();
+        UI.renderAll(); // Re-renderizar toda la app
+        
+        // Si Statistics está disponible, recalcular
+        if (typeof Statistics !== 'undefined') {
+            Statistics.calculate();
+        }
+        
+        // Si Gantt está disponible, re-renderizar
+        if (typeof Gantt !== 'undefined') {
+            Gantt.render();
+        }
+        
+        // Si Analysis está disponible, re-renderizar
+        if (typeof Analysis !== 'undefined') {
+            Analysis.render();
+        }
+        
+        console.log(`✅ Cambiado a: ${TimeUnits.current}`);
+    },
+    
+    // Convertir segundos a la unidad actual
+    convert: (seconds) => {
+        if (TimeUnits.current === 'minutes') {
+            return seconds / 60; // segundos → minutos
+        }
+        return seconds;
+    },
+    
+    // Obtener sufijo de unidad
+    getUnit: (short = true) => {
+        if (TimeUnits.current === 'seconds') {
+            return short ? 'seg' : 'segundos';
+        }
+        return short ? 'min' : 'minutos';
+    },
+    
+    // Formatear valor con unidad
+    format: (seconds, decimals = null) => {
+        const value = TimeUnits.convert(seconds);
+        const unit = TimeUnits.getUnit(true);
+        
+        // Decimales por defecto según unidad
+        const dec = decimals !== null ? decimals : (TimeUnits.current === 'seconds' ? 1 : 1);
+        
+        return `${value.toFixed(dec)} ${unit}`;
+    },
+    
+    // Formato para valores sin unidad (solo número)
+    formatValue: (seconds, decimals = null) => {
+        const value = TimeUnits.convert(seconds);
+        const dec = decimals !== null ? decimals : (TimeUnits.current === 'seconds' ? 1 : 1);
+        return value.toFixed(dec);
+    },
+    
+    // Actualizar UI del switch
+    updateSwitchUI: () => {
+        const btn = document.getElementById('timeUnitToggle');
+        if (!btn) return;
+        
+        if (TimeUnits.current === 'seconds') {
+            btn.textContent = '⏱️ Segundos';
+            btn.style.background = '#00d4ff22';
+            btn.style.color = '#00d4ff';
+            btn.style.borderColor = '#00d4ff';
+        } else {
+            btn.textContent = '🕐 Minutos';
+            btn.style.background = '#8b5cf622';
+            btn.style.color = '#8b5cf6';
+            btn.style.borderColor = '#8b5cf6';
+        }
+        
+        // Actualizar ejemplos
+        const exSeconds = document.getElementById('exampleSeconds');
+        const exMinutes = document.getElementById('exampleMinutes');
+        if (exSeconds) exSeconds.textContent = '45.3 seg';
+        if (exMinutes) exMinutes.textContent = '0.8 min';
+    }
+};
+
 // Exponer funciones globales necesarias
+window.TimeUnits = TimeUnits;
 window.Timer = Timer;
 window.ButtonManager = ButtonManager;
 window.CSV = CSV;
