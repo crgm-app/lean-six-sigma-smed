@@ -1820,6 +1820,9 @@ const UI = {
             // Obtener color del botón (personalizado o automático por categoría)
             const btnColor = btn.color || Utils.getCategoryColor(btn.cat);
             
+            // Obtener color del tipo para el indicador
+            const tipoColor = TIPOS_ACTIVIDAD[btn.tipo || 'INT'].color;
+            
             // Estilos dinámicos con color personalizado visible
             const btnStyle = `
                 border-left: 4px solid ${btnColor};
@@ -1836,6 +1839,7 @@ const UI = {
                         data-timer-key="${timerKey}"
                         style="${btnStyle}"
                         onclick="Timer.handleButtonClick('${btn.id}')">
+                    <span class="tipo-indicator" style="background: ${tipoColor};" title="${TIPOS_ACTIVIDAD[btn.tipo || 'INT'].nombre}"></span>
                     <span class="btn-name">${isActive ? '▶ ' : ''}${btn.name}</span>
                     <span class="btn-cat">${btn.cat}</span>
                     ${opActiva ? `<span style="font-size:0.6rem; color:#00ff9d; opacity:0.8;">OP: ${opActiva}</span>` : '<span style="font-size:0.6rem; color:#ff4444;">Sin OP</span>'}
@@ -2682,8 +2686,8 @@ const RecordEditor = {
 // =====================================================
 
 const GlobalFilters = {
-    // Estado del panel (expandido/colapsado)
-    isExpanded: true,
+    // Estado del panel (expandido/colapsado) - Por defecto: COLAPSADO
+    isExpanded: false,
     
     // Toggle expandir/colapsar
     toggle: () => {
@@ -2702,6 +2706,9 @@ const GlobalFilters = {
             content.classList.add('collapsed');
             btn.textContent = '+';
         }
+        
+        // Guardar estado en localStorage
+        localStorage.setItem('smed_filters_expanded', GlobalFilters.isExpanded);
     },
     
     // Establecer período
@@ -2851,6 +2858,19 @@ const GlobalFilters = {
             fechaHasta: null
         };
         
+        // NUEVO: Resetear el navegador de fechas a "Todo"
+        if (typeof DateNavigator !== 'undefined') {
+            DateNavigator.setView('all');
+        }
+        
+        // NUEVO: Resetear filtro de categorías (seleccionar todas)
+        if (typeof CategoryFilter !== 'undefined') {
+            const allCategories = CategoryFilter.getAllCategories();
+            CategoryFilter.selectedCategories = new Set(allCategories);
+            CategoryFilter.save();
+            CategoryFilter.render();
+        }
+        
         // Resetear UI
         document.querySelectorAll('.global-filter-btn[data-period]').forEach(btn => {
             if (btn.getAttribute('data-period') === 'all') {
@@ -2860,8 +2880,10 @@ const GlobalFilters = {
             }
         });
         
-        document.getElementById('globalDateFrom').value = '';
-        document.getElementById('globalDateTo').value = '';
+        const dateFromEl = document.getElementById('globalDateFrom');
+        const dateToEl = document.getElementById('globalDateTo');
+        if (dateFromEl) dateFromEl.value = '';
+        if (dateToEl) dateToEl.value = '';
         
         const selects = [
             'globalFilterMaquina', 'globalFilterOP', 'globalFilterTurno',
@@ -2879,6 +2901,26 @@ const GlobalFilters = {
     
     // Inicializar filtros globales
     init: () => {
+        // Cargar estado guardado desde localStorage
+        const savedExpanded = localStorage.getItem('smed_filters_expanded');
+        if (savedExpanded !== null) {
+            GlobalFilters.isExpanded = savedExpanded === 'true';
+        }
+        
+        // Aplicar estado inicial al DOM
+        const content = document.getElementById('globalFiltersContent');
+        const btn = document.getElementById('filtersToggleBtn');
+        
+        if (content && btn) {
+            if (GlobalFilters.isExpanded) {
+                content.classList.remove('collapsed');
+                btn.textContent = '−';
+            } else {
+                content.classList.add('collapsed');
+                btn.textContent = '+';
+            }
+        }
+        
         // Poblar selectores
         GlobalFilters.populateSelectors();
         
@@ -2896,6 +2938,8 @@ const GlobalFilters = {
                 wrapper.style.display = 'block';
             }
         };
+        
+        console.log('🗓️ Filtros globales inicializados (colapsado por defecto)');
     },
     
     // Poblar selectores dinámicamente
@@ -3289,23 +3333,43 @@ const CategoryFilter = {
     // Inicializar desde localStorage
     init: () => {
         const saved = localStorage.getItem('smed_category_filter');
+        const allCategories = CategoryFilter.getAllCategories();
+        
         if (saved) {
             try {
                 const data = JSON.parse(saved);
-                CategoryFilter.selectedCategories = new Set(data.selected || []);
+                const savedCategories = data.selected || [];
+                
+                // Verificar que las categorías guardadas aún existen
+                const validCategories = savedCategories.filter(cat => allCategories.includes(cat));
+                
+                // Si hay categorías válidas guardadas, usarlas
+                if (validCategories.length > 0) {
+                    CategoryFilter.selectedCategories = new Set(validCategories);
+                } else {
+                    // Si no hay categorías válidas, seleccionar todas las actuales
+                    CategoryFilter.selectedCategories = new Set(allCategories);
+                }
+                
                 CategoryFilter.isCollapsed = data.collapsed || false;
             } catch (e) {
                 console.error('Error cargando filtro de categorías:', e);
+                // En caso de error, seleccionar todas
+                CategoryFilter.selectedCategories = new Set(allCategories);
             }
+        } else {
+            // Primera vez: seleccionar todas las categorías existentes
+            CategoryFilter.selectedCategories = new Set(allCategories);
         }
         
-        // Si no hay nada guardado, seleccionar todas por defecto
-        if (CategoryFilter.selectedCategories.size === 0) {
-            CategoryFilter.selectAll();
-        }
+        // Guardar el estado inicial
+        CategoryFilter.save();
         
-        // Renderizar el filtro
+        // Renderizar el filtro con el estado correcto
         CategoryFilter.render();
+        
+        // Log para debug
+        console.log(`📁 Filtro de categorías inicializado: ${CategoryFilter.selectedCategories.size}/${allCategories.length} seleccionadas`);
     },
     
     // Guardar estado en localStorage

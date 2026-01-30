@@ -280,6 +280,7 @@ h3 {
 }
 
 .smed-btn {
+    position: relative;
     background: var(--bg-secondary);
     border: 1px solid var(--border-light);
     color: var(--text-primary);
@@ -295,6 +296,20 @@ h3 {
     gap: 4px;
     transition: all var(--transition-fast);
     min-height: 70px;
+}
+
+/* Indicador de tipo (INT/EXT/NVA) en esquina superior izquierda */
+.tipo-indicator {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.3);
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
+    z-index: 10;
+    pointer-events: none;
 }
 
 .smed-btn:hover {
