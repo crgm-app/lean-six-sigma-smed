@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SMED Analytics Pro - Inverted Pareto</title>
+    <script src="../../js/sharedData.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -63,11 +64,12 @@
 </div>
 
 <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: center;">
-    <div id="status" style="font-weight: bold; color: var(--int);">Cargue el CSV para visualizar el Impacto Remanente</div>
+    <div id="status" style="font-weight: bold; color: var(--int);">Cargando datos...</div>
 </div>
 
 <div class="controls">
-    <input type="file" id="csvFile" accept=".csv">
+    <input type="file" id="csvFile" accept=".csv" style="display: none;">
+    <button onclick="document.getElementById('csvFile').click()" style="padding: 12px 20px; border-radius: 8px; border: 1px solid #ddd; background: white; cursor: pointer; font-size: 14px;">📂 Cargar CSV alternativo</button>
     <select id="selTurno">
         <option value="ALL">TODOS LOS TURNOS</option>
         <option value="T1">TURNO 1</option><option value="T2">TURNO 2</option><option value="T3">TURNO 3</option>
@@ -85,6 +87,23 @@
     let rawDataGlobal = [];
     let activeCharts = [];
 
+    // Cargar datos automáticamente desde localStorage
+    function loadDataFromLocalStorage() {
+        if (typeof SMEDSharedData !== 'undefined' && SMEDSharedData.hasData()) {
+            rawDataGlobal = SMEDSharedData.getNormalizedRecords();
+            document.getElementById('status').innerHTML = `✅ ${rawDataGlobal.length} registros cargados`;
+            document.getElementById('status').style.color = '#28a745';
+            render();
+        } else {
+            document.getElementById('status').innerHTML = '⚠️ No hay datos. Use la app o cargue CSV';
+            document.getElementById('status').style.color = '#dc3545';
+        }
+    }
+
+    // Cargar al inicio
+    setTimeout(loadDataFromLocalStorage, 100);
+
+    // Mantener funcionalidad de carga de CSV como fallback
     document.getElementById('csvFile').addEventListener('change', function(e) {
         const file = e.target.files[0];
         document.getElementById('status').innerText = "Procesando inversión de Pareto...";

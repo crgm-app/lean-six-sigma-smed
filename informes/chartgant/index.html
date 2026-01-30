@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SMED Dashboard - crgm.app</title>
+    <script src="../../js/sharedData.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; margin: 20px; }
@@ -75,28 +76,83 @@
 </div>
 
 <script>
-    // Datos procesados de tu CSV (Top 5 por categoría)
-    const dataSMED = {
-        int: [
-            { act: 'Sello Montaje', total: 51273, avg: 563, q1: 463, med: 555, q3: 621 },
-            { act: 'Tinta Rasqueta Lav', total: 45721, avg: 564, q1: 323, med: 461, q3: 850 },
-            { act: 'Tinta Lavado', total: 44466, avg: 535, q1: 247, med: 525, q3: 683 },
-            { act: 'Troquel Montar', total: 42996, avg: 524, q1: 424, med: 487, q3: 600 },
-            { act: 'Troquel Desmontar', total: 27246, avg: 332, q1: 226, med: 302, q3: 416 }
-        ],
-        ext: [
-            { act: 'Sello Requerir', total: 91045, avg: 901, q1: 750, med: 888, q3: 1077 },
-            { act: 'Tinta Requerir', total: 90537, avg: 1028, q1: 825, med: 1004, q3: 1147 },
-            { act: 'Troquel Requerir', total: 85944, avg: 924, q1: 753, med: 912, q3: 1077 }
-        ],
-        nva: [
-            { act: 'Sello Limpieza', total: 55330, avg: 356, q1: 179, med: 290, q3: 449 },
-            { act: 'Maquina Centrado', total: 34840, avg: 435, q1: 305, med: 381, q3: 519 },
-            { act: 'Maquina Atasco', total: 27946, avg: 294, q1: 112, med: 187, q3: 345 },
-            { act: 'Troquel Ajuste', total: 27682, avg: 503, q1: 227, med: 414, q3: 750 },
-            { act: 'Sello Ajuste', total: 25741, avg: 525, q1: 187, med: 357, q3: 701 }
-        ]
-    };
+    // Cargar datos automáticamente desde localStorage
+    let dataSMED = null;
+
+    function loadDataFromLocalStorage() {
+        if (typeof SMEDSharedData !== 'undefined' && SMEDSharedData.hasData()) {
+            const records = SMEDSharedData.getNormalizedRecords();
+            dataSMED = processRecordsToStats(records);
+            initializeCharts();
+            console.log(`✅ ${records.length} registros cargados desde localStorage`);
+        } else {
+            console.warn('⚠️ No hay datos en localStorage. Usando datos de ejemplo.');
+            dataSMED = getExampleData();
+            initializeCharts();
+        }
+    }
+
+    // Procesar registros para generar estadísticas
+    function processRecordsToStats(records) {
+        const result = { int: [], ext: [], nva: [] };
+        
+        ['INT', 'EXT', 'NVA'].forEach(tipo => {
+            const filtered = records.filter(r => r.Tipo === tipo);
+            const groups = {};
+            
+            filtered.forEach(r => {
+                const act = r.Actividad || r.name;
+                if (!groups[act]) groups[act] = [];
+                groups[act].push(r.DuracionSeg || 0);
+            });
+            
+            const items = Object.keys(groups).map(name => {
+                const values = groups[name].sort((a,b) => a-b);
+                const n = values.length;
+                const total = values.reduce((a,b) => a+b, 0);
+                const avg = total / n;
+                
+                return {
+                    act: name,
+                    total: total,
+                    avg: Math.round(avg),
+                    q1: values[Math.floor(n * 0.25)],
+                    med: values[Math.floor(n * 0.5)],
+                    q3: values[Math.floor(n * 0.75)]
+                };
+            }).sort((a,b) => b.total - a.total).slice(0, 5);
+            
+            const key = tipo.toLowerCase();
+            result[key] = items;
+        });
+        
+        return result;
+    }
+
+    // Datos de ejemplo cuando no hay localStorage
+    function getExampleData() {
+        return {
+            int: [
+                { act: 'Sello Montaje', total: 51273, avg: 563, q1: 463, med: 555, q3: 621 },
+                { act: 'Tinta Rasqueta Lav', total: 45721, avg: 564, q1: 323, med: 461, q3: 850 },
+                { act: 'Tinta Lavado', total: 44466, avg: 535, q1: 247, med: 525, q3: 683 },
+                { act: 'Troquel Montar', total: 42996, avg: 524, q1: 424, med: 487, q3: 600 },
+                { act: 'Troquel Desmontar', total: 27246, avg: 332, q1: 226, med: 302, q3: 416 }
+            ],
+            ext: [
+                { act: 'Sello Requerir', total: 91045, avg: 901, q1: 750, med: 888, q3: 1077 },
+                { act: 'Tinta Requerir', total: 90537, avg: 1028, q1: 825, med: 1004, q3: 1147 },
+                { act: 'Troquel Requerir', total: 85944, avg: 924, q1: 753, med: 912, q3: 1077 }
+            ],
+            nva: [
+                { act: 'Sello Limpieza', total: 55330, avg: 356, q1: 179, med: 290, q3: 449 },
+                { act: 'Maquina Centrado', total: 34840, avg: 435, q1: 305, med: 381, q3: 519 },
+                { act: 'Maquina Atasco', total: 27946, avg: 294, q1: 112, med: 187, q3: 345 },
+                { act: 'Troquel Ajuste', total: 27682, avg: 503, q1: 227, med: 414, q3: 750 },
+                { act: 'Sello Ajuste', total: 25741, avg: 525, q1: 187, med: 357, q3: 701 }
+            ]
+        };
+    }
 
     function createChart(canvasId, label, data, color) {
         new Chart(document.getElementById(canvasId), {
@@ -128,15 +184,22 @@
         document.getElementById(containerId).innerHTML = html;
     }
 
-    // Inicializar
-    createChart('chartInt', 'Internas', dataSMED.int, '#3498db');
-    createTable('tableInt', dataSMED.int);
+    // Inicializar después de cargar datos
+    function initializeCharts() {
+        if (!dataSMED) return;
+        
+        createChart('chartInt', 'Internas', dataSMED.int, '#3498db');
+        createTable('tableInt', dataSMED.int);
 
-    createChart('chartExt', 'Externas', dataSMED.ext, '#2ecc71');
-    createTable('tableExt', dataSMED.ext);
+        createChart('chartExt', 'Externas', dataSMED.ext, '#2ecc71');
+        createTable('tableExt', dataSMED.ext);
 
-    createChart('chartNva', 'Mudas', dataSMED.nva, '#e74c3c');
-    createTable('tableNva', dataSMED.nva);
+        createChart('chartNva', 'Mudas', dataSMED.nva, '#e74c3c');
+        createTable('tableNva', dataSMED.nva);
+    }
+
+    // Cargar datos al inicio
+    setTimeout(loadDataFromLocalStorage, 100);
 
     // Funciones de navegación
     function goBack() {

@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>SMED 360° - Matriz de 36 Escenarios (Six Sigma)</title>
+    <script src="../../js/sharedData.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -59,10 +60,11 @@
 </div>
 
 <div class="controls">
-    <strong>1. Cargar CSV:</strong> <input type="file" id="csvFile" accept=".csv">
-    <strong>2. Turno:</strong> 
+    <input type="file" id="csvFile" accept=".csv" style="display: none;">
+    <button onclick="document.getElementById('csvFile').click()" style="padding: 10px 16px; border-radius: 8px; border: 1px solid #ccc; background: white; cursor: pointer;">📂 CSV alternativo</button>
+    <strong>Turno:</strong>
     <select id="selTurno"><option value="T1">Turno 1</option><option value="T2">Turno 2</option><option value="T3">Turno 3</option></select>
-    <strong>3. Complejidad:</strong> 
+    <strong>Complejidad:</strong>
     <select id="selColor"><option value="1">1 Color</option><option value="2">2 Colores</option><option value="3">3 Colores</option><option value="4">4 Colores</option></select>
     <div id="status" style="font-weight:bold; color:var(--int)">Esperando datos...</div>
 </div>
@@ -73,6 +75,24 @@
     let rawStore = {}; 
     let activeCharts = [];
 
+    // Cargar datos automáticamente desde localStorage
+    function loadDataFromLocalStorage() {
+        if (typeof SMEDSharedData !== 'undefined' && SMEDSharedData.hasData()) {
+            const records = SMEDSharedData.getNormalizedRecords();
+            buildDataMatrix(records);
+            document.getElementById('status').innerHTML = `✅ ${records.length} registros | 36 Escenarios listos`;
+            document.getElementById('status').style.color = '#28a745';
+            refreshUI();
+        } else {
+            document.getElementById('status').innerHTML = '⚠️ No hay datos. Use la app o cargue CSV';
+            document.getElementById('status').style.color = '#dc3545';
+        }
+    }
+
+    // Cargar al inicio
+    setTimeout(loadDataFromLocalStorage, 100);
+
+    // Mantener funcionalidad de carga de CSV como fallback
     document.getElementById('csvFile').addEventListener('change', function(e) {
         const file = e.target.files[0];
         document.getElementById('status').innerText = "Procesando...";

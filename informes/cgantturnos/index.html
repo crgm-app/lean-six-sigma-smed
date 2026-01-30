@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>SMED crgm.app - Dashboard Final</title>
+    <script src="../../js/sharedData.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -54,20 +55,43 @@
     </div>
 </div>
 
-<div class="upload-card">
-    <h2>Cargue el Archivo CSV</h2>
-    <p>Análisis completo por turnos y tipos de actividad</p>
-    <div class="drop-zone" onclick="document.getElementById('csvFile').click()">
-        <strong>Seleccionar archivo SMED_2026...csv</strong>
-        <input type="file" id="csvFile" accept=".csv" style="display:none">
+<div class="upload-card" id="uploadCard">
+    <h2>📊 Datos Listos</h2>
+    <p>Los datos se cargan automáticamente desde la aplicación</p>
+    <div style="padding: 20px; background: #e7f5ff; border-radius: 10px; margin: 15px 0;">
+        <div id="msg" style="font-weight:bold; color: #007bff;">Cargando desde localStorage...</div>
     </div>
+    <input type="file" id="csvFile" accept=".csv" style="display:none">
+    <button onclick="document.getElementById('csvFile').click()" style="padding: 12px 24px; border-radius: 8px; border: 1px solid #007bff; background: white; color: #007bff; cursor: pointer; font-weight: bold;">
+        📂 Cargar CSV alternativo
+    </button>
     <div id="loader" class="loader"></div>
-    <div id="msg" style="margin-top:10px; font-weight:bold;"></div>
 </div>
 
 <div id="dashboard"></div>
 
 <script>
+    // Cargar datos automáticamente desde localStorage
+    function loadDataFromLocalStorage() {
+        if (typeof SMEDSharedData !== 'undefined' && SMEDSharedData.hasData()) {
+            const records = SMEDSharedData.getNormalizedRecords();
+            document.getElementById('msg').innerHTML = `✅ ${records.length} registros cargados desde la app`;
+            document.getElementById('msg').style.color = '#28a745';
+            renderDashboard(records);
+            // Ocultar card de carga después de 2 segundos
+            setTimeout(() => {
+                document.getElementById('uploadCard').style.display = 'none';
+            }, 2000);
+        } else {
+            document.getElementById('msg').innerHTML = '⚠️ No hay datos. Use la app principal o cargue un CSV';
+            document.getElementById('msg').style.color = '#dc3545';
+        }
+    }
+
+    // Cargar al inicio
+    setTimeout(loadDataFromLocalStorage, 100);
+
+    // Mantener funcionalidad de carga de CSV como fallback
     document.getElementById('csvFile').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;

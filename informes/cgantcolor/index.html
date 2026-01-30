@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>SMED 360° - Análisis por Turno y Colores</title>
+    <script src="../../js/sharedData.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -56,7 +57,8 @@
 
 <div class="controls">
     <div>
-        <strong>Paso 1:</strong> <input type="file" id="csvFile" accept=".csv">
+        <input type="file" id="csvFile" accept=".csv" style="display: none;">
+        <button onclick="document.getElementById('csvFile').click()" style="padding: 10px 16px; border-radius: 8px; border: 1px solid #ccc; background: white; cursor: pointer;">📂 CSV alternativo</button>
     </div>
     <div>
         <strong>Turno:</strong> 
@@ -75,7 +77,7 @@
             <option value="4">4 Colores</option>
         </select>
     </div>
-    <div id="status">Esperando archivo...</div>
+    <div id="status">Cargando datos...</div>
 </div>
 
 <div id="dashboard" class="grid"></div>
@@ -84,6 +86,24 @@
     let db_full = {}; // Aquí guardaremos los 36 escenarios procesados
     let charts = [];
 
+    // Cargar datos automáticamente desde localStorage
+    function loadDataFromLocalStorage() {
+        if (typeof SMEDSharedData !== 'undefined' && SMEDSharedData.hasData()) {
+            const records = SMEDSharedData.getNormalizedRecords();
+            processAll36(records);
+            document.getElementById('status').innerHTML = `✅ ${records.length} registros cargados`;
+            document.getElementById('status').style.color = '#28a745';
+            updateView();
+        } else {
+            document.getElementById('status').innerHTML = '⚠️ No hay datos. Use la app o cargue CSV';
+            document.getElementById('status').style.color = '#dc3545';
+        }
+    }
+
+    // Cargar al inicio
+    setTimeout(loadDataFromLocalStorage, 100);
+
+    // Mantener funcionalidad de carga de CSV como fallback
     document.getElementById('csvFile').addEventListener('change', function(e) {
         const file = e.target.files[0];
         document.getElementById('status').innerText = "Cargando...";
